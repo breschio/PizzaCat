@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="style.css">
+  <title>Surf Cat Game</title>
+</head>
+<body>
+  <div id="game-container">
+    <div id="header">
+      <div id="game-title" class="game-text">SURF CAT</div>
+    </div>
+    <div id="score" class="game-text">
+      <div id="score-container">
+        <span id="score-number">0</span>
+        <span id="pts-text">PTS</span>
+      </div>
+    </div>
+    <button id="start-button" class="game-text">START</button>
+    <button id="stop-button" class="game-text" style="display: none;">STOP</button>
+    <canvas id="gameCanvas"></canvas>
+  </div>
+  <audio id="fishCatchSound1" src="./assets/cat-meow-1.MP3" preload="auto"></audio>
+  <audio id="fishCatchSound2" src="./assets/cat-bite-1.MP3" preload="auto"></audio>
+  <audio id="fishCatchSound3" src="./assets/cat-meow-2.MP3" preload="auto"></audio>
+  <audio id="waveBackgroundSound" src="./assets/surf-sound-1.MP3" loop preload="auto"></audio>
+  <script src="game.js" defer></script>
+</body>
+</html>
