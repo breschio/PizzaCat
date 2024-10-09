@@ -121,25 +121,100 @@
         drawFish();
     }
 
+    const surfMoves = [
+        { name: 'Aerial', scale: 1.2, rotation: Math.PI * 2 },
+        { name: 'Cutback', scale: 1.1, rotation: Math.PI },
+        { name: 'Barrel', scale: 0.9, rotation: 0 },
+        { name: 'Floater', scale: 1.15, rotation: Math.PI / 2 },
+    ];
+
+    let currentSurfMove = null;
+    let surfMoveStartTime = 0;
+    let surfMoveProgress = 0;
+
     function updateCatPosition() {
         // Apply velocity to position
         catX += catVelocityX;
         catY += catVelocityY;
 
         // Apply deceleration
-        catVelocityX *= catDeceleration;
-        catVelocityY *= catDeceleration;
+        catVelocityX *= 0.95;
+        catVelocityY *= 0.95;
 
         // Constrain cat within canvas
-        const maxCatWidth = canvas.width * 0.1;
-        const maxCatHeight = canvas.height * 0.2;
-        catX = Math.max(0, Math.min(canvas.width - maxCatWidth, catX));
-        catY = Math.max(0, Math.min(canvas.height - maxCatHeight, catY));
+        const catWidth = isMobile ? canvas.width * 0.3 : canvas.width * 0.1;
+        const catHeight = isMobile ? canvas.height * 0.4 : canvas.height * 0.2;
+        catX = Math.max(0, Math.min(canvas.width - catWidth, catX));
+        catY = Math.max(0, Math.min(canvas.height - catHeight, catY));
+
+        // Check if cat is in the top 1/4 of the screen
+        if (catY < canvas.height * 0.25) {
+            if (!currentSurfMove) {
+                startSurfMove();
+            } else {
+                updateSurfMove();
+            }
+        } else if (currentSurfMove) {
+            endSurfMove();
+        }
     }
 
+    function startSurfMove() {
+        currentSurfMove = surfMoves[Math.floor(Math.random() * surfMoves.length)];
+        surfMoveStartTime = Date.now();
+        surfMoveProgress = 0;
+        console.log(`Starting surf move: ${currentSurfMove.name}`);
+    }
+
+    function updateSurfMove() {
+        const elapsedTime = Date.now() - surfMoveStartTime;
+        surfMoveProgress = Math.min(elapsedTime / 1000, 1); // Max 1 second for full animation
+    }
+
+    function endSurfMove() {
+        const endDuration = 500; // 0.5 seconds to return to normal
+        const endStartTime = Date.now();
+
+        function animateEnd() {
+            const elapsedTime = Date.now() - endStartTime;
+            const endProgress = Math.min(elapsedTime / endDuration, 1);
+            surfMoveProgress = 1 - endProgress;
+
+            if (endProgress < 1) {
+                requestAnimationFrame(animateEnd);
+            } else {
+                currentSurfMove = null;
+                surfMoveProgress = 0;
+            }
+        }
+
+        animateEnd();
+    }
+
+    // Add these variables
+    let isMobile = false;
+    const mobileBreakpoint = 768; // typical tablet breakpoint
+
+    // Function to check if the device is mobile
+    function checkMobile() {
+        isMobile = window.innerWidth <= mobileBreakpoint;
+    }
+
+    // Call this function initially and on window resize
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+
+    // Modify the drawCat function
     function drawCat() {
-        const maxCatWidth = canvas.width * 0.1; // 10% of canvas width
-        const maxCatHeight = canvas.height * 0.2; // 20% of canvas height
+        let maxCatWidth, maxCatHeight;
+
+        if (isMobile) {
+            maxCatWidth = canvas.width * 0.3;
+            maxCatHeight = canvas.height * 0.4;
+        } else {
+            maxCatWidth = canvas.width * 0.1;
+            maxCatHeight = canvas.height * 0.2;
+        }
         
         let catWidth = maxCatWidth;
         let catHeight = catWidth * (catImage.height / catImage.width);
@@ -149,17 +224,27 @@
             catWidth = catHeight * (catImage.width / catImage.height);
         }
         
-        ctx.save(); // Save the current context state
+        ctx.save();
+
+        ctx.translate(catX + catWidth / 2, catY + catHeight / 2);
 
         if (!catFacingRight) {
-            // If cat is facing left, flip the image horizontally
             ctx.scale(-1, 1);
-            ctx.translate(-catX - catWidth, 0);
         }
 
-        ctx.drawImage(catImage, catFacingRight ? catX : 0, catY, catWidth, catHeight);
+        // Apply surf move animations
+        if (currentSurfMove) {
+            const scale = 1 + (currentSurfMove.scale - 1) * Math.sin(surfMoveProgress * Math.PI);
+            const rotation = currentSurfMove.rotation * Math.sin(surfMoveProgress * Math.PI);
 
-        ctx.restore(); // Restore the context state
+            ctx.rotate(rotation);
+            ctx.scale(scale, scale);
+        }
+
+        ctx.translate(-catWidth / 2, -catHeight / 2);
+        ctx.drawImage(catImage, 0, 0, catWidth, catHeight);
+
+        ctx.restore();
     }
 
     // Add this near the top of your script with other initializations
@@ -182,19 +267,41 @@
         }
     }
 
+    // Modify the updateFish function to use the new cat size
     function updateFish() {
         // Add new fish randomly
         if (Math.random() < 0.02) {
-            const fishY = Math.random() * canvas.height;
-            fishArray.push({ x: canvas.width, y: fishY, size: Math.random() * 40 + 20 });
+            const minY = canvas.height * 0.25; // Start at 1/4 of the screen height
+            const maxY = canvas.height; // End at the bottom of the screen
+            const fishY = minY + Math.random() * (maxY - minY); // Random Y position in bottom 3/4
+            const fishSize = isMobile ? Math.random() * 60 + 30 : Math.random() * 40 + 20;
+            fishArray.push({ x: canvas.width, y: fishY, size: fishSize });
         }
 
-        const catWidth = canvas.width * 0.1;
-        const catHeight = catWidth * (catImage.height / catImage.width);
+        let catWidth, catHeight;
+        if (isMobile) {
+            catWidth = canvas.width * 0.3;
+            catHeight = canvas.height * 0.4;
+        } else {
+            catWidth = canvas.width * 0.1;
+            catHeight = canvas.height * 0.2;
+        }
+
+        // Adjust catHeight to maintain aspect ratio
+        if (catWidth * (catImage.height / catImage.width) < catHeight) {
+            catHeight = catWidth * (catImage.height / catImage.width);
+        } else {
+            catWidth = catHeight * (catImage.width / catImage.height);
+        }
 
         // Update fish positions
         for (let i = 0; i < fishArray.length; i++) {
             fishArray[i].x -= waveSpeed;
+
+            // Constrain fish to bottom 3/4 of the screen
+            const minY = canvas.height * 0.25;
+            const maxY = canvas.height - fishArray[i].size;
+            fishArray[i].y = Math.max(minY, Math.min(maxY, fishArray[i].y));
 
             // Check for collision with cat
             if (fishArray[i].x < catX + catWidth && fishArray[i].x + fishArray[i].size > catX &&
@@ -203,9 +310,8 @@
                 score += 10;
                 updateScore();
                 waveSpeed += 0.1;
-                playNextFishCatchSound(); // Play the next sound when a fish is caught
+                playNextFishCatchSound();
                 i--;
-                console.log("Fish caught! Score: " + score); // Debug log
             }
         }
 
@@ -265,26 +371,81 @@
         keys[e.key] = false;
     });
 
+    // Adjust these values to fine-tune touch sensitivity
+    const touchSensitivity = 0.15; // Increase this to make touch more sensitive
+    const touchMaxSpeed = 15; // Maximum speed from touch input
+
+    let touchStartX = 0;
+    let touchStartY = 0;
+    let lastTouchX = 0;
+    let lastTouchY = 0;
+
+    // Add touch event listeners
+    canvas.addEventListener('touchstart', handleTouchStart, false);
+    canvas.addEventListener('touchmove', handleTouchMove, false);
+    canvas.addEventListener('touchend', handleTouchEnd, false);
+
+    function handleTouchStart(event) {
+        event.preventDefault();
+        const touch = event.touches[0];
+        touchStartX = touch.clientX;
+        touchStartY = touch.clientY;
+        lastTouchX = touch.clientX;
+        lastTouchY = touch.clientY;
+    }
+
+    function handleTouchMove(event) {
+        event.preventDefault();
+        const touch = event.touches[0];
+
+        let dx = touch.clientX - lastTouchX;
+        let dy = touch.clientY - lastTouchY;
+
+        // Apply sensitivity
+        dx *= touchSensitivity;
+        dy *= touchSensitivity;
+
+        // Update cat velocity
+        catVelocityX += dx;
+        catVelocityY += dy;
+
+        // Limit max speed
+        const speed = Math.sqrt(catVelocityX * catVelocityX + catVelocityY * catVelocityY);
+        if (speed > touchMaxSpeed) {
+            const ratio = touchMaxSpeed / speed;
+            catVelocityX *= ratio;
+            catVelocityY *= ratio;
+        }
+
+        // Update cat facing direction
+        if (Math.abs(dx) > Math.abs(dy)) {
+            catFacingRight = dx > 0;
+        }
+
+        // Update last touch position
+        lastTouchX = touch.clientX;
+        lastTouchY = touch.clientY;
+    }
+
+    function handleTouchEnd(event) {
+        event.preventDefault();
+        // Gradually reduce velocity when touch ends
+        catVelocityX *= 0.9;
+        catVelocityY *= 0.9;
+    }
+
+    // Modify the handleInput function to work with both keyboard and touch
     function handleInput() {
         if (isGameRunning) {
-            let movingHorizontally = false;
-
             if (keys["ArrowUp"]) catVelocityY -= catAcceleration;
             if (keys["ArrowDown"]) catVelocityY += catAcceleration;
             if (keys["ArrowLeft"]) {
                 catVelocityX -= catAcceleration;
-                movingHorizontally = true;
                 catFacingRight = false;
             }
             if (keys["ArrowRight"]) {
                 catVelocityX += catAcceleration;
-                movingHorizontally = true;
                 catFacingRight = true;
-            }
-
-            // If not moving horizontally, keep the current facing direction
-            if (!movingHorizontally) {
-                catFacingRight = catVelocityX >= 0;
             }
 
             // Limit max speed
@@ -332,6 +493,42 @@
     document.addEventListener('DOMContentLoaded', () => {
         initializeGame();
     });
+
+    // Function to resize canvas and adjust game elements
+    function resizeCanvas() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        checkMobile();
+        
+        // Adjust cat position when resizing
+        if (isMobile) {
+            catY = Math.min(catY, canvas.height * 0.6); // Ensure cat doesn't go off-screen
+        }
+        
+        // You might want to adjust other game element sizes here as well
+    }
+
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas(); // Call once to set initial size
+
+    function drawSurfMoveEffect() {
+        if (currentSurfMove) {
+            ctx.save();
+            ctx.font = '24px Arial';
+            ctx.fillStyle = 'white';
+            ctx.textAlign = 'center';
+            ctx.fillText(currentSurfMove.name, canvas.width / 2, 50);
+            ctx.restore();
+        }
+    }
+
+    // Add this to your main draw function
+    function draw() {
+        // ... (other drawing code)
+        drawCat();
+        drawSurfMoveEffect();
+        // ... (rest of drawing code)
+    }
 
     // ... rest of your game code ...
 })();
