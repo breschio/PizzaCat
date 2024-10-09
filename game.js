@@ -1,4 +1,8 @@
 (function() {
+    // Add these variables at the top of your file, with other global variables
+    let isMobile = false;
+    const mobileBreakpoint = 768; // typical tablet breakpoint
+
     const canvas = document.getElementById("gameCanvas");
     const ctx = canvas.getContext("2d");
     let score = 0;
@@ -142,8 +146,8 @@
         catVelocityY *= 0.95;
 
         // Constrain cat within canvas
-        const catWidth = isMobile ? canvas.width * 0.3 : canvas.width * 0.1;
-        const catHeight = isMobile ? canvas.height * 0.4 : canvas.height * 0.2;
+        const catWidth = isMobile ? canvas.width * 0.4 : canvas.width * 0.15;
+        const catHeight = isMobile ? canvas.height * 0.5 : canvas.height * 0.3;
         catX = Math.max(0, Math.min(canvas.width - catWidth, catX));
         catY = Math.max(0, Math.min(canvas.height - catHeight, catY));
 
@@ -191,10 +195,6 @@
         animateEnd();
     }
 
-    // Add these variables
-    let isMobile = false;
-    const mobileBreakpoint = 768; // typical tablet breakpoint
-
     // Function to check if the device is mobile
     function checkMobile() {
         isMobile = window.innerWidth <= mobileBreakpoint;
@@ -209,11 +209,11 @@
         let maxCatWidth, maxCatHeight;
 
         if (isMobile) {
-            maxCatWidth = canvas.width * 0.3;
-            maxCatHeight = canvas.height * 0.4;
+            maxCatWidth = canvas.width * 0.4;  // 40% of canvas width on mobile
+            maxCatHeight = canvas.height * 0.5;  // 50% of canvas height on mobile
         } else {
-            maxCatWidth = canvas.width * 0.1;
-            maxCatHeight = canvas.height * 0.2;
+            maxCatWidth = canvas.width * 0.15;  // 15% of canvas width on desktop
+            maxCatHeight = canvas.height * 0.3;  // 30% of canvas height on desktop
         }
         
         let catWidth = maxCatWidth;
@@ -280,11 +280,11 @@
 
         let catWidth, catHeight;
         if (isMobile) {
-            catWidth = canvas.width * 0.3;
-            catHeight = canvas.height * 0.4;
+            catWidth = canvas.width * 0.4;
+            catHeight = canvas.height * 0.5;
         } else {
-            catWidth = canvas.width * 0.1;
-            catHeight = canvas.height * 0.2;
+            catWidth = canvas.width * 0.15;
+            catHeight = canvas.height * 0.3;
         }
 
         // Adjust catHeight to maintain aspect ratio
@@ -502,7 +502,7 @@
         
         // Adjust cat position when resizing
         if (isMobile) {
-            catY = Math.min(catY, canvas.height * 0.6); // Ensure cat doesn't go off-screen
+            catY = Math.min(catY, canvas.height - canvas.height * 0.5); // Ensure cat doesn't go off-screen
         }
         
         // You might want to adjust other game element sizes here as well
