@@ -530,5 +530,20 @@
         // ... (rest of drawing code)
     }
 
+    // Add this event listener near the top of your file
+    window.addEventListener('keydown', handleKeyPress);
+
+    // Add this function to handle key presses
+    function handleKeyPress(event) {
+        if (event.code === 'Space') {
+            event.preventDefault(); // Prevent scrolling when space is pressed
+            if (isGameRunning) {
+                stopGame();
+            } else {
+                startGame();
+            }
+        }
+    }
+
     // ... rest of your game code ...
 })();
