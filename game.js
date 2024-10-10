@@ -15,31 +15,57 @@
     const catAcceleration = 0.5;
     const catDeceleration = 0.9;
     let waveSpeed = 2;
-    let fishArray = [];
     let isGameRunning = false;
 
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
 
     // Load images
-    const catImage = new Image();
-    const fishImage = new Image();
+    let fishImage = new Image();
+    let catImage = new Image();
+    let loadedTrashImages = [];
 
     let imagesLoaded = 0;
     const totalImages = 2;
 
+    let catHealth = 100; // New variable for cat's health
+    const maxCatHealth = 100; // Maximum cat health
+
+    // Add this to your existing array of images to load
+    const trashImages = [
+        { src: './assets/trash-can.png', width: 30, height: 40 },
+        { src: './assets/trash-bottle.png', width: 20, height: 40 },
+        { src: './assets/trash-bag.png', width: 35, height: 35 },
+    ];
+
+    // Modify the imageLoaded function
     function imageLoaded() {
         imagesLoaded++;
-        if (imagesLoaded === totalImages) {
+        console.log(`Image loaded. Total: ${imagesLoaded}/${totalImages + trashImages.length}`); // Debug log
+        if (imagesLoaded === totalImages + trashImages.length) {
+            console.log('All images loaded. Initializing game.'); // Debug log
             initializeGame();
         }
     }
 
+    // Load cat and fish images
     catImage.onload = imageLoaded;
-    fishImage.onload = imageLoaded;
+    catImage.src = './assets/pizza-cat.png'; // Make sure this path is correct
 
-    catImage.src = "./assets/pizza-cat.png";
-    fishImage.src = "./assets/buffalo-fish.png";
+    fishImage.onload = imageLoaded;
+    fishImage.src = './assets/buffalo-fish.png'; // Make sure this path is correct
+
+    // Load trash images
+    trashImages.forEach((trashItem, index) => {
+        const img = new Image();
+        img.onload = imageLoaded;
+        img.onerror = function() {
+            console.error(`Failed to load image: ${trashItem.src}`);
+            imageLoaded(); // Still call imageLoaded to avoid blocking the game
+        };
+        img.src = trashItem.src;
+        loadedTrashImages[index] = img;
+    });
 
     let catFacingRight = true; // New variable to track cat's facing direction
 
@@ -84,8 +110,10 @@
         // Initialize game state
         isGameRunning = false;
         score = 0;
+        catHealth = maxCatHealth;
         isFirstScoreUpdate = true; // Reset this flag when initializing the game
         updateScore();
+        updateHealthBar(); // Draw the initial health bar
         
         // Initialize cat position
         catY = (canvas.height - canvas.height * 0.2) / 2;
@@ -121,8 +149,11 @@
         updateCatPosition();
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         drawCat();
-        updateFish();
-        drawFish();
+        updateGameObjects();
+        drawGameObjects();
+        drawHealthBar(); // Always draw the health bar
+        drawSurfMoveEffect();
+        debugGameObjects(); // Add this line for debugging
     }
 
     const surfMoves = [
@@ -267,15 +298,39 @@
         }
     }
 
-    // Modify the updateFish function to use the new cat size
-    function updateFish() {
-        // Add new fish randomly
+    // Modify fishArray to include both fish and trash
+    let gameObjects = [];
+
+    // Modify the updateFish function to updateGameObjects
+    function updateGameObjects() {
+        // Add new objects randomly
         if (Math.random() < 0.02) {
-            const minY = canvas.height * 0.25; // Start at 1/4 of the screen height
-            const maxY = canvas.height; // End at the bottom of the screen
-            const fishY = minY + Math.random() * (maxY - minY); // Random Y position in bottom 3/4
-            const fishSize = isMobile ? Math.random() * 60 + 30 : Math.random() * 40 + 20;
-            fishArray.push({ x: canvas.width, y: fishY, size: fishSize });
+            const minY = canvas.height * 0.25;
+            const maxY = canvas.height;
+            const objectY = minY + Math.random() * (maxY - minY);
+            const isTrash = Math.random() < 0.3; // 30% chance of spawning trash
+
+            if (isTrash) {
+                const trashIndex = Math.floor(Math.random() * trashImages.length);
+                const trashItem = trashImages[trashIndex];
+                gameObjects.push({
+                    x: canvas.width,
+                    y: objectY,
+                    width: trashItem.width,
+                    height: trashItem.height,
+                    type: 'trash',
+                    imageIndex: trashIndex
+                });
+            } else {
+                const fishSize = isMobile ? Math.random() * 60 + 30 : Math.random() * 40 + 20;
+                gameObjects.push({
+                    x: canvas.width,
+                    y: objectY,
+                    width: fishSize,
+                    height: fishSize,
+                    type: 'fish'
+                });
+            }
         }
 
         let catWidth, catHeight;
@@ -294,35 +349,81 @@
             catWidth = catHeight * (catImage.width / catImage.height);
         }
 
-        // Update fish positions
-        for (let i = 0; i < fishArray.length; i++) {
-            fishArray[i].x -= waveSpeed;
+        // Update object positions and check for collisions
+        for (let i = 0; i < gameObjects.length; i++) {
+            const obj = gameObjects[i];
+            obj.x -= waveSpeed;
 
-            // Constrain fish to bottom 3/4 of the screen
+            // Constrain objects to bottom 3/4 of the screen
             const minY = canvas.height * 0.25;
-            const maxY = canvas.height - fishArray[i].size;
-            fishArray[i].y = Math.max(minY, Math.min(maxY, fishArray[i].y));
+            const maxY = canvas.height - (obj.height || obj.size);
+            obj.y = Math.max(minY, Math.min(maxY, obj.y));
 
             // Check for collision with cat
-            if (fishArray[i].x < catX + catWidth && fishArray[i].x + fishArray[i].size > catX &&
-                fishArray[i].y < catY + catHeight && fishArray[i].y + fishArray[i].size > catY) {
-                fishArray.splice(i, 1);
-                score += 10;
-                updateScore();
-                waveSpeed += 0.1;
-                playNextFishCatchSound();
-                i--;
+            if (obj.x < catX + catWidth && obj.x + (obj.width || obj.size) > catX &&
+                obj.y < catY + catHeight && obj.y + (obj.height || obj.size) > catY) {
+                if (obj.type === 'fish') {
+                    gameObjects.splice(i, 1);
+                    score += 10;
+                    updateScore();
+                    waveSpeed += 0.1;
+                    playNextFishCatchSound();
+                    i--;
+                } else if (obj.type === 'trash') {
+                    gameObjects.splice(i, 1);
+                    catHealth = Math.max(0, catHealth - 10); // Reduce health by 10
+                    updateHealthBar();
+                    playCatMeowSound(); // Play the meow sound ONLY when hit by trash
+                    i--;
+                }
             }
         }
 
-        // Remove fish that are off-screen
-        fishArray = fishArray.filter(fish => fish.x > -fish.size);
+        // Remove objects that are off-screen
+        gameObjects = gameObjects.filter(obj => obj.x > -(obj.size || obj.width));
     }
 
-    function drawFish() {
-        for (let fish of fishArray) {
-            ctx.drawImage(fishImage, fish.x, fish.y, fish.size, fish.size);
+    // Modify the drawFish function to drawGameObjects
+    function drawGameObjects() {
+        for (let obj of gameObjects) {
+            if (obj.type === 'fish' && fishImage.complete) {
+                ctx.drawImage(fishImage, obj.x, obj.y, obj.width, obj.height);
+            } else if (obj.type === 'trash' && loadedTrashImages[obj.imageIndex] && loadedTrashImages[obj.imageIndex].complete) {
+                ctx.drawImage(loadedTrashImages[obj.imageIndex], obj.x, obj.y, obj.width, obj.height);
+            }
         }
+    }
+
+    // Modify the drawHealthBar function
+    function drawHealthBar() {
+        const barWidth = 200;
+        const barHeight = 20;
+        const x = (canvas.width - barWidth) / 2; // Center horizontally
+        const y = 20; // 20 pixels from the top
+
+        // Draw background
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+        ctx.fillRect(x, y, barWidth, barHeight);
+
+        // Draw health
+        const healthWidth = (catHealth / maxCatHealth) * barWidth;
+        ctx.fillStyle = 'rgba(0, 255, 0, 0.7)';
+        ctx.fillRect(x, y, healthWidth, barHeight);
+
+        // Draw border
+        ctx.strokeStyle = 'white';
+        ctx.strokeRect(x, y, barWidth, barHeight);
+
+        // Draw text
+        ctx.fillStyle = 'white';
+        ctx.font = '16px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText(`Health: ${catHealth}`, x + barWidth / 2, y + 15);
+    }
+
+    // Add this function to update the health bar
+    function updateHealthBar() {
+        drawHealthBar(); // Simply redraw the health bar
     }
 
     // Add this function to update the score display
@@ -466,8 +567,10 @@
         if (!isGameRunning) {
             isGameRunning = true;
             score = 0;
+            catHealth = maxCatHealth;
             isFirstScoreUpdate = true;
             updateScore();
+            updateHealthBar(); // Update the health bar when starting the game
             // Hide start button and show stop button
             document.getElementById('start-button').style.display = 'none';
             document.getElementById('stop-button').style.display = 'inline-block';
@@ -476,6 +579,7 @@
             startBackgroundWaveSound();
         }
     }
+    
 
     function stopGame() {
         if (isGameRunning) {
@@ -522,14 +626,6 @@
         }
     }
 
-    // Add this to your main draw function
-    function draw() {
-        // ... (other drawing code)
-        drawCat();
-        drawSurfMoveEffect();
-        // ... (rest of drawing code)
-    }
-
     // Add this event listener near the top of your file
     window.addEventListener('keydown', handleKeyPress);
 
@@ -543,6 +639,21 @@
                 startGame();
             }
         }
+    }
+
+    // Add this debug function
+    function debugGameObjects() {
+        console.log('Current game objects:');
+        console.log(gameObjects);
+    }
+
+    // Near the top of your file with other initializations
+    const catMeowSound = new Audio('./assets/cat-meow-2.mp3');
+
+    // Add this function to play the cat meow sound
+    function playCatMeowSound() {
+        catMeowSound.currentTime = 0; // Reset the audio to the beginning
+        catMeowSound.play().catch(e => console.error("Error playing cat meow sound:", e));
     }
 
     // ... rest of your game code ...
