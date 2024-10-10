@@ -33,9 +33,9 @@
 
     // Add this to your existing array of images to load
     const trashImages = [
-        { src: './assets/trash-can.png', width: 30, height: 40 },
-        { src: './assets/trash-bottle.png', width: 20, height: 40 },
-        { src: './assets/trash-bag.png', width: 35, height: 35 },
+        { src: './assets/trash-can.png', width: 60, height: 80 },    // Doubled from 30x40
+        { src: './assets/trash-bottle.png', width: 40, height: 80 }, // Doubled from 20x40
+        { src: './assets/trash-bag.png', width: 70, height: 70 },    // Doubled from 35x35
     ];
 
     // Modify the imageLoaded function
@@ -106,6 +106,34 @@
         waveBackgroundSound.currentTime = 0;
     }
 
+    // Adjust these constants near the top of your file
+    const INITIAL_MAX_TRASH_ITEMS = 3;
+    const MAX_POSSIBLE_TRASH_ITEMS = 10;
+    const INITIAL_TRASH_SPAWN_RATE = 0.01;
+    const MAX_TRASH_SPAWN_RATE = 0.035;
+    const TRASH_SPEED_VARIATION = 0.7;
+
+    // Add these new constants for fish
+    const INITIAL_FISH_SPAWN_RATE = 0.005;
+    const MAX_FISH_SPAWN_RATE = 0.015;
+
+    // Time (in seconds) to reach maximum difficulty
+    const TIME_TO_MAX_DIFFICULTY = 180; // 3 minutes
+
+    // Add these variables to track game progression
+    let gameTime = 0;
+    let maxTrashItems = INITIAL_MAX_TRASH_ITEMS;
+    let trashSpawnRate = INITIAL_TRASH_SPAWN_RATE;
+    let fishSpawnRate = INITIAL_FISH_SPAWN_RATE;
+
+    // Add these constants near the top of your file
+    const INITIAL_WAVE_SPEED = 2; // Starting speed
+    const MAX_WAVE_SPEED = 8; // Maximum speed
+    const TIME_TO_MAX_SPEED = 300; // Time (in seconds) to reach max speed (5 minutes)
+
+    // Add this variable to track game progression
+    waveSpeed = INITIAL_WAVE_SPEED;
+
     function initializeGame() {
         // Initialize game state
         isGameRunning = false;
@@ -128,6 +156,12 @@
 
         // Start the game loop
         requestAnimationFrame(gameLoop);
+
+        gameTime = 0;
+        maxTrashItems = INITIAL_MAX_TRASH_ITEMS;
+        trashSpawnRate = INITIAL_TRASH_SPAWN_RATE;
+        fishSpawnRate = INITIAL_FISH_SPAWN_RATE;
+        waveSpeed = INITIAL_WAVE_SPEED;
     }
 
     function drawInitialState() {
@@ -135,21 +169,25 @@
         drawCat();
     }
 
+    let lastTime = 0;
     function gameLoop(timestamp) {
+        const deltaTime = (timestamp - lastTime) / 1000; // Convert to seconds
+        lastTime = timestamp;
+
         handleInput();
         if (isGameRunning) {
-            update();
+            update(deltaTime);
         } else {
             drawInitialState();
         }
         requestAnimationFrame(gameLoop);
     }
 
-    function update() {
+    function update(deltaTime) {
         updateCatPosition();
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         drawCat();
-        updateGameObjects();
+        updateGameObjects(deltaTime);
         drawGameObjects();
         drawHealthBar(); // Always draw the health bar
         drawSurfMoveEffect();
@@ -301,34 +339,46 @@
     // Modify fishArray to include both fish and trash
     let gameObjects = [];
 
-    // Modify the updateFish function to updateGameObjects
-    function updateGameObjects() {
-        // Add new objects randomly
-        if (Math.random() < 0.02) {
-            const minY = canvas.height * 0.25;
-            const maxY = canvas.height;
-            const objectY = minY + Math.random() * (maxY - minY);
-            const isTrash = Math.random() < 0.3; // 30% chance of spawning trash
+    // Modify the updateGameObjects function
+    function updateGameObjects(deltaTime) {
+        // Update game time and difficulty
+        gameTime += deltaTime;
+        updateDifficulty();
 
-            if (isTrash) {
+        // Spawn new objects
+        if (Math.random() < trashSpawnRate + fishSpawnRate) {
+            const minY = canvas.height * 0.25;
+            const maxY = canvas.height - 50;
+            const objectY = minY + Math.random() * (maxY - minY);
+            
+            const currentTrashCount = gameObjects.filter(obj => obj.type === 'trash').length;
+            const spawnTrash = Math.random() < trashSpawnRate / (trashSpawnRate + fishSpawnRate) && currentTrashCount < maxTrashItems;
+
+            if (spawnTrash) {
+                // Spawn trash (code remains the same)
                 const trashIndex = Math.floor(Math.random() * trashImages.length);
                 const trashItem = trashImages[trashIndex];
+                const scaleFactor = Math.random() * 0.5 + 0.75;
+                const speedFactor = 1 + (Math.random() * 2 - 1) * TRASH_SPEED_VARIATION;
                 gameObjects.push({
                     x: canvas.width,
                     y: objectY,
-                    width: trashItem.width,
-                    height: trashItem.height,
+                    width: trashItem.width * scaleFactor,
+                    height: trashItem.height * scaleFactor,
                     type: 'trash',
-                    imageIndex: trashIndex
+                    imageIndex: trashIndex,
+                    speed: waveSpeed * speedFactor
                 });
             } else {
+                // Spawn a fish
                 const fishSize = isMobile ? Math.random() * 60 + 30 : Math.random() * 40 + 20;
                 gameObjects.push({
                     x: canvas.width,
                     y: objectY,
                     width: fishSize,
                     height: fishSize,
-                    type: 'fish'
+                    type: 'fish',
+                    speed: waveSpeed
                 });
             }
         }
@@ -350,40 +400,36 @@
         }
 
         // Update object positions and check for collisions
-        for (let i = 0; i < gameObjects.length; i++) {
+        for (let i = gameObjects.length - 1; i >= 0; i--) {
             const obj = gameObjects[i];
-            obj.x -= waveSpeed;
+            obj.x -= obj.speed; // Use object's individual speed
 
-            // Constrain objects to bottom 3/4 of the screen
-            const minY = canvas.height * 0.25;
-            const maxY = canvas.height - (obj.height || obj.size);
-            obj.y = Math.max(minY, Math.min(maxY, obj.y));
+            // Remove objects that are off-screen
+            if (obj.x + obj.width < 0) {
+                gameObjects.splice(i, 1);
+                continue;
+            }
 
             // Check for collision with cat
-            if (obj.x < catX + catWidth && obj.x + (obj.width || obj.size) > catX &&
-                obj.y < catY + catHeight && obj.y + (obj.height || obj.size) > catY) {
+            if (obj.x < catX + catWidth && obj.x + obj.width > catX &&
+                obj.y < catY + catHeight && obj.y + obj.height > catY) {
                 if (obj.type === 'fish') {
                     gameObjects.splice(i, 1);
                     score += 10;
                     updateScore();
-                    waveSpeed += 0.1;
+                    // Remove this line: waveSpeed += 0.1;
                     playNextFishCatchSound();
-                    i--;
                 } else if (obj.type === 'trash') {
                     gameObjects.splice(i, 1);
-                    catHealth = Math.max(0, catHealth - 10); // Reduce health by 10
+                    catHealth = Math.max(0, catHealth - 20);
                     updateHealthBar();
-                    playCatMeowSound(); // Play the meow sound ONLY when hit by trash
-                    i--;
+                    playCatMeowSound();
                 }
             }
         }
-
-        // Remove objects that are off-screen
-        gameObjects = gameObjects.filter(obj => obj.x > -(obj.size || obj.width));
     }
 
-    // Modify the drawFish function to drawGameObjects
+    // Modify the drawGameObjects function
     function drawGameObjects() {
         for (let obj of gameObjects) {
             if (obj.type === 'fish' && fishImage.complete) {
@@ -654,6 +700,37 @@
     function playCatMeowSound() {
         catMeowSound.currentTime = 0; // Reset the audio to the beginning
         catMeowSound.play().catch(e => console.error("Error playing cat meow sound:", e));
+    }
+
+    // Modify the updateDifficulty function
+    function updateDifficulty() {
+        const difficultyProgress = Math.min(gameTime / TIME_TO_MAX_DIFFICULTY, 1);
+        
+        // Use easing function for spawn rates
+        const spawnRateProgress = easeOutQuad(difficultyProgress);
+        
+        // Gradually increase maxTrashItems (linear progression)
+        maxTrashItems = Math.floor(INITIAL_MAX_TRASH_ITEMS + (MAX_POSSIBLE_TRASH_ITEMS - INITIAL_MAX_TRASH_ITEMS) * difficultyProgress);
+        
+        // Gradually increase trashSpawnRate (with easing)
+        trashSpawnRate = INITIAL_TRASH_SPAWN_RATE + (MAX_TRASH_SPAWN_RATE - INITIAL_TRASH_SPAWN_RATE) * spawnRateProgress;
+
+        // Gradually increase fishSpawnRate (with easing, but slower than trash)
+        fishSpawnRate = INITIAL_FISH_SPAWN_RATE + (MAX_FISH_SPAWN_RATE - INITIAL_FISH_SPAWN_RATE) * (spawnRateProgress * 0.5);
+
+        // Gradually increase wave speed (with different easing)
+        const speedProgress = easeInOutQuad(Math.min(gameTime / TIME_TO_MAX_SPEED, 1));
+        waveSpeed = INITIAL_WAVE_SPEED + (MAX_WAVE_SPEED - INITIAL_WAVE_SPEED) * speedProgress;
+    }
+
+    // Add this easing function for a smoother speed increase
+    function easeInOutQuad(t) {
+        return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+    }
+
+    // Add this easing function
+    function easeOutQuad(t) {
+        return t * (2 - t);
     }
 
     // ... rest of your game code ...
