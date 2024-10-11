@@ -134,6 +134,26 @@
     // Add this variable to track game progression
     waveSpeed = INITIAL_WAVE_SPEED;
 
+    // Add this variable to track game state
+    let isGameOver = false;
+
+    // Define these variables globally if they're not already defined
+    let catWidth, catHeight;
+    let leftPressed = false;
+    let rightPressed = false;
+    let upPressed = false;
+    let downPressed = false;
+
+    // Add this function to initialize cat dimensions and position
+    function initializeCat() {
+        catWidth = 100;  // Adjust as needed
+        catHeight = 100; // Adjust as needed
+        catX = canvas.width / 4;
+        catY = (canvas.height - canvas.height * 0.2) / 2;
+        targetX = catX;
+        targetY = catY;
+    }
+
     function initializeGame() {
         // Initialize game state
         isGameRunning = false;
@@ -144,8 +164,7 @@
         updateHealthBar(); // Draw the initial health bar
         
         // Initialize cat position
-        catY = (canvas.height - canvas.height * 0.2) / 2;
-        catX = canvas.width / 4; // Start cat at 1/4 of the canvas width
+        initializeCat();
         
         // Show start button initially
         document.getElementById('start-button').style.display = 'inline-block';
@@ -171,27 +190,33 @@
 
     let lastTime = 0;
     function gameLoop(timestamp) {
-        const deltaTime = (timestamp - lastTime) / 1000; // Convert to seconds
+        if (!gameLoopRunning) return;
+
+        const deltaTime = (timestamp - lastTime) / 1000;
         lastTime = timestamp;
 
-        handleInput();
-        if (isGameRunning) {
-            update(deltaTime);
+        update(deltaTime);
+        
+        if (isGameRunning || isGameOver) {
+            requestAnimationFrame(gameLoop);
         } else {
-            drawInitialState();
+            gameLoopRunning = false;
         }
-        requestAnimationFrame(gameLoop);
     }
 
     function update(deltaTime) {
+        if (!isGameRunning) return;
+
         updateCatPosition();
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        drawCat();
-        updateGameObjects(deltaTime);
-        drawGameObjects();
-        drawHealthBar(); // Always draw the health bar
-        drawSurfMoveEffect();
-        debugGameObjects(); // Add this line for debugging
+        
+        if (!isGameOver) {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            drawCat();
+            updateGameObjects(deltaTime);
+            drawGameObjects();
+            drawHealthBar();
+            drawSurfMoveEffect();
+        }
     }
 
     const surfMoves = [
@@ -205,31 +230,57 @@
     let surfMoveStartTime = 0;
     let surfMoveProgress = 0;
 
+    // Add these variables at the top of your file
+    let isTouching = false;
+    let touchX = 0;
+    let touchY = 0;
+
+    // Modify the touch event listeners
+    canvas.addEventListener('touchstart', handleTouch, { passive: false });
+    canvas.addEventListener('touchmove', handleTouch, { passive: false });
+    canvas.addEventListener('touchend', () => { isTouching = false; }, { passive: true });
+
+    function handleTouch(event) {
+        event.preventDefault();
+        isTouching = true;
+        const rect = canvas.getBoundingClientRect();
+        const touch = event.touches[0];
+        touchX = (touch.clientX - rect.left) * (canvas.width / rect.width);
+        touchY = (touch.clientY - rect.top) * (canvas.height / rect.height);
+    }
+
+    // Add these variables at the top of your file
+    let targetX = 0;
+    let targetY = 0;
+    const RESISTANCE = 0.1; // Adjust this value to change the level of resistance (0.1 = 10% movement towards target per frame)
+
     function updateCatPosition() {
-        // Apply velocity to position
-        catX += catVelocityX;
-        catY += catVelocityY;
+        if (!isGameRunning || isGameOver) return;
 
-        // Apply deceleration
-        catVelocityX *= 0.95;
-        catVelocityY *= 0.95;
+        const MOVE_SPEED = 8; // Slightly reduced from 10
 
-        // Constrain cat within canvas
-        const catWidth = isMobile ? canvas.width * 0.4 : canvas.width * 0.15;
-        const catHeight = isMobile ? canvas.height * 0.5 : canvas.height * 0.3;
-        catX = Math.max(0, Math.min(canvas.width - catWidth, catX));
-        catY = Math.max(0, Math.min(canvas.height - catHeight, catY));
-
-        // Check if cat is in the top 1/4 of the screen
-        if (catY < canvas.height * 0.25) {
-            if (!currentSurfMove) {
-                startSurfMove();
-            } else {
-                updateSurfMove();
-            }
-        } else if (currentSurfMove) {
-            endSurfMove();
+        // Update target position based on input
+        if (isTouching) {
+            targetX = touchX - catWidth / 2;
+            targetY = touchY - catHeight / 2;
+        } else {
+            if (leftPressed) targetX -= MOVE_SPEED;
+            if (rightPressed) targetX += MOVE_SPEED;
+            if (upPressed) targetY -= MOVE_SPEED;
+            if (downPressed) targetY += MOVE_SPEED;
         }
+
+        // Apply resistance/smoothing
+        catX += (targetX - catX) * RESISTANCE;
+        catY += (targetY - catY) * RESISTANCE;
+
+        // Constrain cat position within game boundaries
+        catX = Math.max(0, Math.min(canvas.width - catWidth, catX));
+        catY = Math.max(canvas.height * 0.25, Math.min(canvas.height - catHeight, catY));
+
+        // Update target position to be within boundaries as well
+        targetX = Math.max(0, Math.min(canvas.width - catWidth, targetX));
+        targetY = Math.max(canvas.height * 0.25, Math.min(canvas.height - catHeight, targetY));
     }
 
     function startSurfMove() {
@@ -341,6 +392,8 @@
 
     // Modify the updateGameObjects function
     function updateGameObjects(deltaTime) {
+        if (isGameOver) return; // Don't update if game is over
+
         // Update game time and difficulty
         gameTime += deltaTime;
         updateDifficulty();
@@ -424,6 +477,11 @@
                     catHealth = Math.max(0, catHealth - 20);
                     updateHealthBar();
                     playCatMeowSound();
+                    
+                    // Check if cat's health has reached 0
+                    if (catHealth <= 0) {
+                        endGame();
+                    }
                 }
             }
         }
@@ -609,33 +667,67 @@
     document.getElementById('start-button').addEventListener('click', startGame);
     document.getElementById('stop-button').addEventListener('click', stopGame);
 
+    // Modify the keydown event listener
+    document.addEventListener('keydown', function(event) {
+        if (event.code === 'Space') {
+            event.preventDefault(); // Prevent scrolling
+            if (!isGameRunning) {
+                startGame();
+            } else {
+                stopGame();
+            }
+            return;
+        }
+        
+        if (isGameOver || !isGameRunning) return; // Don't process movement if game is over or not running
+        
+        switch(event.code) {
+            case 'ArrowLeft':
+                leftPressed = true;
+                break;
+            case 'ArrowRight':
+                rightPressed = true;
+                break;
+            case 'ArrowUp':
+                upPressed = true;
+                break;
+            case 'ArrowDown':
+                downPressed = true;
+                break;
+        }
+    });
+
+    // Add or modify the stopGame function
+    function stopGame() {
+        isGameRunning = false;
+        // Hide stop button and show start button
+        document.getElementById('stop-button').style.display = 'none';
+        document.getElementById('start-button').style.display = 'inline-block';
+        // Any other cleanup or state reset you need to do when stopping the game
+    }
+
+    // Ensure the startGame function properly sets up the game state
     function startGame() {
         if (!isGameRunning) {
             isGameRunning = true;
+            isGameOver = false;
+            // Reset game state, score, cat position, etc.
             score = 0;
             catHealth = maxCatHealth;
-            isFirstScoreUpdate = true;
-            updateScore();
-            updateHealthBar(); // Update the health bar when starting the game
+            initializeCat();
+            gameObjects = [];
+            gameTime = 0;
+            // ... any other initializations ...
+
             // Hide start button and show stop button
             document.getElementById('start-button').style.display = 'none';
             document.getElementById('stop-button').style.display = 'inline-block';
-            
-            // Start the background wave sound
-            startBackgroundWaveSound();
-        }
-    }
-    
 
-    function stopGame() {
-        if (isGameRunning) {
-            isGameRunning = false;
-            // Hide stop button and show start button
-            document.getElementById('stop-button').style.display = 'none';
-            document.getElementById('start-button').style.display = 'inline-block';
-            
-            // Stop the background wave sound
-            stopBackgroundWaveSound();
+            // Start the game loop if it's not already running
+            if (!gameLoopRunning) {
+                gameLoopRunning = true;
+                requestAnimationFrame(gameLoop);
+            }
         }
     }
 
@@ -679,12 +771,11 @@
     function handleKeyPress(event) {
         if (event.code === 'Space') {
             event.preventDefault(); // Prevent scrolling when space is pressed
-            if (isGameRunning) {
-                stopGame();
-            } else {
+            if (isGameOver || !isGameRunning) {
                 startGame();
             }
         }
+        // ... existing key event handling for cat movement ...
     }
 
     // Add this debug function
@@ -732,6 +823,52 @@
     function easeOutQuad(t) {
         return t * (2 - t);
     }
+
+    // Add this function to handle game over
+    function endGame() {
+        isGameOver = true;
+        isGameRunning = false;
+
+        // Display "Game Over" message
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        ctx.fillStyle = 'white';
+        ctx.font = '48px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText('Game Over', canvas.width / 2, canvas.height / 2);
+        
+        ctx.font = '24px Arial';
+        ctx.fillText(`Final Score: ${score}`, canvas.width / 2, canvas.height / 2 + 50);
+        ctx.fillText('Press Space to Restart', canvas.width / 2, canvas.height / 2 + 100);
+
+        // Show start button
+        document.getElementById('start-button').style.display = 'inline-block';
+        document.getElementById('stop-button').style.display = 'none';
+
+        // Don't stop the game loop here, let it continue to show the game over screen
+    }
+
+    // Add this variable to track if the game loop is running
+    let gameLoopRunning = false;
+
+    // Add this event listener for keyup
+    document.addEventListener('keyup', function(event) {
+        switch(event.code) {
+            case 'ArrowLeft':
+                leftPressed = false;
+                break;
+            case 'ArrowRight':
+                rightPressed = false;
+                break;
+            case 'ArrowUp':
+                upPressed = false;
+                break;
+            case 'ArrowDown':
+                downPressed = false;
+                break;
+        }
+    });
 
     // ... rest of your game code ...
 })();
