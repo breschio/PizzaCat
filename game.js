@@ -286,11 +286,11 @@
 
         // Constrain cat position within game boundaries
         catX = Math.max(0, Math.min(canvas.width - catWidth, catX));
-        catY = Math.max(canvas.height * 0.2, Math.min(canvas.height - catHeight, catY));
+        catY = Math.max(0, Math.min(canvas.height - catHeight, catY)); // Allow cat to go to the very top
 
         // Update target position to be within boundaries as well
         targetX = Math.max(0, Math.min(canvas.width - catWidth, targetX));
-        targetY = Math.max(canvas.height * 0.2, Math.min(canvas.height - catHeight, targetY));
+        targetY = Math.max(0, Math.min(canvas.height - catHeight, targetY));
 
         // Automatically perform trick if cat is above the threshold
         if (catY < TRICK_THRESHOLD) {
@@ -432,6 +432,12 @@
         if (catHealth <= 0) {
             gameOver();
         }
+
+        // Update trick name display time
+        if (trickNameDisplayTime > 0) {
+            trickNameDisplayTime -= deltaTime;
+            console.log("Updating trick name display time:", trickNameDisplayTime);
+        }
     }
 
     function spawnObject() {
@@ -482,29 +488,30 @@
 
     // Modify the drawHealthBar function
     function drawHealthBar() {
-        const barWidth = 200;
-        const barHeight = 20;
-        const x = (canvas.width - barWidth) / 2; // Center horizontally
-        const y = 20; // 20 pixels from the top
-
+        const healthBarY = 10; // Position at the top of the page
+        const healthBarWidth = 300; // Increased width for better visibility
+        const healthBarHeight = 30; // Increased height
+        const healthBarX = (canvas.width - healthBarWidth) / 2; // Center horizontally
+        
         // Draw background
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
-        ctx.fillRect(x, y, barWidth, barHeight);
-
+        ctx.fillStyle = 'rgba(255, 0, 0, 0.5)'; // Semi-transparent red
+        ctx.fillRect(healthBarX, healthBarY, healthBarWidth, healthBarHeight);
+        
         // Draw health
-        const healthWidth = (catHealth / maxCatHealth) * barWidth;
-        ctx.fillStyle = 'rgba(0, 255, 0, 0.7)';
-        ctx.fillRect(x, y, healthWidth, barHeight);
-
+        const currentHealthWidth = (catHealth / maxCatHealth) * healthBarWidth;
+        ctx.fillStyle = 'rgba(0, 255, 0, 0.7)'; // Semi-transparent green
+        ctx.fillRect(healthBarX, healthBarY, currentHealthWidth, healthBarHeight);
+        
         // Draw border
         ctx.strokeStyle = 'white';
-        ctx.strokeRect(x, y, barWidth, barHeight);
-
+        ctx.lineWidth = 2;
+        ctx.strokeRect(healthBarX, healthBarY, healthBarWidth, healthBarHeight);
+        
         // Draw text
         ctx.fillStyle = 'white';
-        ctx.font = '16px Arial';
+        ctx.font = 'bold 16px Arial';
         ctx.textAlign = 'center';
-        ctx.fillText(`Health: ${catHealth}`, x + barWidth / 2, y + 15);
+        ctx.fillText(`Health: ${catHealth} / ${maxCatHealth}`, canvas.width / 2, healthBarY + healthBarHeight + 20);
     }
 
     // Add this function to update the health bar
@@ -658,7 +665,7 @@
             if (!isGameRunning) {
                 startGame();
             } else if (!isGameOver) {
-                stopGame();
+                performTrick(); // Call performTrick here
             }
         }
         
@@ -849,20 +856,27 @@
     const TRICK_DURATION = 1000; // 1 second for each trick
     let lastTrickTime = 0;
     const TRICK_COOLDOWN = 2000; // 2 seconds cooldown between tricks
-    const TRICK_THRESHOLD = canvas.height * 0.75; // 3/4 of the wave height
+    const TRICK_THRESHOLD = canvas.height * 0.25; // Top 1/4 of the page
 
     function performTrick() {
         const currentTime = Date.now();
         if (!isTrickActive && 
-            (lastTrickTime === 0 || currentTime - lastTrickTime > TRICK_COOLDOWN) && 
+            currentTime - lastTrickTime > TRICK_COOLDOWN && 
             isGameRunning && 
             !isGameOver && 
-            catY < TRICK_THRESHOLD) {
+            catY + catHeight < TRICK_THRESHOLD) {
             isTrickActive = true;
             trickTimer = TRICK_DURATION;
             lastTrickTime = currentTime;
-            score += 5; // Increase score for performing a trick
+            score += 5;
             updateScore();
+            
+            // Set a random trick name
+            const trickNames = ['Tail Spin', 'Paw Flip', 'Whisker Twist', 'Furry 360', 'Meow Spin'];
+            currentTrickName = trickNames[Math.floor(Math.random() * trickNames.length)];
+            trickNameDisplayTime = TRICK_NAME_DISPLAY_DURATION;
+            
+            console.log("Trick performed:", currentTrickName, "Display time set to:", trickNameDisplayTime);
         }
     }
 
@@ -889,4 +903,70 @@
 
     // Call this function when the page loads
     window.addEventListener('load', loadAudio);
+
+    function draw() {
+        // Clear the canvas
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // Draw background
+        drawBackground();
+
+        // Draw game objects
+        drawGameObjects();
+
+        // Draw cat
+        drawCat();
+
+        // Draw UI elements
+        drawHealthBar();
+        drawScore();
+
+        // Draw trick name last
+        drawTrickName();
+    }
+
+    let currentTrickName = '';
+    let trickNameDisplayTime = 0;
+    const TRICK_NAME_DISPLAY_DURATION = 2000; // Display for 2 seconds
+
+    function drawTrickName() {
+        if (trickNameDisplayTime > 0) {
+            ctx.save(); // Save the current context state
+            ctx.font = 'bold 36px Arial'; // Increase font size
+            ctx.fillStyle = 'yellow';
+            ctx.strokeStyle = 'black'; // Add a stroke for better visibility
+            ctx.lineWidth = 3;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            const text = currentTrickName;
+            const x = canvas.width / 2;
+            const y = canvas.height / 2; // Center of the screen
+            ctx.strokeText(text, x, y); // Draw the stroke
+            ctx.fillText(text, x, y); // Draw the fill
+            ctx.restore(); // Restore the context state
+            console.log("Drew trick name:", currentTrickName, "at", x, y);
+        }
+    }
+
+    function drawScore() {
+        ctx.fillStyle = 'white';
+        ctx.font = 'bold 20px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText(`Score: ${score}`, canvas.width / 2, 80); // Position below health bar
+    }
+
+    function drawDebugInfo() {
+        ctx.font = '14px Arial';
+        ctx.fillStyle = 'white';
+        ctx.textAlign = 'left';
+        ctx.fillText(`Current Trick: ${currentTrickName}`, 10, canvas.height - 60);
+        ctx.fillText(`Trick Display Time: ${trickNameDisplayTime.toFixed(2)}`, 10, canvas.height - 40);
+        ctx.fillText(`Cat Y: ${catY.toFixed(2)}, Threshold: ${TRICK_THRESHOLD.toFixed(2)}`, 10, canvas.height - 20);
+    }
+
+    // Add this to your draw function
+    function draw() {
+        // ... other drawing code ...
+        drawDebugInfo();
+    }
 })();
