@@ -14,7 +14,7 @@
     const catMaxSpeed = 10;
     const catAcceleration = 0.5;
     const catDeceleration = 0.9;
-    let waveSpeed = 2;
+    let waveSpeed = 100; // Adjust this value to set the base speed of objects
     let isGameRunning = false;
 
     canvas.width = window.innerWidth;
@@ -144,14 +144,15 @@
     let upPressed = false;
     let downPressed = false;
 
-    // Add this function to initialize cat dimensions and position
+    // Adjust these values to make the cat slightly smaller
+    const CAT_WIDTH = 200;  // Reduced from 250 to 200
+    const CAT_HEIGHT = 200; // Reduced from 250 to 200
+
     function initializeCat() {
-        catWidth = 100;  // Adjust as needed
-        catHeight = 100; // Adjust as needed
-        catX = canvas.width / 4;
-        catY = (canvas.height - canvas.height * 0.2) / 2;
-        targetX = catX;
-        targetY = catY;
+        catWidth = CAT_WIDTH;
+        catHeight = CAT_HEIGHT;
+        catX = canvas.width / 5; // Adjust initial position
+        catY = (canvas.height - catHeight) / 2; // Center vertically
     }
 
     function initializeGame() {
@@ -240,6 +241,8 @@
     canvas.addEventListener('touchmove', handleTouch, { passive: false });
     canvas.addEventListener('touchend', () => { isTouching = false; }, { passive: true });
 
+    let lastTapTime = 0;
+
     function handleTouch(event) {
         event.preventDefault();
         isTouching = true;
@@ -247,6 +250,13 @@
         const touch = event.touches[0];
         touchX = (touch.clientX - rect.left) * (canvas.width / rect.width);
         touchY = (touch.clientY - rect.top) * (canvas.height / rect.height);
+
+        // Detect double tap for trick
+        const currentTime = Date.now();
+        if (currentTime - lastTapTime < 300) { // 300ms between taps
+            performTrick();
+        }
+        lastTapTime = currentTime;
     }
 
     // Add these variables at the top of your file
@@ -257,7 +267,7 @@
     function updateCatPosition() {
         if (!isGameRunning || isGameOver) return;
 
-        const MOVE_SPEED = 8; // Slightly reduced from 10
+        const MOVE_SPEED = 8;
 
         // Update target position based on input
         if (isTouching) {
@@ -276,11 +286,24 @@
 
         // Constrain cat position within game boundaries
         catX = Math.max(0, Math.min(canvas.width - catWidth, catX));
-        catY = Math.max(canvas.height * 0.25, Math.min(canvas.height - catHeight, catY));
+        catY = Math.max(canvas.height * 0.2, Math.min(canvas.height - catHeight, catY));
 
         // Update target position to be within boundaries as well
         targetX = Math.max(0, Math.min(canvas.width - catWidth, targetX));
-        targetY = Math.max(canvas.height * 0.25, Math.min(canvas.height - catHeight, targetY));
+        targetY = Math.max(canvas.height * 0.2, Math.min(canvas.height - catHeight, targetY));
+
+        // Automatically perform trick if cat is above the threshold
+        if (catY < TRICK_THRESHOLD) {
+            performTrick();
+        }
+
+        // Update trick timer
+        if (isTrickActive) {
+            trickTimer -= 16; // Assuming 60 FPS
+            if (trickTimer <= 0) {
+                isTrickActive = false;
+            }
+        }
     }
 
     function startSurfMove() {
@@ -324,46 +347,17 @@
     checkMobile();
     window.addEventListener('resize', checkMobile);
 
-    // Modify the drawCat function
+    const DEBUG_MODE = false; // Set this to true when you want to see the trick threshold
+
     function drawCat() {
-        let maxCatWidth, maxCatHeight;
-
-        if (isMobile) {
-            maxCatWidth = canvas.width * 0.4;  // 40% of canvas width on mobile
-            maxCatHeight = canvas.height * 0.5;  // 50% of canvas height on mobile
-        } else {
-            maxCatWidth = canvas.width * 0.15;  // 15% of canvas width on desktop
-            maxCatHeight = canvas.height * 0.3;  // 30% of canvas height on desktop
-        }
-        
-        let catWidth = maxCatWidth;
-        let catHeight = catWidth * (catImage.height / catImage.width);
-        
-        if (catHeight > maxCatHeight) {
-            catHeight = maxCatHeight;
-            catWidth = catHeight * (catImage.width / catImage.height);
-        }
-        
         ctx.save();
-
-        ctx.translate(catX + catWidth / 2, catY + catHeight / 2);
-
-        if (!catFacingRight) {
-            ctx.scale(-1, 1);
+        if (isTrickActive) {
+            ctx.translate(catX + catWidth / 2, catY + catHeight / 2);
+            ctx.rotate((TRICK_DURATION - trickTimer) / TRICK_DURATION * Math.PI * 2);
+            ctx.drawImage(catImage, -catWidth / 2, -catHeight / 2, catWidth, catHeight);
+        } else {
+            ctx.drawImage(catImage, catX, catY, catWidth, catHeight);
         }
-
-        // Apply surf move animations
-        if (currentSurfMove) {
-            const scale = 1 + (currentSurfMove.scale - 1) * Math.sin(surfMoveProgress * Math.PI);
-            const rotation = currentSurfMove.rotation * Math.sin(surfMoveProgress * Math.PI);
-
-            ctx.rotate(rotation);
-            ctx.scale(scale, scale);
-        }
-
-        ctx.translate(-catWidth / 2, -catHeight / 2);
-        ctx.drawImage(catImage, 0, 0, catWidth, catHeight);
-
         ctx.restore();
     }
 
@@ -392,70 +386,16 @@
 
     // Modify the updateGameObjects function
     function updateGameObjects(deltaTime) {
-        if (isGameOver) return; // Don't update if game is over
-
-        // Update game time and difficulty
-        gameTime += deltaTime;
-        updateDifficulty();
-
         // Spawn new objects
         if (Math.random() < trashSpawnRate + fishSpawnRate) {
-            const minY = canvas.height * 0.25;
-            const maxY = canvas.height - 50;
-            const objectY = minY + Math.random() * (maxY - minY);
-            
-            const currentTrashCount = gameObjects.filter(obj => obj.type === 'trash').length;
-            const spawnTrash = Math.random() < trashSpawnRate / (trashSpawnRate + fishSpawnRate) && currentTrashCount < maxTrashItems;
-
-            if (spawnTrash) {
-                // Spawn trash (code remains the same)
-                const trashIndex = Math.floor(Math.random() * trashImages.length);
-                const trashItem = trashImages[trashIndex];
-                const scaleFactor = Math.random() * 0.5 + 0.75;
-                const speedFactor = 1 + (Math.random() * 2 - 1) * TRASH_SPEED_VARIATION;
-                gameObjects.push({
-                    x: canvas.width,
-                    y: objectY,
-                    width: trashItem.width * scaleFactor,
-                    height: trashItem.height * scaleFactor,
-                    type: 'trash',
-                    imageIndex: trashIndex,
-                    speed: waveSpeed * speedFactor
-                });
-            } else {
-                // Spawn a fish
-                const fishSize = isMobile ? Math.random() * 60 + 30 : Math.random() * 40 + 20;
-                gameObjects.push({
-                    x: canvas.width,
-                    y: objectY,
-                    width: fishSize,
-                    height: fishSize,
-                    type: 'fish',
-                    speed: waveSpeed
-                });
-            }
+            spawnObject();
         }
 
-        let catWidth, catHeight;
-        if (isMobile) {
-            catWidth = canvas.width * 0.4;
-            catHeight = canvas.height * 0.5;
-        } else {
-            catWidth = canvas.width * 0.15;
-            catHeight = canvas.height * 0.3;
-        }
-
-        // Adjust catHeight to maintain aspect ratio
-        if (catWidth * (catImage.height / catImage.width) < catHeight) {
-            catHeight = catWidth * (catImage.height / catImage.width);
-        } else {
-            catWidth = catHeight * (catImage.width / catImage.height);
-        }
-
-        // Update object positions and check for collisions
         for (let i = gameObjects.length - 1; i >= 0; i--) {
             const obj = gameObjects[i];
-            obj.x -= obj.speed; // Use object's individual speed
+            
+            // Move the object
+            obj.x -= obj.speed * deltaTime;
 
             // Remove objects that are off-screen
             if (obj.x + obj.width < 0) {
@@ -463,27 +403,69 @@
                 continue;
             }
 
-            // Check for collision with cat
-            if (obj.x < catX + catWidth && obj.x + obj.width > catX &&
-                obj.y < catY + catHeight && obj.y + obj.height > catY) {
+            // Collision detection
+            const catCenterX = catX + catWidth / 2;
+            const catCenterY = catY + catHeight / 2;
+            const objCenterX = obj.x + obj.width / 2;
+            const objCenterY = obj.y + obj.height / 2;
+
+            const distanceX = Math.abs(catCenterX - objCenterX);
+            const distanceY = Math.abs(catCenterY - objCenterY);
+
+            if (distanceX < (catWidth + obj.width) / 2 * 0.8 &&
+                distanceY < (catHeight + obj.height) / 2 * 0.8) {
                 if (obj.type === 'fish') {
                     gameObjects.splice(i, 1);
                     score += 10;
                     updateScore();
-                    // Remove this line: waveSpeed += 0.1;
                     playNextFishCatchSound();
                 } else if (obj.type === 'trash') {
                     gameObjects.splice(i, 1);
                     catHealth = Math.max(0, catHealth - 20);
                     updateHealthBar();
                     playCatMeowSound();
-                    
-                    // Check if cat's health has reached 0
-                    if (catHealth <= 0) {
-                        endGame();
-                    }
                 }
             }
+        }
+
+        // Check for game over condition
+        if (catHealth <= 0) {
+            gameOver();
+        }
+    }
+
+    function spawnObject() {
+        const minY = canvas.height * 0.25;
+        const maxY = canvas.height - 50;
+        const objectY = minY + Math.random() * (maxY - minY);
+        
+        const canSpawnTrash = gameObjects.filter(obj => obj.type === 'trash').length < maxTrashItems && Math.random() < trashSpawnRate / (trashSpawnRate + fishSpawnRate);
+
+        if (canSpawnTrash) {
+            const trashIndex = Math.floor(Math.random() * trashImages.length);
+            const trashItem = trashImages[trashIndex];
+            const scaleFactor = Math.random() * 0.3 + 0.5;
+            const trashWidth = trashItem.width * scaleFactor;
+            const trashHeight = trashItem.height * scaleFactor;
+            gameObjects.push({
+                x: canvas.width,
+                y: objectY,
+                width: trashWidth,
+                height: trashHeight,
+                type: 'trash',
+                imageIndex: trashIndex,
+                speed: 100 + Math.random() * 50 // Adjust this speed as needed
+            });
+        } else {
+            const fishSize = Math.random() * 40 + 20;
+            gameObjects.push({
+                x: canvas.width,
+                y: objectY,
+                width: fishSize,
+                height: fishSize,
+                type: 'fish',
+                speed: 150 + Math.random() * 100 // Adjust this speed as needed
+            });
         }
     }
 
@@ -667,46 +649,39 @@
     document.getElementById('start-button').addEventListener('click', startGame);
     document.getElementById('stop-button').addEventListener('click', stopGame);
 
-    // Modify the keydown event listener
-    document.addEventListener('keydown', function(event) {
+    // Add this event listener near the top of your file, or where you have other event listeners
+    document.addEventListener('keydown', handleKeyDown);
+
+    function handleKeyDown(event) {
         if (event.code === 'Space') {
             event.preventDefault(); // Prevent scrolling
             if (!isGameRunning) {
                 startGame();
-            } else {
+            } else if (!isGameOver) {
                 stopGame();
             }
-            return;
         }
         
-        if (isGameOver || !isGameRunning) return; // Don't process movement if game is over or not running
-        
-        switch(event.code) {
-            case 'ArrowLeft':
-                leftPressed = true;
-                break;
-            case 'ArrowRight':
-                rightPressed = true;
-                break;
-            case 'ArrowUp':
-                upPressed = true;
-                break;
-            case 'ArrowDown':
-                downPressed = true;
-                break;
+        // Keep your existing key handling for game controls here
+        if (isGameRunning && !isGameOver) {
+            switch(event.code) {
+                case 'ArrowLeft':
+                    leftPressed = true;
+                    break;
+                case 'ArrowRight':
+                    rightPressed = true;
+                    break;
+                case 'ArrowUp':
+                    upPressed = true;
+                    break;
+                case 'ArrowDown':
+                    downPressed = true;
+                    break;
+            }
         }
-    });
-
-    // Add or modify the stopGame function
-    function stopGame() {
-        isGameRunning = false;
-        // Hide stop button and show start button
-        document.getElementById('stop-button').style.display = 'none';
-        document.getElementById('start-button').style.display = 'inline-block';
-        // Any other cleanup or state reset you need to do when stopping the game
     }
 
-    // Ensure the startGame function properly sets up the game state
+    // Make sure your startGame function looks like this:
     function startGame() {
         if (!isGameRunning) {
             isGameRunning = true;
@@ -719,6 +694,11 @@
             gameTime = 0;
             // ... any other initializations ...
 
+            if (waveSoundAudio) {
+                waveSoundAudio.currentTime = 0;
+                waveSoundAudio.play().catch(error => console.error("Audio play failed:", error));
+            }
+
             // Hide start button and show stop button
             document.getElementById('start-button').style.display = 'none';
             document.getElementById('stop-button').style.display = 'inline-block';
@@ -729,6 +709,20 @@
                 requestAnimationFrame(gameLoop);
             }
         }
+    }
+
+    // And your stopGame function:
+    function stopGame() {
+        isGameRunning = false;
+        // Hide stop button and show start button
+        document.getElementById('stop-button').style.display = 'none';
+        document.getElementById('start-button').style.display = 'inline-block';
+        
+        if (waveSoundAudio) {
+            waveSoundAudio.pause();
+        }
+
+        // Any other cleanup or state reset you need to do when stopping the game
     }
 
     // Initialize the game when the DOM is fully loaded
@@ -762,20 +756,6 @@
             ctx.fillText(currentSurfMove.name, canvas.width / 2, 50);
             ctx.restore();
         }
-    }
-
-    // Add this event listener near the top of your file
-    window.addEventListener('keydown', handleKeyPress);
-
-    // Add this function to handle key presses
-    function handleKeyPress(event) {
-        if (event.code === 'Space') {
-            event.preventDefault(); // Prevent scrolling when space is pressed
-            if (isGameOver || !isGameRunning) {
-                startGame();
-            }
-        }
-        // ... existing key event handling for cat movement ...
     }
 
     // Add this debug function
@@ -825,28 +805,22 @@
     }
 
     // Add this function to handle game over
-    function endGame() {
+    function gameOver() {
         isGameOver = true;
         isGameRunning = false;
 
-        // Display "Game Over" message
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        
-        ctx.fillStyle = 'white';
-        ctx.font = '48px Arial';
-        ctx.textAlign = 'center';
-        ctx.fillText('Game Over', canvas.width / 2, canvas.height / 2);
-        
-        ctx.font = '24px Arial';
-        ctx.fillText(`Final Score: ${score}`, canvas.width / 2, canvas.height / 2 + 50);
-        ctx.fillText('Press Space to Restart', canvas.width / 2, canvas.height / 2 + 100);
+        // Stop the wave sound
+        if (waveSoundAudio) {
+            waveSoundAudio.pause();
+            console.log("Wave sound stopped (game over)");
+        }
 
-        // Show start button
+        // Display game over message, final score, etc.
+        // ...
+
+        // Show start button to allow restarting
         document.getElementById('start-button').style.display = 'inline-block';
         document.getElementById('stop-button').style.display = 'none';
-
-        // Don't stop the game loop here, let it continue to show the game over screen
     }
 
     // Add this variable to track if the game loop is running
@@ -870,5 +844,49 @@
         }
     });
 
+    let isTrickActive = false;
+    let trickTimer = 0;
+    const TRICK_DURATION = 1000; // 1 second for each trick
+    let lastTrickTime = 0;
+    const TRICK_COOLDOWN = 2000; // 2 seconds cooldown between tricks
+    const TRICK_THRESHOLD = canvas.height * 0.75; // 3/4 of the wave height
+
+    function performTrick() {
+        const currentTime = Date.now();
+        if (!isTrickActive && 
+            (lastTrickTime === 0 || currentTime - lastTrickTime > TRICK_COOLDOWN) && 
+            isGameRunning && 
+            !isGameOver && 
+            catY < TRICK_THRESHOLD) {
+            isTrickActive = true;
+            trickTimer = TRICK_DURATION;
+            lastTrickTime = currentTime;
+            score += 5; // Increase score for performing a trick
+            updateScore();
+        }
+    }
+
     // ... rest of your game code ...
+
+    // Audio elements
+    let waveSoundAudio;
+
+    // Load audio files
+    function loadAudio() {
+        waveSoundAudio = new Audio('./assets/surf-sound-1.mp3');
+        waveSoundAudio.loop = true;
+        waveSoundAudio.volume = 0.5; // Set volume to 50%, adjust as needed
+        console.log("Attempting to load wave sound");
+        
+        waveSoundAudio.addEventListener('canplaythrough', () => {
+            console.log("Wave sound loaded successfully");
+        });
+        
+        waveSoundAudio.addEventListener('error', (e) => {
+            console.error("Error loading wave sound:", e);
+        });
+    }
+
+    // Call this function when the page loads
+    window.addEventListener('load', loadAudio);
 })();
