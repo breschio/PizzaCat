@@ -361,11 +361,16 @@
         ctx.restore();
     }
 
+    // Near the top of the file, update these audio elements
+    const fishCatchSound1 = new Audio('./assets/cat-meow-1.MP3');
+    const fishCatchSound2 = new Audio('./assets/cat-bite-1.MP3');
+    const fishCatchSound3 = new Audio('./assets/cat-meow-2.MP3');
+
     // Add this near the top of your script with other initializations
     const fishCatchSounds = [
-        document.getElementById('fishCatchSound1'),
-        document.getElementById('fishCatchSound2'),
-        document.getElementById('fishCatchSound3')
+        fishCatchSound1,
+        fishCatchSound2,
+        fishCatchSound3
     ];
     let currentSoundIndex = 0;
 
@@ -784,7 +789,7 @@
     }
 
     // Near the top of your file with other initializations
-    const catMeowSound = new Audio('./assets/cat-meow-2.mp3');
+    const catMeowSound = new Audio('./assets/cat-meow-2.MP3');
 
     // Add this function to play the cat meow sound
     function playCatMeowSound() {
@@ -899,7 +904,7 @@
 
     // Load audio files
     function loadAudio() {
-        waveSoundAudio = new Audio('./assets/surf-sound-1.mp3');
+        waveSoundAudio = new Audio('./assets/surf-sound-1.MP3');
         waveSoundAudio.loop = true;
         waveSoundAudio.volume = 0.5; // Set volume to 50%, adjust as needed
         console.log("Attempting to load wave sound");
