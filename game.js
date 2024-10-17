@@ -417,15 +417,27 @@
                 if (obj.type === 'fish') {
                     gameObjects.splice(i, 1);
                     score += 10;
+                    // Increase cat's health when catching a fish
+                    catHealth = Math.min(maxCatHealth, catHealth + 10); // Increase by 10, cap at maxCatHealth
                     updateScore();
+                    updateHealthBar(); // Update the health bar display
                     playNextFishCatchSound();
                 } else if (obj.type === 'trash') {
                     gameObjects.splice(i, 1);
                     catHealth = Math.max(0, catHealth - 20);
                     updateHealthBar();
                     playCatMeowSound();
+                    
+                    // Trigger flash effect
+                    isFlashing = true;
+                    flashStartTime = Date.now();
                 }
             }
+        }
+
+        // Update flash effect
+        if (isFlashing && Date.now() - flashStartTime > flashDuration) {
+            isFlashing = false;
         }
 
         // Check for game over condition
@@ -917,12 +929,16 @@
         // Draw cat
         drawCat();
 
+        // Draw flash overlay
+        drawFlashOverlay();
+
         // Draw UI elements
         drawHealthBar();
         drawScore();
-
-        // Draw trick name last
         drawTrickName();
+
+        // Draw debug info if needed
+        drawDebugInfo();
     }
 
     let currentTrickName = '';
@@ -968,5 +984,18 @@
     function draw() {
         // ... other drawing code ...
         drawDebugInfo();
+    }
+
+    let isFlashing = false;
+    let flashDuration = 500; // Duration of the flash in milliseconds
+    let flashStartTime = 0;
+
+    function drawFlashOverlay() {
+        if (isFlashing) {
+            ctx.save();
+            ctx.fillStyle = 'rgba(255, 0, 0, 0.35)'; // Red with 35% opacity
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.restore();
+        }
     }
 })();
