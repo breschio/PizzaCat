@@ -11,9 +11,9 @@
     let catY = 0;
     let catVelocityX = 0;
     let catVelocityY = 0;
-    const catMaxSpeed = 10;
-    const catAcceleration = 0.5;
-    const catDeceleration = 0.9;
+    const catMaxSpeed = 15; // Increased from 10
+    const catAcceleration = 0.8; // Increased from 0.5
+    const catDeceleration = 0.95; // Slightly increased from 0.9 for smoother deceleration
     let waveSpeed = 100; // Adjust this value to set the base speed of objects
     let isGameRunning = false;
 
@@ -265,45 +265,29 @@
     const RESISTANCE = 0.1; // Adjust this value to change the level of resistance (0.1 = 10% movement towards target per frame)
 
     function updateCatPosition() {
-        if (!isGameRunning || isGameOver) return;
-
-        const MOVE_SPEED = 8;
-
-        // Update target position based on input
-        if (isTouching) {
-            targetX = touchX - catWidth / 2;
-            targetY = touchY - catHeight / 2;
-        } else {
-            if (leftPressed) targetX -= MOVE_SPEED;
-            if (rightPressed) targetX += MOVE_SPEED;
-            if (upPressed) targetY -= MOVE_SPEED;
-            if (downPressed) targetY += MOVE_SPEED;
+        // Update cat velocity based on key presses
+        if (keys.ArrowLeft) {
+            catVelocityX = Math.max(catVelocityX - catAcceleration, -catMaxSpeed);
+            catFacingRight = false;
         }
+        if (keys.ArrowRight) {
+            catVelocityX = Math.min(catVelocityX + catAcceleration, catMaxSpeed);
+            catFacingRight = true;
+        }
+        if (keys.ArrowUp) catVelocityY = Math.max(catVelocityY - catAcceleration, -catMaxSpeed);
+        if (keys.ArrowDown) catVelocityY = Math.min(catVelocityY + catAcceleration, catMaxSpeed);
 
-        // Apply resistance/smoothing
-        catX += (targetX - catX) * RESISTANCE;
-        catY += (targetY - catY) * RESISTANCE;
+        // Update cat position
+        catX += catVelocityX;
+        catY += catVelocityY;
 
-        // Constrain cat position within game boundaries
+        // Apply deceleration
+        catVelocityX *= catDeceleration;
+        catVelocityY *= catDeceleration;
+
+        // Keep the cat within the canvas bounds
         catX = Math.max(0, Math.min(canvas.width - catWidth, catX));
-        catY = Math.max(0, Math.min(canvas.height - catHeight, catY)); // Allow cat to go to the very top
-
-        // Update target position to be within boundaries as well
-        targetX = Math.max(0, Math.min(canvas.width - catWidth, targetX));
-        targetY = Math.max(0, Math.min(canvas.height - catHeight, targetY));
-
-        // Automatically perform trick if cat is above the threshold
-        if (catY < TRICK_THRESHOLD) {
-            performTrick();
-        }
-
-        // Update trick timer
-        if (isTrickActive) {
-            trickTimer -= 16; // Assuming 60 FPS
-            if (trickTimer <= 0) {
-                isTrickActive = false;
-            }
-        }
+        catY = Math.max(0, Math.min(canvas.height - catHeight, catY));
     }
 
     function startSurfMove() {
@@ -350,15 +334,16 @@
     const DEBUG_MODE = false; // Set this to true when you want to see the trick threshold
 
     function drawCat() {
-        ctx.save();
-        if (isTrickActive) {
-            ctx.translate(catX + catWidth / 2, catY + catHeight / 2);
-            ctx.rotate((TRICK_DURATION - trickTimer) / TRICK_DURATION * Math.PI * 2);
-            ctx.drawImage(catImage, -catWidth / 2, -catHeight / 2, catWidth, catHeight);
+        ctx.save(); // Save the current state of the context
+        if (!catFacingRight) {
+            // If cat is facing left, flip the image horizontally
+            ctx.scale(-1, 1);
+            ctx.drawImage(catImage, -catX - catWidth, catY, catWidth, catHeight);
         } else {
+            // If cat is facing right, draw normally
             ctx.drawImage(catImage, catX, catY, catWidth, catHeight);
         }
-        ctx.restore();
+        ctx.restore(); // Restore the context state
     }
 
     // Near the top of the file, update these audio elements
