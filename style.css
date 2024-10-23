@@ -35,9 +35,9 @@ body {
 }
 
 .game-text {
-    font-family: 'Arial', sans-serif;
+    font-family: 'Silkscreen', Impact, Haettenschweiler, 'Arial Narrow Bold', sans-serif;
     font-size: 24px;
-    font-weight: bold;
+    font-weight: normal;
     color: white;
     text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
 }
@@ -189,3 +189,37 @@ body {
 #leaderboard-screen button:hover {
     background-color: #FF6B6B;
 }
+
+/* Apply Silkscreen font to all elements */
+* {
+    font-family: 'Silkscreen', cursive;
+}
+
+/* If you want to apply it more specifically, you can target individual elements or classes */
+body, button, #game-title, #score, .game-text {
+    font-family: 'Silkscreen', Impact, Haettenschweiler, 'Arial Narrow Bold', sans-serif;
+}
+
+/* Adjust font weights if needed */
+#game-title {
+    font-weight: 400; /* Bold */
+}
+
+#score, button {
+    font-weight: 400; /* Regular */
+}
+
+/* You might need to adjust font sizes to accommodate the new font */
+#game-title {
+    font-size: 36px; /* Adjust as needed */
+}
+
+#score {
+    font-size: 24px; /* Adjust as needed */
+}
+
+button {
+    font-size: 18px; /* Adjust as needed */
+}
+
+/* Add any other specific styles you need */

@@ -191,11 +191,11 @@
         // Draw the cat at its starting position
         drawCat();
 
-        // Draw the initial score
-        drawScore();
-
         // Draw the initial health bar
         drawHealthBar();
+
+        // Remove the call to drawScore() or any function that draws the score
+        // drawScore();  // Comment out or remove this line
 
         // Any other initial game elements you want to draw
     }
@@ -526,7 +526,7 @@
         ctx.fillStyle = 'white';
         ctx.font = 'bold 16px Arial';
         ctx.textAlign = 'center';
-        ctx.fillText(`Health: ${catHealth} / ${maxCatHealth}`, canvas.width / 2, healthBarY + healthBarHeight + 20);
+        ctx.fillText(`Health: ${Math.round(catHealth)}/${maxCatHealth}`, canvas.width / 2, healthBarY + healthBarHeight + 20);
     }
 
     // Add this function to update the health bar
@@ -1093,11 +1093,11 @@
         // Draw the cat at its starting position
         drawCat();
 
-        // Draw the initial score
-        drawScore();
-
         // Draw the initial health bar
         drawHealthBar();
+
+        // Remove the call to drawScore() or any function that draws the score
+        // drawScore();  // Comment out or remove this line
 
         // Any other initial game elements you want to draw
     }
@@ -1109,4 +1109,9 @@
 
         // You can add more complex background drawing here if needed
     }
+
+    document.fonts.ready.then(() => {
+        // Initialize your game here, or redraw if it's already initialized
+        drawHealthBar();
+    });
 })();
