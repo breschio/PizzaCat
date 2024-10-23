@@ -185,8 +185,19 @@
     }
 
     function drawInitialState() {
+        // Clear the canvas
         ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // Draw the cat at its starting position
         drawCat();
+
+        // Draw the initial score
+        drawScore();
+
+        // Draw the initial health bar
+        drawHealthBar();
+
+        // Any other initial game elements you want to draw
     }
 
     let lastTime = 0;
@@ -206,6 +217,8 @@
     }
 
     function update(deltaTime) {
+        if (isGameOver) return;
+
         if (!isGameRunning) return;
 
         updateCatPosition();
@@ -821,15 +834,79 @@
         // Stop the wave sound
         if (waveSoundAudio) {
             waveSoundAudio.pause();
-            console.log("Wave sound stopped (game over)");
         }
 
-        // Display game over message, final score, etc.
-        // ...
+        // Display game over message and input field
+        const gameOverScreen = document.createElement('div');
+        gameOverScreen.id = 'game-over-screen';
+        gameOverScreen.innerHTML = `
+            <h2>Game Over</h2>
+            <p>Your score: ${score}</p>
+            <input type="text" id="player-name" placeholder="Enter your name">
+            <button id="submit-score">Submit Score</button>
+        `;
+        document.body.appendChild(gameOverScreen);
 
-        // Show start button to allow restarting
-        document.getElementById('start-button').style.display = 'inline-block';
-        document.getElementById('stop-button').style.display = 'none';
+        // Focus on the input field
+        setTimeout(() => {
+            const inputField = document.getElementById('player-name');
+            if (inputField) {
+                inputField.focus();
+            }
+        }, 0);
+
+        // Add event listener to the submit button
+        document.getElementById('submit-score').addEventListener('click', submitScore);
+    }
+
+    let leaderboard = [];
+
+    function submitScore() {
+        const playerName = document.getElementById('player-name').value;
+        if (playerName) {
+            // Add the new score to the leaderboard
+            leaderboard.push({ name: playerName, score: score });
+            
+            // Sort the leaderboard
+            leaderboard.sort((a, b) => b.score - a.score);
+            
+            // Keep only the top 10 scores
+            leaderboard = leaderboard.slice(0, 10);
+            
+            // Show the leaderboard
+            showLeaderboard();
+        } else {
+            alert('Please enter your name before submitting.');
+        }
+    }
+
+    function showLeaderboard() {
+        // Remove the game over screen
+        const gameOverScreen = document.getElementById('game-over-screen');
+        if (gameOverScreen) {
+            gameOverScreen.remove();
+        }
+
+        // Create and display the leaderboard
+        const leaderboardScreen = document.createElement('div');
+        leaderboardScreen.id = 'leaderboard-screen';
+        leaderboardScreen.innerHTML = `
+            <h2>Leaderboard</h2>
+            <ul id="leaderboard-list"></ul>
+            <button id="restart-game">Play Again</button>
+        `;
+        document.body.appendChild(leaderboardScreen);
+
+        // Populate the leaderboard list
+        const leaderboardList = document.getElementById('leaderboard-list');
+        leaderboard.forEach((entry, index) => {
+            const listItem = document.createElement('li');
+            listItem.textContent = `${index + 1}. ${entry.name}: ${entry.score}`;
+            leaderboardList.appendChild(listItem);
+        });
+
+        // Add event listener to the restart button
+        document.getElementById('restart-game').addEventListener('click', restartGame);
     }
 
     // Add this variable to track if the game loop is running
@@ -987,5 +1064,49 @@
             ctx.fillRect(0, 0, canvas.width, canvas.height);
             ctx.restore();
         }
+    }
+
+    function restartGame() {
+        // Remove the leaderboard screen
+        const leaderboardScreen = document.getElementById('leaderboard-screen');
+        if (leaderboardScreen) {
+            leaderboardScreen.remove();
+        }
+
+        // Reset game state
+        isGameOver = false;
+        isGameRunning = true;
+        catHealth = 100;
+        score = 0;
+
+        // Reset other game variables
+        gameObjects = []; // Clear all game objects
+        
+        // Restart the game loop
+        requestAnimationFrame(gameLoop);
+    }
+
+    function drawInitialState() {
+        // Clear the canvas
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // Draw the cat at its starting position
+        drawCat();
+
+        // Draw the initial score
+        drawScore();
+
+        // Draw the initial health bar
+        drawHealthBar();
+
+        // Any other initial game elements you want to draw
+    }
+
+    function drawBackground() {
+        // Set the background color
+        ctx.fillStyle = '#87CEEB'; // Sky blue color
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // You can add more complex background drawing here if needed
     }
 })();
