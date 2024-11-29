@@ -1,3 +1,5 @@
+import * as Tricks from './tricks.js';
+
 (function() {
     // Add these variables at the top of your file, with other global variables
     let isMobile = false;
@@ -11,9 +13,9 @@
     let catY = 0;
     let catVelocityX = 0;
     let catVelocityY = 0;
-    const catMaxSpeed = 15; // Increased from 10
-    const catAcceleration = 0.8; // Increased from 0.5
-    const catDeceleration = 0.95; // Slightly increased from 0.9 for smoother deceleration
+    const catMaxSpeed = 12; // Decreased from 20 to 12
+    const catAcceleration = 0.9; // Decreased from 1.2 to 0.9
+    const catDeceleration = 0.95; // Decreased from 0.97 to 0.95 for more friction
     let waveSpeed = 100; // Adjust this value to set the base speed of objects
     let isGameRunning = false;
 
@@ -204,10 +206,15 @@
     function gameLoop(timestamp) {
         if (!gameLoopRunning) return;
 
+        // Calculate proper deltaTime in seconds
         const deltaTime = (timestamp - lastTime) / 1000;
         lastTime = timestamp;
 
-        update(deltaTime);
+        // Only update if deltaTime is reasonable (prevents huge jumps)
+        if (deltaTime < 0.1) {
+            update(deltaTime);
+            draw(); // Make sure we're calling draw every frame
+        }
         
         if (isGameRunning || isGameOver) {
             requestAnimationFrame(gameLoop);
@@ -217,12 +224,24 @@
     }
 
     function update(deltaTime) {
-        if (isGameOver) return;
-
-        if (!isGameRunning) return;
+        if (isGameOver || !isGameRunning) return;
 
         updateCatPosition();
         
+        // Update trick timer and display time
+        if (Tricks.isTrickActive) {
+            Tricks.setTrickTimer(Tricks.trickTimer - deltaTime * 1000);
+            if (Tricks.trickTimer <= 0) {
+                Tricks.setTrickActive(false);
+                Tricks.setTrickAnimationActive(false);
+            }
+        }
+
+        // Update trick name display timer
+        if (Tricks.trickNameDisplayTime > 0) {
+            Tricks.setTrickNameDisplayTime(Tricks.trickNameDisplayTime - deltaTime * 1000);
+        }
+
         if (!isGameOver) {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             drawCat();
@@ -344,18 +363,34 @@
     checkMobile();
     window.addEventListener('resize', checkMobile);
 
-    const DEBUG_MODE = false; // Set this to true when you want to see the trick threshold
+    const DEBUG_MODE = false; // Set this to false to hide debug info
 
     function drawCat() {
         ctx.save(); // Save the current state of the context
+        
+        // Move to cat's center for rotation
+        ctx.translate(catX + catWidth/2, catY + catHeight/2);
+        
+        // Apply trick rotation if active
+        if (Tricks.trickAnimationActive) {
+            const trickProgress = (Date.now() - Tricks.trickStartTime) / Tricks.TRICK_DURATION;
+            if (trickProgress <= 1) {
+                ctx.rotate(Math.PI * 2 * trickProgress); // Full 360-degree rotation
+            } else {
+                // Reset trick animation when complete
+                Tricks.setTrickAnimationActive(false);
+            }
+        }
+        
+        // Draw the cat image
         if (!catFacingRight) {
             // If cat is facing left, flip the image horizontally
             ctx.scale(-1, 1);
-            ctx.drawImage(catImage, -catX - catWidth, catY, catWidth, catHeight);
+            ctx.drawImage(catImage, -catWidth/2, -catHeight/2, catWidth, catHeight);
         } else {
-            // If cat is facing right, draw normally
-            ctx.drawImage(catImage, catX, catY, catWidth, catHeight);
+            ctx.drawImage(catImage, -catWidth/2, -catHeight/2, catWidth, catHeight);
         }
+        
         ctx.restore(); // Restore the context state
     }
 
@@ -449,9 +484,8 @@
         }
 
         // Update trick name display time
-        if (trickNameDisplayTime > 0) {
-            trickNameDisplayTime -= deltaTime;
-            console.log("Updating trick name display time:", trickNameDisplayTime);
+        if (Tricks.trickNameDisplayTime > 0) {
+            Tricks.setTrickNameDisplayTime(Tricks.trickNameDisplayTime - deltaTime);
         }
     }
 
@@ -475,7 +509,7 @@
                 height: trashHeight,
                 type: 'trash',
                 imageIndex: trashIndex,
-                speed: 100 + Math.random() * 50 // Adjust this speed as needed
+                speed: 300 + Math.random() * 100 // Increased from 100 to 300
             });
         } else {
             const fishSize = Math.random() * 40 + 20;
@@ -485,7 +519,7 @@
                 width: fishSize,
                 height: fishSize,
                 type: 'fish',
-                speed: 150 + Math.random() * 100 // Adjust this speed as needed
+                speed: 400 + Math.random() * 150 // Increased from 150 to 400
             });
         }
     }
@@ -680,7 +714,7 @@
             if (!isGameRunning) {
                 startGame();
             } else if (!isGameOver) {
-                performTrick(); // Call performTrick here
+                handleTrick(); // Call handleTrick here
             }
         }
         
@@ -891,7 +925,7 @@
         const leaderboardScreen = document.createElement('div');
         leaderboardScreen.id = 'leaderboard-screen';
         leaderboardScreen.innerHTML = `
-            <h2>Leaderboard</h2>
+            <h2>TOP CATS</h2>
             <ul id="leaderboard-list"></ul>
             <button id="restart-game">Play Again</button>
         `;
@@ -930,36 +964,23 @@
         }
     });
 
-    let isTrickActive = false;
-    let trickTimer = 0;
-    const TRICK_DURATION = 1000; // 1 second for each trick
-    let lastTrickTime = 0;
-    const TRICK_COOLDOWN = 2000; // 2 seconds cooldown between tricks
-    const TRICK_THRESHOLD = canvas.height * 0.25; // Top 1/4 of the page
+    const TRICK_THRESHOLD = Tricks.calculateTrickThreshold(canvas);
 
-    function performTrick() {
-        const currentTime = Date.now();
-        if (!isTrickActive && 
-            currentTime - lastTrickTime > TRICK_COOLDOWN && 
-            isGameRunning && 
-            !isGameOver && 
-            catY + catHeight < TRICK_THRESHOLD) {
-            isTrickActive = true;
-            trickTimer = TRICK_DURATION;
-            lastTrickTime = currentTime;
-            score += 5;
+    function handleTrick() {
+        const scoreIncrease = Tricks.performTrick(
+            catY, 
+            catHeight, 
+            TRICK_THRESHOLD, 
+            isGameRunning, 
+            isGameOver, 
+            score,
+            updateScore
+        );
+        if (scoreIncrease > 0) {
+            score += scoreIncrease;
             updateScore();
-            
-            // Set a random trick name
-            const trickNames = ['Tail Spin', 'Paw Flip', 'Whisker Twist', 'Furry 360', 'Meow Spin'];
-            currentTrickName = trickNames[Math.floor(Math.random() * trickNames.length)];
-            trickNameDisplayTime = TRICK_NAME_DISPLAY_DURATION;
-            
-            console.log("Trick performed:", currentTrickName, "Display time set to:", trickNameDisplayTime);
         }
     }
-
-    // ... rest of your game code ...
 
     // Audio elements
     let waveSoundAudio;
@@ -990,6 +1011,9 @@
         // Draw background
         drawBackground();
 
+        // Draw trick zone (add this line)
+        drawTrickZone();
+
         // Draw game objects
         drawGameObjects();
 
@@ -1002,33 +1026,10 @@
         // Draw UI elements
         drawHealthBar();
         drawScore();
-        drawTrickName();
+        Tricks.drawTrickName(ctx, canvas);
 
         // Draw debug info if needed
         drawDebugInfo();
-    }
-
-    let currentTrickName = '';
-    let trickNameDisplayTime = 0;
-    const TRICK_NAME_DISPLAY_DURATION = 2000; // Display for 2 seconds
-
-    function drawTrickName() {
-        if (trickNameDisplayTime > 0) {
-            ctx.save(); // Save the current context state
-            ctx.font = 'bold 36px Arial'; // Increase font size
-            ctx.fillStyle = 'yellow';
-            ctx.strokeStyle = 'black'; // Add a stroke for better visibility
-            ctx.lineWidth = 3;
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            const text = currentTrickName;
-            const x = canvas.width / 2;
-            const y = canvas.height / 2; // Center of the screen
-            ctx.strokeText(text, x, y); // Draw the stroke
-            ctx.fillText(text, x, y); // Draw the fill
-            ctx.restore(); // Restore the context state
-            console.log("Drew trick name:", currentTrickName, "at", x, y);
-        }
     }
 
     function drawScore() {
@@ -1039,12 +1040,31 @@
     }
 
     function drawDebugInfo() {
-        ctx.font = '14px Arial';
+        if (!DEBUG_MODE) return; // Exit early if debug mode is off
+        
+        ctx.font = '14px Silkscreen';
         ctx.fillStyle = 'white';
         ctx.textAlign = 'left';
-        ctx.fillText(`Current Trick: ${currentTrickName}`, 10, canvas.height - 60);
-        ctx.fillText(`Trick Display Time: ${trickNameDisplayTime.toFixed(2)}`, 10, canvas.height - 40);
-        ctx.fillText(`Cat Y: ${catY.toFixed(2)}, Threshold: ${TRICK_THRESHOLD.toFixed(2)}`, 10, canvas.height - 20);
+        
+        // Calculate total speed (magnitude of velocity vector)
+        const totalSpeed = Math.sqrt(catVelocityX * catVelocityX + catVelocityY * catVelocityY);
+        
+        const debugInfo = [
+            `Cat Y: ${Math.round(catY)}`,
+            `Cat Bottom: ${Math.round(catY + catHeight)}`,
+            `Trick Threshold: ${Math.round(TRICK_THRESHOLD)}`,
+            `In Trick Zone: ${catY + catHeight < TRICK_THRESHOLD}`,
+            `Trick Active: ${Tricks.isTrickActive}`,
+            `Current Trick: ${Tricks.currentTrickName}`,
+            `Trick Timer: ${Math.round(Tricks.trickTimer)}`,
+            `Speed: ${totalSpeed.toFixed(2)}`,
+            `Velocity X: ${catVelocityX.toFixed(2)}`,
+            `Velocity Y: ${catVelocityY.toFixed(2)}`
+        ];
+        
+        debugInfo.forEach((text, index) => {
+            ctx.fillText(text, 10, canvas.height - (debugInfo.length - index) * 20);
+        });
     }
 
     // Add this to your draw function
@@ -1113,5 +1133,39 @@
     document.fonts.ready.then(() => {
         // Initialize your game here, or redraw if it's already initialized
         drawHealthBar();
+    });
+
+    // Add this function to visualize the trick zone (for debugging)
+    function drawTrickZone() {
+        if (!DEBUG_MODE) return; // Exit early if debug mode is off
+        
+        ctx.save();
+        // Draw a semi-transparent zone
+        ctx.fillStyle = 'rgba(255, 255, 0, 0.1)';
+        ctx.fillRect(0, 0, canvas.width, TRICK_THRESHOLD);
+        
+        // Draw a line at the threshold
+        ctx.strokeStyle = 'rgba(255, 255, 0, 0.5)';
+        ctx.setLineDash([5, 5]);
+        ctx.beginPath();
+        ctx.moveTo(0, TRICK_THRESHOLD);
+        ctx.lineTo(canvas.width, TRICK_THRESHOLD);
+        ctx.stroke();
+        
+        // Debug text
+        if (catY + catHeight < TRICK_THRESHOLD) {
+            ctx.fillStyle = 'lime';
+            ctx.font = '20px Silkscreen';
+            ctx.fillText('TRICK ZONE!', 10, TRICK_THRESHOLD - 10);
+        }
+        ctx.restore();
+    }
+
+    // Add this with your other event listeners
+    document.addEventListener('keydown', function(event) {
+        if (event.code === 'Space') {
+            event.preventDefault();
+            handleTrick();
+        }
     });
 })();
