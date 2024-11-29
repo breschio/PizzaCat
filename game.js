@@ -1,4 +1,5 @@
 import * as Tricks from './tricks.js';
+import { mediaPlayer } from './mediaPlayer.js';
 
 (function() {
     // Add these variables at the top of your file, with other global variables
@@ -748,12 +749,15 @@ import * as Tricks from './tricks.js';
             initializeCat();
             gameObjects = [];
             gameTime = 0;
-            // ... any other initializations ...
 
+            // Start both wave sound and music
             if (waveSoundAudio) {
                 waveSoundAudio.currentTime = 0;
                 waveSoundAudio.play().catch(error => console.error("Audio play failed:", error));
             }
+            
+            // Start the background music
+            mediaPlayer.startGameMusic();
 
             // Hide start button and show stop button
             document.getElementById('start-button').style.display = 'none';
@@ -774,9 +778,15 @@ import * as Tricks from './tricks.js';
         document.getElementById('stop-button').style.display = 'none';
         document.getElementById('start-button').style.display = 'inline-block';
         
+        // Pause both wave sound and music
         if (waveSoundAudio) {
             waveSoundAudio.pause();
         }
+        
+        // Pause the background music
+        mediaPlayer.currentAudio.pause();
+        mediaPlayer.isPlaying = false;
+        mediaPlayer.playPauseBtn.textContent = '▶';
 
         // Any other cleanup or state reset you need to do when stopping the game
     }
