@@ -25,17 +25,18 @@ body {
 
 #header {
     position: absolute;
-    top: 10px;
-    left: 10px;
-    right: 10px;
+    top: 20px;
+    left: 0;
+    right: 0;
     display: flex;
     justify-content: space-between;
     align-items: center;
+    padding: 0 20px;
     z-index: 2;
 }
 
 .game-text {
-    font-family: 'Silkscreen', Impact, Haettenschweiler, 'Arial Narrow Bold', sans-serif;
+    font-family: 'Press Start 2P', 'Courier New', Courier, monospace;
     font-size: 24px;
     font-weight: normal;
     color: white;
@@ -95,7 +96,7 @@ body {
 
 #pts-text {
     color: white; /* Keep PTS always white */
-    margin-left: 5px; /* Add a small space between the number and PTS */
+    margin-left: 2px; /* Reduced from 5px to 2px */
 }
 
 #game-over-screen {
@@ -192,12 +193,12 @@ body {
 
 /* Apply Silkscreen font to all elements */
 * {
-    font-family: 'Silkscreen', cursive;
+    font-family: 'Press Start 2P', 'Courier New', Courier, monospace;
 }
 
 /* If you want to apply it more specifically, you can target individual elements or classes */
 body, button, #game-title, #score, .game-text {
-    font-family: 'Silkscreen', Impact, Haettenschweiler, 'Arial Narrow Bold', sans-serif;
+    font-family: 'Press Start 2P', 'Courier New', Courier, monospace;
 }
 
 /* Adjust font weights if needed */
@@ -211,7 +212,7 @@ body, button, #game-title, #score, .game-text {
 
 /* You might need to adjust font sizes to accommodate the new font */
 #game-title {
-    font-size: 36px; /* Adjust as needed */
+    font-size: 24px; /* Adjust as needed */
 }
 
 #score {
@@ -228,7 +229,7 @@ button {
     position: absolute;
     top: 0;
     left: 0;
-    font-family: 'Silkscreen', cursive;
+    font-family: 'Press Start 2P', 'Courier New', Courier, monospace;
     font-size: 24px;
     font-weight: bold;
     background: linear-gradient(to right, #FF6B6B, #FFD93D, #6BCB77, #4D96FF);
@@ -248,7 +249,7 @@ button {
     color: white;
     padding: 15px 20px;
     border-radius: 8px;
-    font-family: 'Silkscreen', cursive;
+    font-family: 'Press Start 2P', 'Courier New', Courier, monospace;
     z-index: 1000;
     animation: slideIn 0.5s ease-out, fadeOut 0.5s ease-in 2.5s forwards;
 }
@@ -290,7 +291,7 @@ button {
     }
 }
 
-#media-player {
+#volume-control {
     position: fixed;
     bottom: 20px;
     left: 20px;
@@ -300,49 +301,7 @@ button {
     z-index: 1000;
     display: flex;
     align-items: center;
-    gap: 10px;
-}
-
-.media-controls {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-}
-
-#song-select {
-    background-color: #FF8C42;
-    color: white;
-    border: none;
-    padding: 5px;
-    border-radius: 4px;
-    font-family: 'Silkscreen', cursive;
-    font-size: 12px;
-    cursor: pointer;
-}
-
-.media-button {
-    background-color: #4ECDC4;
-    color: white;
-    border: none;
-    width: 30px;
-    height: 30px;
-    border-radius: 50%;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 14px;
-    transition: background-color 0.3s;
-    padding: 0;
-}
-
-.media-button:hover {
-    background-color: #45B7D1;
-}
-
-#next-track {
-    font-size: 18px;
-    padding-left: 2px;
+    gap: 8px;
 }
 
 #volume-slider {
@@ -368,4 +327,42 @@ button {
     background: white;
     border-radius: 50%;
     border: none;
+}
+
+.speaker-icon {
+    color: white;
+    font-size: 16px;
+}
+
+#health-bar-container {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 300px;
+    text-align: center;
+    z-index: 1000;
+}
+
+#health-bar-background {
+    background-color: rgba(255, 0, 0, 0.5);
+    height: 30px;
+    border: 2px solid white;
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+#health-bar-fill {
+    background-color: rgba(0, 255, 0, 0.7);
+    height: 100%;
+    width: 100%;
+    transition: width 0.3s ease;
+}
+
+#health-text {
+    color: white;
+    font-family: 'Press Start 2P', cursive;
+    font-size: 16px;
+    margin-top: 5px;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
 }

@@ -165,7 +165,7 @@ import { mediaPlayer } from './mediaPlayer.js';
         catHealth = maxCatHealth;
         isFirstScoreUpdate = true; // Reset this flag when initializing the game
         updateScore();
-        updateHealthBar(); // Draw the initial health bar
+        updateHealthBar(); // Update the CSS health bar
         
         // Initialize cat position
         initializeCat();
@@ -194,11 +194,8 @@ import { mediaPlayer } from './mediaPlayer.js';
         // Draw the cat at its starting position
         drawCat();
 
-        // Draw the initial health bar
-        drawHealthBar();
-
-        // Remove the call to drawScore() or any function that draws the score
-        // drawScore();  // Comment out or remove this line
+        // Update the health bar (using CSS version)
+        updateHealthBar();
 
         // Any other initial game elements you want to draw
     }
@@ -248,7 +245,7 @@ import { mediaPlayer } from './mediaPlayer.js';
             drawCat();
             updateGameObjects(deltaTime);
             drawGameObjects();
-            drawHealthBar();
+            updateHealthBar();
             drawSurfMoveEffect();
         }
     }
@@ -456,10 +453,9 @@ import { mediaPlayer } from './mediaPlayer.js';
                 if (obj.type === 'fish') {
                     gameObjects.splice(i, 1);
                     score += 10;
-                    // Increase cat's health when catching a fish
-                    catHealth = Math.min(maxCatHealth, catHealth + 10); // Increase by 10, cap at maxCatHealth
+                    catHealth = Math.min(maxCatHealth, catHealth + 10);
                     updateScore();
-                    updateHealthBar(); // Update the health bar display
+                    updateHealthBar();
                     playNextFishCatchSound();
                 } else if (obj.type === 'trash') {
                     gameObjects.splice(i, 1);
@@ -536,37 +532,17 @@ import { mediaPlayer } from './mediaPlayer.js';
         }
     }
 
-    // Modify the drawHealthBar function
-    function drawHealthBar() {
-        const healthBarY = 10; // Position at the top of the page
-        const healthBarWidth = 300; // Increased width for better visibility
-        const healthBarHeight = 30; // Increased height
-        const healthBarX = (canvas.width - healthBarWidth) / 2; // Center horizontally
-        
-        // Draw background
-        ctx.fillStyle = 'rgba(255, 0, 0, 0.5)'; // Semi-transparent red
-        ctx.fillRect(healthBarX, healthBarY, healthBarWidth, healthBarHeight);
-        
-        // Draw health
-        const currentHealthWidth = (catHealth / maxCatHealth) * healthBarWidth;
-        ctx.fillStyle = 'rgba(0, 255, 0, 0.7)'; // Semi-transparent green
-        ctx.fillRect(healthBarX, healthBarY, currentHealthWidth, healthBarHeight);
-        
-        // Draw border
-        ctx.strokeStyle = 'white';
-        ctx.lineWidth = 2;
-        ctx.strokeRect(healthBarX, healthBarY, healthBarWidth, healthBarHeight);
-        
-        // Draw text
-        ctx.fillStyle = 'white';
-        ctx.font = 'bold 16px Arial';
-        ctx.textAlign = 'center';
-        ctx.fillText(`Health: ${Math.round(catHealth)}/${maxCatHealth}`, canvas.width / 2, healthBarY + healthBarHeight + 20);
-    }
-
     // Add this function to update the health bar
     function updateHealthBar() {
-        drawHealthBar(); // Simply redraw the health bar
+        const healthBarFill = document.getElementById('health-bar-fill');
+        const healthText = document.getElementById('health-text');
+        
+        // Update health bar width
+        const healthPercentage = (catHealth / maxCatHealth) * 100;
+        healthBarFill.style.width = `${healthPercentage}%`;
+        
+        // Update health text
+        healthText.textContent = `${Math.round(catHealth)}/${maxCatHealth}`;
     }
 
     // Add this function to update the score display
@@ -1033,8 +1009,6 @@ import { mediaPlayer } from './mediaPlayer.js';
         // Draw flash overlay
         drawFlashOverlay();
 
-        // Draw UI elements
-        drawHealthBar();
         drawScore();
         Tricks.drawTrickName(ctx, canvas);
 
@@ -1123,11 +1097,8 @@ import { mediaPlayer } from './mediaPlayer.js';
         // Draw the cat at its starting position
         drawCat();
 
-        // Draw the initial health bar
-        drawHealthBar();
-
-        // Remove the call to drawScore() or any function that draws the score
-        // drawScore();  // Comment out or remove this line
+        // Update the health bar (using CSS version)
+        updateHealthBar();
 
         // Any other initial game elements you want to draw
     }
@@ -1142,7 +1113,7 @@ import { mediaPlayer } from './mediaPlayer.js';
 
     document.fonts.ready.then(() => {
         // Initialize your game here, or redraw if it's already initialized
-        drawHealthBar();
+        updateHealthBar();
     });
 
     // Add this function to visualize the trick zone (for debugging)
