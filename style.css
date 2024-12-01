@@ -339,17 +339,20 @@ button {
     top: 20px;
     left: 50%;
     transform: translateX(-50%);
-    width: 300px;
-    text-align: center;
+    width: 400px;
     z-index: 1000;
+    display: flex;
+    align-items: center;
+    gap: 10px;
 }
 
 #health-bar-background {
     background-color: rgba(255, 0, 0, 0.5);
-    height: 30px;
+    height: 20px;
     border: 2px solid white;
     border-radius: 4px;
     overflow: hidden;
+    flex-grow: 1;
 }
 
 #health-bar-fill {
@@ -363,6 +366,14 @@ button {
     color: white;
     font-family: 'Press Start 2P', cursive;
     font-size: 16px;
-    margin-top: 5px;
     text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+    white-space: nowrap;
+}
+
+.health-label {
+    color: white;
+    font-size: 16px;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+    white-space: nowrap;
+    margin-right: 10px;
 }

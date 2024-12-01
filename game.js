@@ -541,8 +541,8 @@ import { mediaPlayer } from './mediaPlayer.js';
         const healthPercentage = (catHealth / maxCatHealth) * 100;
         healthBarFill.style.width = `${healthPercentage}%`;
         
-        // Update health text
-        healthText.textContent = `${Math.round(catHealth)}/${maxCatHealth}`;
+        // Update health text to show only current health
+        healthText.textContent = `${Math.round(catHealth)}`;
     }
 
     // Add this function to update the score display
