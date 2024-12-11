@@ -1,0 +1,15 @@
+{
+  "dependencies": {
+    "firebase": "^11.0.2"
+  },
+  "name": "pizzacat",
+  "version": "1.0.0",
+  "main": "firebase.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": ""
+}

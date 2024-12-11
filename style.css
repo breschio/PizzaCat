@@ -104,13 +104,14 @@ body {
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    background-color: rgba(0, 0, 0, 0.8);
+    background-color: rgba(0, 0, 0, 0.9);
     color: #FF8C42;
     padding: 30px;
     border-radius: 10px;
     text-align: center;
-    z-index: 1000;
-    width: 300px; /* Set a fixed width */
+    z-index: 9999;
+    width: 300px;
+    font-family: 'Press Start 2P', cursive;
 }
 
 #game-over-screen h2 {
@@ -120,12 +121,16 @@ body {
 
 #game-over-screen input {
     display: block;
-    width: calc(100% - 20px); /* Subtract padding from width */
+    width: calc(100% - 20px);
     padding: 10px;
-    margin: 20px 0;
+    margin: 20px auto;
     font-size: 16px;
-    border: none;
+    border: 2px solid #FF8C42;
     border-radius: 5px;
+    background-color: rgba(255, 255, 255, 0.9);
+    color: #000;
+    font-family: 'Press Start 2P', cursive;
+    z-index: 10000;
 }
 
 #game-over-screen button {
@@ -138,6 +143,8 @@ body {
     transition: background-color 0.3s;
     border-radius: 5px;
     width: 100%;
+    font-family: 'Press Start 2P', cursive;
+    z-index: 10000;
 }
 
 #game-over-screen button:hover {

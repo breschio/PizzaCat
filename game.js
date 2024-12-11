@@ -1026,33 +1026,51 @@ import { mediaPlayer } from './mediaPlayer.js';
             waveSoundAudio.pause();
         }
 
-        // Display game over message and input field
+        // Remove any existing game over screen
+        const existingScreen = document.getElementById('game-over-screen');
+        if (existingScreen) {
+            existingScreen.remove();
+        }
+
+        // Create and display game over message and input field
         const gameOverScreen = document.createElement('div');
         gameOverScreen.id = 'game-over-screen';
         gameOverScreen.innerHTML = `
             <h2>Game Over</h2>
             <p>Your score: ${score}</p>
-            <input type="text" id="player-name" placeholder="Enter your name">
+            <input type="text" id="player-name" placeholder="Enter your name" maxlength="20">
             <button id="submit-score">Submit Score</button>
         `;
         document.body.appendChild(gameOverScreen);
 
-        // Focus on the input field
-        setTimeout(() => {
-            const inputField = document.getElementById('player-name');
-            if (inputField) {
-                inputField.focus();
-            }
-        }, 0);
+        // Get input field and add event listeners
+        const inputField = document.getElementById('player-name');
+        if (inputField) {
+            // Focus on the input field
+            inputField.focus();
+            
+            // Add keydown event listener for Enter key
+            inputField.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault(); // Prevent default form submission
+                    submitScore();
+                }
+            });
+        }
 
         // Add event listener to the submit button
-        document.getElementById('submit-score').addEventListener('click', submitScore);
+        const submitButton = document.getElementById('submit-score');
+        if (submitButton) {
+            submitButton.addEventListener('click', submitScore);
+        }
     }
 
     let leaderboard = [];
 
     function submitScore() {
-        const playerName = document.getElementById('player-name').value;
+        const playerNameInput = document.getElementById('player-name');
+        const playerName = playerNameInput ? playerNameInput.value.trim() : '';
+        
         if (playerName) {
             // Add the new score to the leaderboard
             leaderboard.push({ name: playerName, score: score });
@@ -1066,7 +1084,15 @@ import { mediaPlayer } from './mediaPlayer.js';
             // Show the leaderboard
             showLeaderboard();
         } else {
-            alert('Please enter your name before submitting.');
+            // Visual feedback if name is empty
+            if (playerNameInput) {
+                playerNameInput.style.borderColor = 'red';
+                playerNameInput.placeholder = 'Name required!';
+                setTimeout(() => {
+                    playerNameInput.style.borderColor = '#FF8C42';
+                    playerNameInput.placeholder = 'Enter your name';
+                }, 1500);
+            }
         }
     }
 
