@@ -14,7 +14,7 @@ import { mediaPlayer } from './mediaPlayer.js';
     let catY = 0;
     let catVelocityX = 0;
     let catVelocityY = 0;
-    const catMaxSpeed = 12; // Decreased from 20 to 12
+    let catMaxSpeed = 12; // Initial max speed, can be modified by power-ups
     const catAcceleration = 0.9; // Decreased from 1.2 to 0.9
     const catDeceleration = 0.95; // Decreased from 0.97 to 0.95 for more friction
     let waveSpeed = 100; // Adjust this value to set the base speed of objects
@@ -28,9 +28,13 @@ import { mediaPlayer } from './mediaPlayer.js';
     let catImage = new Image();
     let loadedTrashImages = [];
     let mouseImage = new Image();
+    let pizzaImage = new Image();
+    let tacoImage = new Image();
+    let catnipImage = new Image();
+    let loadedCollectibleImages = [];
 
     let imagesLoaded = 0;
-    const totalImages = 3;
+    const totalImages = 9; // 3 original + 3 new collectibles + 3 trash images
 
     let catHealth = 100; // New variable for cat's health
     const maxCatHealth = 100; // Maximum cat health
@@ -40,6 +44,13 @@ import { mediaPlayer } from './mediaPlayer.js';
         { src: './assets/trash-can.png', width: 60, height: 80 },    // Doubled from 30x40
         { src: './assets/trash-bottle.png', width: 40, height: 80 }, // Doubled from 20x40
         { src: './assets/trash-bag.png', width: 70, height: 70 },    // Doubled from 35x35
+    ];
+
+    // Add these constants for collectible properties
+    const COLLECTIBLES = [
+        { type: 'pizza', points: 15, health: 15, image: pizzaImage, width: 60, height: 60 },
+        { type: 'taco', points: 10, health: 10, image: tacoImage, width: 50, height: 50 },
+        { type: 'catnip', points: 20, health: 5, image: catnipImage, width: 40, height: 40 }
     ];
 
     // Modify the imageLoaded function
@@ -53,8 +64,17 @@ import { mediaPlayer } from './mediaPlayer.js';
     }
 
     // Load cat and fish images
-    catImage.onload = imageLoaded;
-    catImage.src = './assets/pizza-cat.png'; // Make sure this path is correct
+    catImage.onload = function() {
+        imageLoaded();
+        // Initialize cat dimensions once image is loaded
+        catWidth = CAT_WIDTH;
+        catHeight = CAT_HEIGHT;
+        // Force initial position and draw
+        catX = canvas.width / 3;
+        catY = canvas.height / 2 - catHeight / 2;
+        draw();
+    };
+    catImage.src = './assets/pizza-cat.png'; // Make sure to set the source!
 
     fishImage.onload = imageLoaded;
     fishImage.src = './assets/buffalo-fish.png'; // Make sure this path is correct
@@ -114,7 +134,7 @@ import { mediaPlayer } from './mediaPlayer.js';
     const INITIAL_MAX_TRASH_ITEMS = 3;
     const MAX_POSSIBLE_TRASH_ITEMS = 10;
     const INITIAL_TRASH_SPAWN_RATE = 0.01;
-    const MAX_TRASH_SPAWN_RATE = 0.035;
+    const MAX_TRASH_SPAWN_RATE = 0.025;
     const TRASH_SPEED_VARIATION = 0.7;
 
     // Add these new constants for fish
@@ -142,7 +162,8 @@ import { mediaPlayer } from './mediaPlayer.js';
     let isGameOver = false;
 
     // Define these variables globally if they're not already defined
-    let catWidth, catHeight;
+    let catWidth = 200;  // Set initial values instead of declaring without values
+    let catHeight = 200;
     let leftPressed = false;
     let rightPressed = false;
     let upPressed = false;
@@ -160,27 +181,33 @@ import { mediaPlayer } from './mediaPlayer.js';
     }
 
     function initializeGame() {
+        // Set initial cat dimensions and position
+        catWidth = CAT_WIDTH;
+        catHeight = CAT_HEIGHT;
+        catX = canvas.width / 3;
+        catY = canvas.height / 2 - catHeight / 2;
+        
         // Initialize game state
         isGameRunning = false;
         score = 0;
         catHealth = maxCatHealth;
-        isFirstScoreUpdate = true; // Reset this flag when initializing the game
+        isFirstScoreUpdate = true;
         updateScore();
-        updateHealthBar(); // Update the CSS health bar
-        
-        // Initialize cat position
-        initializeCat();
+        updateHealthBar();
         
         // Show start button initially
         document.getElementById('start-button').style.display = 'inline-block';
         document.getElementById('stop-button').style.display = 'none';
 
-        // Draw initial game state
-        drawInitialState();
+        // Force an initial draw
+        draw();
 
         // Start the game loop
+        gameLoopRunning = true;
+        lastTime = performance.now();
         requestAnimationFrame(gameLoop);
 
+        // Reset game variables
         gameTime = 0;
         maxTrashItems = INITIAL_MAX_TRASH_ITEMS;
         trashSpawnRate = INITIAL_TRASH_SPAWN_RATE;
@@ -365,32 +392,34 @@ import { mediaPlayer } from './mediaPlayer.js';
     const DEBUG_MODE = false; // Set this to false to hide debug info
 
     function drawCat() {
-        ctx.save(); // Save the current state of the context
+        if (!catImage || !catImage.complete) {
+            console.warn('Cannot draw cat - image not ready');
+            return;
+        }
         
-        // Move to cat's center for rotation
+        ctx.save();
         ctx.translate(catX + catWidth/2, catY + catHeight/2);
         
-        // Apply trick rotation if active
         if (Tricks.trickAnimationActive) {
             const trickProgress = (Date.now() - Tricks.trickStartTime) / Tricks.TRICK_DURATION;
             if (trickProgress <= 1) {
-                ctx.rotate(Math.PI * 2 * trickProgress); // Full 360-degree rotation
+                ctx.rotate(Math.PI * 2 * trickProgress);
             } else {
-                // Reset trick animation when complete
                 Tricks.setTrickAnimationActive(false);
             }
         }
         
-        // Draw the cat image
         if (!catFacingRight) {
-            // If cat is facing left, flip the image horizontally
             ctx.scale(-1, 1);
-            ctx.drawImage(catImage, -catWidth/2, -catHeight/2, catWidth, catHeight);
-        } else {
-            ctx.drawImage(catImage, -catWidth/2, -catHeight/2, catWidth, catHeight);
         }
         
-        ctx.restore(); // Restore the context state
+        try {
+            ctx.drawImage(catImage, -catWidth/2, -catHeight/2, catWidth, catHeight);
+        } catch (error) {
+            console.error('Error drawing cat:', error);
+        }
+        
+        ctx.restore();
     }
 
     // Near the top of the file, update these audio elements
@@ -421,6 +450,10 @@ import { mediaPlayer } from './mediaPlayer.js';
     // Modify fishArray to include both fish and trash
     let gameObjects = [];
 
+    // Adjust these constants for better object speeds
+    const BASE_SPEED = 200; // Base speed for all objects
+    const SPEED_VARIATION = 50; // How much random variation to add
+
     // Modify the updateGameObjects function
     function updateGameObjects(deltaTime) {
         const currentTime = Date.now();
@@ -433,17 +466,15 @@ import { mediaPlayer } from './mediaPlayer.js';
         for (let i = gameObjects.length - 1; i >= 0; i--) {
             const obj = gameObjects[i];
             
-            // Special movement for mouse
+            // Move objects at a more controlled pace
             if (obj.type === 'mouse') {
-                // Move in the initial direction set at spawn
-                obj.x += obj.directionX * obj.speed * deltaTime;
-                obj.y += obj.directionY * obj.speed * deltaTime;
-                
-                // Add slight sine wave to vertical movement for more interesting pattern
-                obj.y += Math.sin(currentTime / 500) * deltaTime * 50;
+                // Mouse movement remains special but slower
+                obj.x += obj.directionX * obj.speed * deltaTime * 0.5; // Added 0.5 multiplier to slow down
+                obj.y += obj.directionY * obj.speed * deltaTime * 0.5;
+                obj.y += Math.sin(currentTime / 500) * deltaTime * 25; // Reduced from 50 to 25
             } else {
-                // Existing movement for other objects
-                obj.x -= obj.speed * deltaTime;
+                // Normal object movement
+                obj.x -= obj.speed * deltaTime * 0.5; // Added 0.5 multiplier to slow down
             }
 
             // Remove objects that are off-screen
@@ -461,40 +492,82 @@ import { mediaPlayer } from './mediaPlayer.js';
             const distanceX = Math.abs(catCenterX - objCenterX);
             const distanceY = Math.abs(catCenterY - objCenterY);
 
+            // Check for collision
             if (distanceX < (catWidth + obj.width) / 2 * 0.8 &&
                 distanceY < (catHeight + obj.height) / 2 * 0.8) {
-                if (obj.type === 'mouse') {
-                    gameObjects.splice(i, 1);
-                    catHealth = Math.max(0, catHealth - MOUSE_DAMAGE);
-                    updateHealthBar();
-                    playCatMeowSound();
-                    isFlashing = true;
-                    isSpectrumFlash = false;  // Make sure it's not a spectrum flash
-                    flashColor = 'red';
-                    flashAlpha = 0.3;
-                    flashStartTime = Date.now();
-                } else if (obj.type === 'fish') {
-                    gameObjects.splice(i, 1);
-                    score += 10;
-                    catHealth = Math.min(maxCatHealth, catHealth + 10);
-                    updateScore();
-                    updateHealthBar();
-                    playNextFishCatchSound();
-                    isFlashing = true;
-                    isSpectrumFlash = true;  // Only fish gets spectrum flash
-                    flashAlpha = 0.2;
-                    flashStartTime = Date.now();
-                    colorIndex = 0;
-                } else if (obj.type === 'trash') {
-                    gameObjects.splice(i, 1);
-                    catHealth = Math.max(0, catHealth - 20);
-                    updateHealthBar();
-                    playCatMeowSound();
-                    isFlashing = true;
-                    isSpectrumFlash = false;  // Make sure it's not a spectrum flash
-                    flashColor = 'red';
-                    flashAlpha = 0.3;
-                    flashStartTime = Date.now();
+                
+                gameObjects.splice(i, 1); // Remove the collected/hit object
+                
+                switch(obj.type) {
+                    case 'mouse':
+                        catHealth = Math.max(0, catHealth - MOUSE_DAMAGE);
+                        updateHealthBar();
+                        playCatMeowSound();
+                        isFlashing = true;
+                        isSpectrumFlash = false;
+                        flashColor = 'red';
+                        flashAlpha = 0.3;
+                        flashStartTime = Date.now();
+                        break;
+                        
+                    case 'trash':
+                        catHealth = Math.max(0, catHealth - 20);
+                        updateHealthBar();
+                        playCatMeowSound();
+                        isFlashing = true;
+                        isSpectrumFlash = false;
+                        flashColor = 'red';
+                        flashAlpha = 0.3;
+                        flashStartTime = Date.now();
+                        break;
+                        
+                    case 'pizza':
+                        score += obj.points;
+                        catHealth = Math.min(maxCatHealth, catHealth + obj.health);
+                        updateScore();
+                        updateHealthBar();
+                        playNextFishCatchSound();
+                        isFlashing = true;
+                        isSpectrumFlash = true;
+                        flashAlpha = 0.2;
+                        flashStartTime = Date.now();
+                        break;
+                        
+                    case 'taco':
+                        score += obj.points;
+                        catHealth = Math.min(maxCatHealth, catHealth + obj.health);
+                        updateScore();
+                        updateHealthBar();
+                        playNextFishCatchSound();
+                        isFlashing = true;
+                        isSpectrumFlash = true;
+                        flashAlpha = 0.2;
+                        flashStartTime = Date.now();
+                        break;
+                        
+                    case 'catnip':
+                        score += obj.points;
+                        catHealth = Math.min(maxCatHealth, catHealth + obj.health);
+                        updateScore();
+                        updateHealthBar();
+                        playNextFishCatchSound();
+                        isFlashing = true;
+                        isSpectrumFlash = true;
+                        flashAlpha = 0.2;
+                        flashStartTime = Date.now();
+                        
+                        // Special catnip effect: temporary speed boost
+                        const originalSpeed = catMaxSpeed;
+                        catMaxSpeed *= 1.5;
+                        setTimeout(() => {
+                            catMaxSpeed = originalSpeed;
+                        }, 5000); // 5 second speed boost
+                        break;
+                }
+
+                // Check for game over
+                if (catHealth <= 0) {
+                    gameOver();
                 }
             }
         }
@@ -538,7 +611,7 @@ import { mediaPlayer } from './mediaPlayer.js';
                 width: MOUSE_WIDTH,
                 height: MOUSE_HEIGHT,
                 type: 'mouse',
-                speed: MOUSE_SPEED,
+                speed: BASE_SPEED + Math.random() * SPEED_VARIATION,
                 directionX: dirX,
                 directionY: dirY
             });
@@ -547,7 +620,7 @@ import { mediaPlayer } from './mediaPlayer.js';
         }
 
         const canSpawnTrash = gameObjects.filter(obj => obj.type === 'trash').length < maxTrashItems 
-            && Math.random() < trashSpawnRate / (trashSpawnRate + fishSpawnRate);
+            && Math.random() < (trashSpawnRate / (trashSpawnRate + COLLECTIBLE_SPAWN_RATE));
 
         if (canSpawnTrash) {
             const trashIndex = Math.floor(Math.random() * trashImages.length);
@@ -562,17 +635,20 @@ import { mediaPlayer } from './mediaPlayer.js';
                 height: trashHeight,
                 type: 'trash',
                 imageIndex: trashIndex,
-                speed: 300 + Math.random() * 100 // Increased from 100 to 300
+                speed: BASE_SPEED + Math.random() * SPEED_VARIATION
             });
         } else {
-            const fishSize = Math.random() * 40 + 20;
+            // Spawn a random collectible
+            const collectible = COLLECTIBLES[Math.floor(Math.random() * COLLECTIBLES.length)];
             gameObjects.push({
                 x: canvas.width,
                 y: objectY,
-                width: fishSize,
-                height: fishSize,
-                type: 'fish',
-                speed: 400 + Math.random() * 150 // Increased from 150 to 400
+                width: collectible.width,
+                height: collectible.height,
+                type: collectible.type,
+                points: collectible.points,
+                health: collectible.health,
+                speed: BASE_SPEED + Math.random() * SPEED_VARIATION
             });
         }
     }
@@ -580,13 +656,48 @@ import { mediaPlayer } from './mediaPlayer.js';
     // Modify the drawGameObjects function
     function drawGameObjects() {
         for (let obj of gameObjects) {
-            if (obj.type === 'fish' && fishImage.complete) {
-                ctx.drawImage(fishImage, obj.x, obj.y, obj.width, obj.height);
-            } else if (obj.type === 'trash' && loadedTrashImages[obj.imageIndex] && loadedTrashImages[obj.imageIndex].complete) {
-                ctx.drawImage(loadedTrashImages[obj.imageIndex], obj.x, obj.y, obj.width, obj.height);
+            if (DEBUG_MODE) {
+                console.log('Drawing object:', {
+                    type: obj.type,
+                    x: obj.x,
+                    y: obj.y,
+                    width: obj.width,
+                    height: obj.height,
+                    imageLoaded: obj.type === 'pizza' ? pizzaImage.complete :
+                               obj.type === 'taco' ? tacoImage.complete :
+                               obj.type === 'catnip' ? catnipImage.complete : 'n/a'
+                });
+            }
+
+            if (obj.type === 'trash' && loadedTrashImages[obj.imageIndex] && loadedTrashImages[obj.imageIndex].complete) {
+                ctx.save(); // Save the current context state
+                
+                // If it's the trash bag (index 2), rotate it
+                if (obj.imageIndex === 2) { // Assuming trash bag is at index 2
+                    // Translate to the center of where the image will be
+                    ctx.translate(obj.x + obj.width/2, obj.y + obj.height/2);
+                    // Rotate 90 degrees (Math.PI/2 radians)
+                    ctx.rotate(Math.PI/2);
+                    // Draw the image centered at the rotation point
+                    ctx.drawImage(loadedTrashImages[obj.imageIndex], 
+                        -obj.width/2, -obj.height/2, 
+                        obj.width, obj.height);
+                } else {
+                    // Draw other trash normally
+                    ctx.drawImage(loadedTrashImages[obj.imageIndex], 
+                        obj.x, obj.y, 
+                        obj.width, obj.height);
+                }
+                
+                ctx.restore(); // Restore the context state
             } else if (obj.type === 'mouse' && mouseImage.complete) {
-                // Draw mouse without any transformation
                 ctx.drawImage(mouseImage, obj.x, obj.y, obj.width, obj.height);
+            } else if (obj.type === 'pizza' && pizzaImage.complete) {
+                ctx.drawImage(pizzaImage, obj.x, obj.y, obj.width, obj.height);
+            } else if (obj.type === 'taco' && tacoImage.complete) {
+                ctx.drawImage(tacoImage, obj.x, obj.y, obj.width, obj.height);
+            } else if (obj.type === 'catnip' && catnipImage.complete) {
+                ctx.drawImage(catnipImage, obj.x, obj.y, obj.width, obj.height);
             }
         }
     }
@@ -1053,48 +1164,70 @@ import { mediaPlayer } from './mediaPlayer.js';
         // Clear the canvas
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-        // Draw trick zone
-        drawTrickZone();
+        // Debug log to check if cat image is loaded
+        if (DEBUG_MODE) {
+            console.log('Cat image status:', {
+                complete: catImage.complete,
+                src: catImage.src,
+                width: catWidth,
+                height: catHeight,
+                x: catX,
+                y: catY
+            });
+        }
 
-        // Draw game objects
-        drawGameObjects();
+        // Always try to draw the cat first, with more explicit error checking
+        if (catImage.complete) {
+            drawCat();
+        } else {
+            console.warn('Cat image not yet loaded');
+            // Try loading the image again if it failed
+            if (!catImage.src) {
+                catImage.src = './assets/pizza-cat.png';
+            }
+        }
 
-        // Draw cat
-        drawCat();
+        // Draw game objects if game is running
+        if (isGameRunning && !isGameOver) {
+            drawGameObjects();
+            drawSurfMoveEffect();
+            
+            if (DEBUG_MODE) {
+                drawTrickZone();
+            }
+        }
 
-        // Draw flash overlay LAST to ensure it's on top
+        // Draw flash overlay if active
         if (isFlashing) {
             ctx.save();
             if (isSpectrumFlash) {
-                // Calculate progress through the flash duration
                 const progress = (Date.now() - flashStartTime) / flashDuration;
-                // Use a smoother color transition by using decimal index
                 const colorPosition = progress * (HAWAIIAN_COLORS.length - 1);
                 const index1 = Math.floor(colorPosition);
                 const index2 = Math.min(HAWAIIAN_COLORS.length - 1, index1 + 1);
                 const lerpAmount = colorPosition - index1;
                 
-                // Interpolate between colors for smoother transition
                 if (index1 < HAWAIIAN_COLORS.length) {
                     const color1 = HAWAIIAN_COLORS[index1];
                     const color2 = HAWAIIAN_COLORS[index2];
                     flashColor = lerpColors(color1, color2, lerpAmount);
                 }
             }
-            ctx.globalAlpha = flashAlpha * (1 - (Date.now() - flashStartTime) / flashDuration); // Fade out
+            ctx.globalAlpha = flashAlpha * (1 - (Date.now() - flashStartTime) / flashDuration);
             ctx.fillStyle = flashColor;
             ctx.fillRect(0, 0, canvas.width, canvas.height);
             ctx.restore();
             
-            // Check if flash duration is over
             if (Date.now() - flashStartTime > flashDuration) {
                 isFlashing = false;
                 isSpectrumFlash = false;
             }
         }
 
-        // Draw debug info
-        drawDebugInfo();
+        // Draw debug info if enabled
+        if (DEBUG_MODE) {
+            drawDebugInfo();
+        }
     }
 
     function drawDebugInfo() {
@@ -1258,4 +1391,33 @@ import { mediaPlayer } from './mediaPlayer.js';
         
         return `#${(r << 16 | g << 8 | b).toString(16).padStart(6, '0')}`;
     }
+
+    // Add this constant for collectible spawn rate
+    const COLLECTIBLE_SPAWN_RATE = 0.02; // Increased from 0.015
+
+    // Update the image loading section
+    pizzaImage.onload = imageLoaded;
+    pizzaImage.src = './assets/pizza.png';
+
+    tacoImage.onload = imageLoaded;
+    tacoImage.src = './assets/taco.png';
+
+    catnipImage.onload = imageLoaded;
+    catnipImage.src = './assets/catnip.png';
+
+    // Add error handlers for the new images
+    pizzaImage.onerror = function() {
+        console.error('Failed to load pizza image');
+        imageLoaded(); // Still call imageLoaded to avoid blocking the game
+    };
+
+    tacoImage.onerror = function() {
+        console.error('Failed to load taco image');
+        imageLoaded();
+    };
+
+    catnipImage.onerror = function() {
+        console.error('Failed to load catnip image');
+        imageLoaded();
+    };
 })();
