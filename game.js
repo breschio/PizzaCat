@@ -1,5 +1,6 @@
 import * as Tricks from './tricks.js';
 import { mediaPlayer } from './mediaPlayer.js';
+import { db, collection, addDoc, getDocs, query, orderBy, limit } from './firebase-config.js';
 
 (function() {
     // Add these variables at the top of your file, with other global variables
@@ -1067,22 +1068,36 @@ import { mediaPlayer } from './mediaPlayer.js';
 
     let leaderboard = [];
 
-    function submitScore() {
+    async function submitScore() {
         const playerNameInput = document.getElementById('player-name');
         const playerName = playerNameInput ? playerNameInput.value.trim() : '';
         
         if (playerName) {
-            // Add the new score to the leaderboard
-            leaderboard.push({ name: playerName, score: score });
-            
-            // Sort the leaderboard
-            leaderboard.sort((a, b) => b.score - a.score);
-            
-            // Keep only the top 10 scores
-            leaderboard = leaderboard.slice(0, 10);
-            
-            // Show the leaderboard
-            showLeaderboard();
+            try {
+                console.log("Attempting to save score...");
+                // Add score to Firebase
+                const docRef = await addDoc(collection(db, "scores"), {
+                    name: playerName,
+                    score: score,
+                    timestamp: new Date().toISOString()
+                });
+                console.log("Score saved successfully with ID:", docRef.id);
+                
+                // Fetch and display updated leaderboard
+                await showLeaderboard();
+            } catch (error) {
+                console.error("Error saving score:", error);
+                // More detailed error message
+                let errorMessage = "Error saving score: ";
+                if (error.code === 'permission-denied') {
+                    errorMessage += "Permission denied. Please check Firestore rules.";
+                } else if (error.code === 'unavailable') {
+                    errorMessage += "Service unavailable. Please check your internet connection.";
+                } else {
+                    errorMessage += error.message || "Unknown error";
+                }
+                alert(errorMessage);
+            }
         } else {
             // Visual feedback if name is empty
             if (playerNameInput) {
@@ -1096,33 +1111,52 @@ import { mediaPlayer } from './mediaPlayer.js';
         }
     }
 
-    function showLeaderboard() {
-        // Remove the game over screen
-        const gameOverScreen = document.getElementById('game-over-screen');
-        if (gameOverScreen) {
-            gameOverScreen.remove();
+    async function showLeaderboard() {
+        try {
+            // Create query to get top 10 scores
+            const scoresQuery = query(
+                collection(db, "scores"),
+                orderBy("score", "desc"),
+                limit(10)
+            );
+
+            // Get scores from Firebase
+            const querySnapshot = await getDocs(scoresQuery);
+            leaderboard = [];
+            querySnapshot.forEach((doc) => {
+                leaderboard.push(doc.data());
+            });
+
+            // Remove the game over screen
+            const gameOverScreen = document.getElementById('game-over-screen');
+            if (gameOverScreen) {
+                gameOverScreen.remove();
+            }
+
+            // Create and display the leaderboard
+            const leaderboardScreen = document.createElement('div');
+            leaderboardScreen.id = 'leaderboard-screen';
+            leaderboardScreen.innerHTML = `
+                <h2>TOP CATS</h2>
+                <ul id="leaderboard-list"></ul>
+                <button id="restart-game">Play Again</button>
+            `;
+            document.body.appendChild(leaderboardScreen);
+
+            // Populate the leaderboard list
+            const leaderboardList = document.getElementById('leaderboard-list');
+            leaderboard.forEach((entry, index) => {
+                const listItem = document.createElement('li');
+                listItem.textContent = `${index + 1}. ${entry.name}: ${entry.score}`;
+                leaderboardList.appendChild(listItem);
+            });
+
+            // Add event listener to the restart button
+            document.getElementById('restart-game').addEventListener('click', restartGame);
+        } catch (error) {
+            console.error("Error fetching leaderboard:", error);
+            alert("Error loading leaderboard. Please try again.");
         }
-
-        // Create and display the leaderboard
-        const leaderboardScreen = document.createElement('div');
-        leaderboardScreen.id = 'leaderboard-screen';
-        leaderboardScreen.innerHTML = `
-            <h2>TOP CATS</h2>
-            <ul id="leaderboard-list"></ul>
-            <button id="restart-game">Play Again</button>
-        `;
-        document.body.appendChild(leaderboardScreen);
-
-        // Populate the leaderboard list
-        const leaderboardList = document.getElementById('leaderboard-list');
-        leaderboard.forEach((entry, index) => {
-            const listItem = document.createElement('li');
-            listItem.textContent = `${index + 1}. ${entry.name}: ${entry.score}`;
-            leaderboardList.appendChild(listItem);
-        });
-
-        // Add event listener to the restart button
-        document.getElementById('restart-game').addEventListener('click', restartGame);
     }
 
     // Add this variable to track if the game loop is running
