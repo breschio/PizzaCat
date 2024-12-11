@@ -1113,6 +1113,16 @@ import { db, collection, addDoc, getDocs, query, orderBy, limit } from './fireba
 
     async function showLeaderboard() {
         try {
+            // Remove ANY existing leaderboard screens first
+            const existingLeaderboards = document.querySelectorAll('#leaderboard-screen');
+            existingLeaderboards.forEach(board => board.remove());
+
+            // Remove game over screen if it exists
+            const gameOverScreen = document.getElementById('game-over-screen');
+            if (gameOverScreen) {
+                gameOverScreen.remove();
+            }
+
             // Create query to get top 10 scores
             const scoresQuery = query(
                 collection(db, "scores"),
@@ -1126,12 +1136,6 @@ import { db, collection, addDoc, getDocs, query, orderBy, limit } from './fireba
             querySnapshot.forEach((doc) => {
                 leaderboard.push(doc.data());
             });
-
-            // Remove the game over screen
-            const gameOverScreen = document.getElementById('game-over-screen');
-            if (gameOverScreen) {
-                gameOverScreen.remove();
-            }
 
             // Create and display the leaderboard
             const leaderboardScreen = document.createElement('div');
@@ -1152,7 +1156,10 @@ import { db, collection, addDoc, getDocs, query, orderBy, limit } from './fireba
             });
 
             // Add event listener to the restart button
-            document.getElementById('restart-game').addEventListener('click', restartGame);
+            const restartButton = document.getElementById('restart-game');
+            if (restartButton) {
+                restartButton.addEventListener('click', restartGame, { once: true }); // Add once: true to prevent multiple listeners
+            }
         } catch (error) {
             console.error("Error fetching leaderboard:", error);
             alert("Error loading leaderboard. Please try again.");
@@ -1334,7 +1341,7 @@ import { db, collection, addDoc, getDocs, query, orderBy, limit } from './fireba
     }
 
     function restartGame() {
-        // Remove the leaderboard screen
+        // Remove leaderboard screen
         const leaderboardScreen = document.getElementById('leaderboard-screen');
         if (leaderboardScreen) {
             leaderboardScreen.remove();
@@ -1343,14 +1350,19 @@ import { db, collection, addDoc, getDocs, query, orderBy, limit } from './fireba
         // Reset game state
         isGameOver = false;
         isGameRunning = true;
-        catHealth = 100;
+        catHealth = maxCatHealth;
         score = 0;
+        updateScore();
+        updateHealthBar();
 
         // Reset other game variables
-        gameObjects = []; // Clear all game objects
+        gameObjects = [];
         
-        // Restart the game loop
-        requestAnimationFrame(gameLoop);
+        // Restart the game loop if it's not running
+        if (!gameLoopRunning) {
+            gameLoopRunning = true;
+            requestAnimationFrame(gameLoop);
+        }
     }
 
     function drawInitialState() {

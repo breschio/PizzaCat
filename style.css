@@ -152,17 +152,18 @@ body {
 }
 
 #leaderboard-screen {
-    position: absolute;
+    position: fixed;
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    background-color: rgba(0, 0, 0, 0.8);
+    background-color: rgba(0, 0, 0, 0.95);
     color: #FF8C42;
     padding: 30px;
     border-radius: 10px;
     text-align: center;
-    z-index: 1000;
+    z-index: 9999;
     width: 300px;
+    font-family: 'Press Start 2P', cursive;
 }
 
 #leaderboard-screen h2 {
@@ -173,13 +174,18 @@ body {
 #leaderboard-list {
     list-style-type: none;
     padding: 0;
-    margin-bottom: 20px;
+    margin: 20px 0;
     text-align: left;
+    max-height: 300px;
+    overflow-y: auto;
 }
 
 #leaderboard-list li {
-    margin-bottom: 10px;
-    font-size: 18px;
+    margin: 10px 0;
+    padding: 5px;
+    font-size: 16px;
+    color: #FF8C42;
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
 }
 
 #leaderboard-screen button {
