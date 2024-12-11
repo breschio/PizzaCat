@@ -27,9 +27,10 @@ import { mediaPlayer } from './mediaPlayer.js';
     let fishImage = new Image();
     let catImage = new Image();
     let loadedTrashImages = [];
+    let mouseImage = new Image();
 
     let imagesLoaded = 0;
-    const totalImages = 2;
+    const totalImages = 3;
 
     let catHealth = 100; // New variable for cat's health
     const maxCatHealth = 100; // Maximum cat health
@@ -422,16 +423,28 @@ import { mediaPlayer } from './mediaPlayer.js';
 
     // Modify the updateGameObjects function
     function updateGameObjects(deltaTime) {
+        const currentTime = Date.now();
+        
         // Spawn new objects
         if (Math.random() < trashSpawnRate + fishSpawnRate) {
             spawnObject();
         }
-
+        
         for (let i = gameObjects.length - 1; i >= 0; i--) {
             const obj = gameObjects[i];
             
-            // Move the object
-            obj.x -= obj.speed * deltaTime;
+            // Special movement for mouse
+            if (obj.type === 'mouse') {
+                // Move in the initial direction set at spawn
+                obj.x += obj.directionX * obj.speed * deltaTime;
+                obj.y += obj.directionY * obj.speed * deltaTime;
+                
+                // Add slight sine wave to vertical movement for more interesting pattern
+                obj.y += Math.sin(currentTime / 500) * deltaTime * 50;
+            } else {
+                // Existing movement for other objects
+                obj.x -= obj.speed * deltaTime;
+            }
 
             // Remove objects that are off-screen
             if (obj.x + obj.width < 0) {
@@ -450,21 +463,37 @@ import { mediaPlayer } from './mediaPlayer.js';
 
             if (distanceX < (catWidth + obj.width) / 2 * 0.8 &&
                 distanceY < (catHeight + obj.height) / 2 * 0.8) {
-                if (obj.type === 'fish') {
+                if (obj.type === 'mouse') {
+                    gameObjects.splice(i, 1);
+                    catHealth = Math.max(0, catHealth - MOUSE_DAMAGE);
+                    updateHealthBar();
+                    playCatMeowSound();
+                    isFlashing = true;
+                    isSpectrumFlash = false;  // Make sure it's not a spectrum flash
+                    flashColor = 'red';
+                    flashAlpha = 0.3;
+                    flashStartTime = Date.now();
+                } else if (obj.type === 'fish') {
                     gameObjects.splice(i, 1);
                     score += 10;
                     catHealth = Math.min(maxCatHealth, catHealth + 10);
                     updateScore();
                     updateHealthBar();
                     playNextFishCatchSound();
+                    isFlashing = true;
+                    isSpectrumFlash = true;  // Only fish gets spectrum flash
+                    flashAlpha = 0.2;
+                    flashStartTime = Date.now();
+                    colorIndex = 0;
                 } else if (obj.type === 'trash') {
                     gameObjects.splice(i, 1);
                     catHealth = Math.max(0, catHealth - 20);
                     updateHealthBar();
                     playCatMeowSound();
-                    
-                    // Trigger flash effect
                     isFlashing = true;
+                    isSpectrumFlash = false;  // Make sure it's not a spectrum flash
+                    flashColor = 'red';
+                    flashAlpha = 0.3;
                     flashStartTime = Date.now();
                 }
             }
@@ -487,11 +516,38 @@ import { mediaPlayer } from './mediaPlayer.js';
     }
 
     function spawnObject() {
+        const currentTime = Date.now();
         const minY = canvas.height * 0.25;
         const maxY = canvas.height - 50;
         const objectY = minY + Math.random() * (maxY - minY);
         
-        const canSpawnTrash = gameObjects.filter(obj => obj.type === 'trash').length < maxTrashItems && Math.random() < trashSpawnRate / (trashSpawnRate + fishSpawnRate);
+        // Check if it's time to spawn a mouse
+        if (currentTime - lastMouseSpawnTime > MOUSE_SPAWN_INTERVAL) {
+            // Calculate initial direction towards cat
+            const dx = (catX + catWidth/2) - (canvas.width + MOUSE_WIDTH/2);
+            const dy = (catY + catHeight/2) - objectY;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            
+            // Normalize the direction
+            const dirX = dx / distance;
+            const dirY = dy / distance;
+            
+            gameObjects.push({
+                x: canvas.width,
+                y: objectY,
+                width: MOUSE_WIDTH,
+                height: MOUSE_HEIGHT,
+                type: 'mouse',
+                speed: MOUSE_SPEED,
+                directionX: dirX,
+                directionY: dirY
+            });
+            lastMouseSpawnTime = currentTime;
+            return;
+        }
+
+        const canSpawnTrash = gameObjects.filter(obj => obj.type === 'trash').length < maxTrashItems 
+            && Math.random() < trashSpawnRate / (trashSpawnRate + fishSpawnRate);
 
         if (canSpawnTrash) {
             const trashIndex = Math.floor(Math.random() * trashImages.length);
@@ -528,6 +584,9 @@ import { mediaPlayer } from './mediaPlayer.js';
                 ctx.drawImage(fishImage, obj.x, obj.y, obj.width, obj.height);
             } else if (obj.type === 'trash' && loadedTrashImages[obj.imageIndex] && loadedTrashImages[obj.imageIndex].complete) {
                 ctx.drawImage(loadedTrashImages[obj.imageIndex], obj.x, obj.y, obj.width, obj.height);
+            } else if (obj.type === 'mouse' && mouseImage.complete) {
+                // Draw mouse without any transformation
+                ctx.drawImage(mouseImage, obj.x, obj.y, obj.width, obj.height);
             }
         }
     }
@@ -994,10 +1053,7 @@ import { mediaPlayer } from './mediaPlayer.js';
         // Clear the canvas
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-        // Draw background
-        drawBackground();
-
-        // Draw trick zone (add this line)
+        // Draw trick zone
         drawTrickZone();
 
         // Draw game objects
@@ -1006,21 +1062,39 @@ import { mediaPlayer } from './mediaPlayer.js';
         // Draw cat
         drawCat();
 
-        // Draw flash overlay
-        drawFlashOverlay();
+        // Draw flash overlay LAST to ensure it's on top
+        if (isFlashing) {
+            ctx.save();
+            if (isSpectrumFlash) {
+                // Calculate progress through the flash duration
+                const progress = (Date.now() - flashStartTime) / flashDuration;
+                // Use a smoother color transition by using decimal index
+                const colorPosition = progress * (HAWAIIAN_COLORS.length - 1);
+                const index1 = Math.floor(colorPosition);
+                const index2 = Math.min(HAWAIIAN_COLORS.length - 1, index1 + 1);
+                const lerpAmount = colorPosition - index1;
+                
+                // Interpolate between colors for smoother transition
+                if (index1 < HAWAIIAN_COLORS.length) {
+                    const color1 = HAWAIIAN_COLORS[index1];
+                    const color2 = HAWAIIAN_COLORS[index2];
+                    flashColor = lerpColors(color1, color2, lerpAmount);
+                }
+            }
+            ctx.globalAlpha = flashAlpha * (1 - (Date.now() - flashStartTime) / flashDuration); // Fade out
+            ctx.fillStyle = flashColor;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.restore();
+            
+            // Check if flash duration is over
+            if (Date.now() - flashStartTime > flashDuration) {
+                isFlashing = false;
+                isSpectrumFlash = false;
+            }
+        }
 
-        drawScore();
-        Tricks.drawTrickName(ctx, canvas);
-
-        // Draw debug info if needed
+        // Draw debug info
         drawDebugInfo();
-    }
-
-    function drawScore() {
-        ctx.fillStyle = 'white';
-        ctx.font = 'bold 20px Arial';
-        ctx.textAlign = 'center';
-        ctx.fillText(`Score: ${score}`, canvas.width / 2, 80); // Position below health bar
     }
 
     function drawDebugInfo() {
@@ -1051,15 +1125,11 @@ import { mediaPlayer } from './mediaPlayer.js';
         });
     }
 
-    // Add this to your draw function
-    function draw() {
-        // ... other drawing code ...
-        drawDebugInfo();
-    }
-
     let isFlashing = false;
-    let flashDuration = 500; // Duration of the flash in milliseconds
     let flashStartTime = 0;
+    const flashDuration = 800; // Increased from 200 to 800 milliseconds
+    let flashColor = 'red'; // Default flash color
+    let flashAlpha = 0.3; // Default flash opacity
 
     function drawFlashOverlay() {
         if (isFlashing) {
@@ -1104,11 +1174,8 @@ import { mediaPlayer } from './mediaPlayer.js';
     }
 
     function drawBackground() {
-        // Set the background color
-        ctx.fillStyle = '#87CEEB'; // Sky blue color
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-        // You can add more complex background drawing here if needed
+        // Remove the blue background fill
+        // The wave.gif will show through from the CSS background
     }
 
     document.fonts.ready.then(() => {
@@ -1149,4 +1216,46 @@ import { mediaPlayer } from './mediaPlayer.js';
             handleTrick();
         }
     });
+
+    // Add these constants for mouse behavior
+    const MOUSE_WIDTH = 120;  // Increased from 80 to 120
+    const MOUSE_HEIGHT = 120; // Increased from 80 to 120
+    const MOUSE_SPEED = 200;  // Keep the same speed
+    const MOUSE_DAMAGE = 15;
+    const MOUSE_SPAWN_INTERVAL = 5000; // Spawn a mouse every 5 seconds
+    let lastMouseSpawnTime = 0;
+
+    // Add this with the other image loading code (around line 55)
+    mouseImage.onload = imageLoaded;
+    mouseImage.src = './assets/mouse.png';
+
+    // Add these constants for the Hawaiian spectrum flash
+    const HAWAIIAN_COLORS = [
+        '#FF6B6B', // Coral
+        '#4ECDC4', // Turquoise
+        '#FFD93D', // Yellow
+        '#FF8C42', // Orange
+        '#98D9C2', // Mint
+        '#E84855', // Red
+        '#7AE7C7'  // Seafoam
+    ];
+    let colorIndex = 0;
+    let isSpectrumFlash = false;
+
+    // Add this helper function for color interpolation
+    function lerpColors(color1, color2, amount) {
+        const r1 = parseInt(color1.substring(1, 3), 16);
+        const g1 = parseInt(color1.substring(3, 5), 16);
+        const b1 = parseInt(color1.substring(5, 7), 16);
+        
+        const r2 = parseInt(color2.substring(1, 3), 16);
+        const g2 = parseInt(color2.substring(3, 5), 16);
+        const b2 = parseInt(color2.substring(5, 7), 16);
+        
+        const r = Math.round(r1 + (r2 - r1) * amount);
+        const g = Math.round(g1 + (g2 - g1) * amount);
+        const b = Math.round(b1 + (b2 - b1) * amount);
+        
+        return `#${(r << 16 | g << 8 | b).toString(16).padStart(6, '0')}`;
+    }
 })();
