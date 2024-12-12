@@ -503,7 +503,7 @@ import { db, collection, addDoc, getDocs, query, orderBy, limit } from './fireba
                     case 'mouse':
                         catHealth = Math.max(0, catHealth - MOUSE_DAMAGE);
                         updateHealthBar();
-                        playCatMeowSound();
+                        mediaPlayer.playCatMeowSound();
                         isFlashing = true;
                         isSpectrumFlash = false;
                         flashColor = 'red';
@@ -514,7 +514,7 @@ import { db, collection, addDoc, getDocs, query, orderBy, limit } from './fireba
                     case 'trash':
                         catHealth = Math.max(0, catHealth - 20);
                         updateHealthBar();
-                        playCatMeowSound();
+                        mediaPlayer.playCatMeowSound();
                         isFlashing = true;
                         isSpectrumFlash = false;
                         flashColor = 'red';
@@ -527,7 +527,7 @@ import { db, collection, addDoc, getDocs, query, orderBy, limit } from './fireba
                         catHealth = Math.min(maxCatHealth, catHealth + obj.health);
                         updateScore();
                         updateHealthBar();
-                        playNextFishCatchSound();
+                        mediaPlayer.playNextFishCatchSound();
                         isFlashing = true;
                         isSpectrumFlash = true;
                         flashAlpha = 0.2;
@@ -539,7 +539,7 @@ import { db, collection, addDoc, getDocs, query, orderBy, limit } from './fireba
                         catHealth = Math.min(maxCatHealth, catHealth + obj.health);
                         updateScore();
                         updateHealthBar();
-                        playNextFishCatchSound();
+                        mediaPlayer.playNextFishCatchSound();
                         isFlashing = true;
                         isSpectrumFlash = true;
                         flashAlpha = 0.2;
@@ -551,7 +551,7 @@ import { db, collection, addDoc, getDocs, query, orderBy, limit } from './fireba
                         catHealth = Math.min(maxCatHealth, catHealth + obj.health);
                         updateScore();
                         updateHealthBar();
-                        playNextFishCatchSound();
+                        mediaPlayer.playNextFishCatchSound();
                         isFlashing = true;
                         isSpectrumFlash = true;
                         flashAlpha = 0.2;
@@ -898,12 +898,7 @@ import { db, collection, addDoc, getDocs, query, orderBy, limit } from './fireba
             gameTime = 0;
 
             // Start both wave sound and music
-            if (waveSoundAudio) {
-                waveSoundAudio.currentTime = 0;
-                waveSoundAudio.play().catch(error => console.error("Audio play failed:", error));
-            }
-            
-            // Start the background music
+            mediaPlayer.startWaveSound();
             mediaPlayer.startGameMusic();
 
             // Hide start button and show stop button
@@ -926,10 +921,9 @@ import { db, collection, addDoc, getDocs, query, orderBy, limit } from './fireba
         document.getElementById('start-button').style.display = 'inline-block';
         
         // Pause both wave sound and music
-        if (waveSoundAudio) {
-            waveSoundAudio.pause();
-        }
-        
+        mediaPlayer.stopWaveSound();
+        mediaPlayer.stopAllSounds();
+
         // Pause the background music
         mediaPlayer.currentAudio.pause();
         mediaPlayer.isPlaying = false;
@@ -1023,9 +1017,7 @@ import { db, collection, addDoc, getDocs, query, orderBy, limit } from './fireba
         isGameRunning = false;
 
         // Stop the wave sound
-        if (waveSoundAudio) {
-            waveSoundAudio.pause();
-        }
+        mediaPlayer.stopWaveSound();
 
         // Remove any existing game over screen
         const existingScreen = document.getElementById('game-over-screen');

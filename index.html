@@ -27,8 +27,8 @@
     <button id="stop-button" class="game-text" style="display: none;">PAWS</button>
     <canvas id="gameCanvas"></canvas>
     <div id="volume-control">
-        <span class="speaker-icon">🔊</span>
-        <input type="range" id="volume-slider" min="0" max="100" value="50">
+        <div id="speaker-icon" title="Unmute">🔇</div>
+        <input type="range" id="volume-slider" min="0" max="100" value="0">
     </div>
     <div id="health-bar-container">
         <div class="health-label">HEALTH</div>
@@ -38,10 +38,6 @@
         <div id="health-text">100</div>
     </div>
   </div>
-  <audio id="fishCatchSound1" src="./assets/cat-meow-1.MP3" preload="auto"></audio>
-  <audio id="fishCatchSound2" src="./assets/cat-bite-1.MP3" preload="auto"></audio>
-  <audio id="fishCatchSound3" src="./assets/cat-meow-2.MP3" preload="auto"></audio>
-  <audio id="waveBackgroundSound" src="./assets/surf-sound-1.MP3" loop preload="auto"></audio>
   <script src="game.js" type="module"></script>
 </body>
 </html>
