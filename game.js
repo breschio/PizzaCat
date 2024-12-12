@@ -238,12 +238,12 @@ import { db, collection, addDoc, getDocs, query, orderBy, limit } from './fireba
         lastTime = timestamp;
 
         // Only update if deltaTime is reasonable (prevents huge jumps)
-        if (deltaTime < 0.1) {
+        if (deltaTime < 0.1 && !isPaused) {
             update(deltaTime);
             draw(); // Make sure we're calling draw every frame
         }
         
-        if (isGameRunning || isGameOver) {
+        if (isGameRunning || isGameOver || isPaused) {
             requestAnimationFrame(gameLoop);
         } else {
             gameLoopRunning = false;
@@ -691,13 +691,13 @@ import { db, collection, addDoc, getDocs, query, orderBy, limit } from './fireba
                 }
                 
                 ctx.restore(); // Restore the context state
-            } else if (obj.type === 'mouse' && mouseImage.complete) {
+            } else if (obj.type === 'mouse' && mouseImage && mouseImage.complete) {
                 ctx.drawImage(mouseImage, obj.x, obj.y, obj.width, obj.height);
-            } else if (obj.type === 'pizza' && pizzaImage.complete) {
+            } else if (obj.type === 'pizza' && pizzaImage && pizzaImage.complete) {
                 ctx.drawImage(pizzaImage, obj.x, obj.y, obj.width, obj.height);
-            } else if (obj.type === 'taco' && tacoImage.complete) {
+            } else if (obj.type === 'taco' && tacoImage && tacoImage.complete) {
                 ctx.drawImage(tacoImage, obj.x, obj.y, obj.width, obj.height);
-            } else if (obj.type === 'catnip' && catnipImage.complete) {
+            } else if (obj.type === 'catnip' && catnipImage && catnipImage.complete) {
                 ctx.drawImage(catnipImage, obj.x, obj.y, obj.width, obj.height);
             }
         }
@@ -887,49 +887,63 @@ import { db, collection, addDoc, getDocs, query, orderBy, limit } from './fireba
 
     // Make sure your startGame function looks like this:
     function startGame() {
-        if (!isGameRunning) {
+        if (!isGameRunning && !isPaused) {
+            // This is a fresh start
             isGameRunning = true;
             isGameOver = false;
-            // Reset game state, score, cat position, etc.
+            // Reset game state
             score = 0;
             catHealth = maxCatHealth;
             initializeCat();
             gameObjects = [];
             gameTime = 0;
 
-            // Start both wave sound and music
+            // Start sounds
             mediaPlayer.startWaveSound();
             mediaPlayer.startGameMusic();
+        } else if (isPaused) {
+            // This is resuming from pause
+            isPaused = false;
+            isGameRunning = true;
+            
+            // Resume sounds
+            mediaPlayer.startWaveSound();
+            mediaPlayer.startGameMusic();
+        }
 
-            // Hide start button and show stop button
-            document.getElementById('start-button').style.display = 'none';
-            document.getElementById('stop-button').style.display = 'inline-block';
+        // Update UI
+        document.getElementById('start-button').style.display = 'none';
+        document.getElementById('stop-button').style.display = 'inline-block';
 
-            // Start the game loop if it's not already running
-            if (!gameLoopRunning) {
-                gameLoopRunning = true;
-                requestAnimationFrame(gameLoop);
-            }
+        // Ensure game loop is running
+        if (!gameLoopRunning) {
+            gameLoopRunning = true;
+            lastTime = performance.now();
+            requestAnimationFrame(gameLoop);
         }
     }
 
     // And your stopGame function:
     function stopGame() {
+        isPaused = true;
         isGameRunning = false;
-        // Hide stop button and show start button
+        
+        // Update UI
         document.getElementById('stop-button').style.display = 'none';
         document.getElementById('start-button').style.display = 'inline-block';
         
-        // Pause both wave sound and music
+        // Pause sounds
         mediaPlayer.stopWaveSound();
         mediaPlayer.stopAllSounds();
 
         // Pause the background music
-        mediaPlayer.currentAudio.pause();
-        mediaPlayer.isPlaying = false;
-        mediaPlayer.playPauseBtn.textContent = '▶';
-
-        // Any other cleanup or state reset you need to do when stopping the game
+        if (mediaPlayer.currentAudio) {
+            mediaPlayer.currentAudio.pause();
+            mediaPlayer.isPlaying = false;
+        }
+        if (mediaPlayer.playPauseBtn) {
+            mediaPlayer.playPauseBtn.textContent = '▶';
+        }
     }
 
     // Initialize the game when the DOM is fully loaded
@@ -1287,6 +1301,14 @@ import { db, collection, addDoc, getDocs, query, orderBy, limit } from './fireba
         if (DEBUG_MODE) {
             drawDebugInfo();
         }
+
+        // Draw pause overlay if game is paused
+        if (isPaused) {
+            ctx.save();
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.restore();
+        }
     }
 
     function drawDebugInfo() {
@@ -1484,4 +1506,42 @@ import { db, collection, addDoc, getDocs, query, orderBy, limit } from './fireba
         console.error('Failed to load catnip image');
         imageLoaded();
     };
+
+    // Add these state variables near the top with other game state variables
+    let isPaused = false;
+    let lastGameState = null;
+
+    // Add error handling for image loading
+    function handleImageError(imageName) {
+        return function(error) {
+            console.error(`Failed to load ${imageName} image:`, error);
+            imageLoaded(); // Still call imageLoaded to avoid blocking the game
+        };
+    }
+
+    // Update image loading with better error handling
+    mouseImage.onload = imageLoaded;
+    mouseImage.onerror = handleImageError('mouse');
+    mouseImage.src = './assets/mouse.png';
+
+    pizzaImage.onload = imageLoaded;
+    pizzaImage.onerror = handleImageError('pizza');
+    pizzaImage.src = './assets/pizza.png';
+
+    tacoImage.onload = imageLoaded;
+    tacoImage.onerror = handleImageError('taco');
+    tacoImage.src = './assets/taco.png';
+
+    catnipImage.onload = imageLoaded;
+    catnipImage.onerror = handleImageError('catnip');
+    catnipImage.src = './assets/catnip.png';
+
+    // Update trash image loading
+    trashImages.forEach((trashItem, index) => {
+        const img = new Image();
+        img.onload = imageLoaded;
+        img.onerror = handleImageError(`trash-${index}`);
+        img.src = trashItem.src;
+        loadedTrashImages[index] = img;
+    });
 })();
