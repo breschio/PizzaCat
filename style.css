@@ -52,10 +52,10 @@ body {
 
 #start-button, #stop-button {
     position: absolute;
-    bottom: 20px;
+    bottom: 25px;
     right: 20px;
     z-index: 2;
-    font-size: 24px;
+    font-size: 20px;
     font-weight: bold;
     color: white;
     background: none;
@@ -63,6 +63,11 @@ body {
     cursor: pointer;
     text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
     transition: transform 0.1s ease-in-out;
+    padding: 5px 10px;
+    min-width: fit-content;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
 }
 
 #start-button:hover, #stop-button:hover {
@@ -516,4 +521,35 @@ button {
     text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
     white-space: nowrap;
     margin-right: 10px;
+}
+
+/* Add these styles for the play icon */
+.button-with-icon {
+    display: flex;
+    align-items: center;
+    width: auto;
+    justify-content: flex-end;
+}
+
+.button-icon {
+    font-size: 24px;
+    margin-left: 16px;
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+}
+
+/* Mobile styles */
+@media screen and (max-width: 768px) {
+    #start-button, #stop-button {
+        font-size: 16px;
+        right: 20px;
+        bottom: 25px;
+    }
+    
+    #start-button:active {
+        transform: scale(0.9);
+    }
+    
+    .button-icon {
+        font-size: 20px;
+    }
 }
