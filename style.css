@@ -261,7 +261,7 @@ button {
 
 .toast-notification {
     position: fixed;
-    top: 80px;
+    bottom: 80px;
     right: 20px;
     background-color: rgba(0, 0, 0, 0.8);
     color: white;
@@ -269,7 +269,7 @@ button {
     border-radius: 8px;
     font-family: 'Press Start 2P', 'Courier New', Courier, monospace;
     z-index: 1000;
-    animation: slideIn 0.5s ease-out, fadeOut 0.5s ease-in 2.5s forwards;
+    animation: slideInFromBottom 0.5s ease-out, fadeOut 0.5s ease-in 2.5s forwards;
 }
 
 .toast-notification .reaction {
@@ -289,13 +289,13 @@ button {
     font-size: 20px;
 }
 
-@keyframes slideIn {
+@keyframes slideInFromBottom {
     from {
-        transform: translateX(100%);
+        transform: translateY(100%);
         opacity: 0;
     }
     to {
-        transform: translateX(0);
+        transform: translateY(0);
         opacity: 1;
     }
 }
@@ -551,5 +551,72 @@ button {
     
     .button-icon {
         font-size: 20px;
+    }
+
+    /* Smaller title and score for mobile */
+    #game-title {
+        font-size: 16px;
+    }
+
+    #score {
+        font-size: 16px;
+        top: 20px;
+    }
+
+    #score-number, #pts-text {
+        font-size: 16px;
+    }
+}
+
+/* Mobile styles for health bar */
+@media screen and (max-width: 768px) {
+    #health-bar-container {
+        top: 55px;
+        width: 90%;
+        left: 0;
+        right: 0;
+        transform: none;
+        width: auto;
+        margin: 0 20px;
+        box-sizing: border-box;
+    }
+    
+    .health-label {
+        font-size: 12px;
+        flex: 1;
+        margin-right: 8px;
+    }
+    
+    #health-text {
+        font-size: 12px;
+        min-width: 30px;
+    }
+    
+    #health-bar-background {
+        height: 15px;
+        flex: 3;
+    }
+}
+
+/* Add mobile styles for toast */
+@media screen and (max-width: 768px) {
+    .toast-notification {
+        right: 50%;
+        transform: translateX(50%);
+        min-width: 200px;
+        max-width: 90%;
+        text-align: center;
+    }
+
+    /* Update animation for centered toast on mobile */
+    @keyframes slideInFromBottom {
+        from {
+            transform: translate(50%, 100%);
+            opacity: 0;
+        }
+        to {
+            transform: translate(50%, 0);
+            opacity: 1;
+        }
     }
 }
