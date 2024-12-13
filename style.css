@@ -620,3 +620,37 @@ button {
         }
     }
 }
+
+/* Trick zone styles */
+.trick-zone {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    pointer-events: none;
+    opacity: 0;
+    background: linear-gradient(180deg, 
+        rgba(255, 215, 0, 0.2) 0%,
+        rgba(255, 140, 0, 0.25) 50%,
+        rgba(255, 69, 0, 0.3) 100%);
+    transition: opacity 0.15s ease-in-out;
+    z-index: 1;
+}
+
+.trick-zone.active {
+    opacity: 1;
+}
+
+.trick-zone.intense {
+    background: linear-gradient(180deg, 
+        rgba(255, 215, 0, 0.3) 0%,
+        rgba(255, 140, 0, 0.35) 50%,
+        rgba(255, 69, 0, 0.4) 100%);
+    animation: pulseGlow 0.8s ease-in-out infinite;
+}
+
+@keyframes pulseGlow {
+    0% { opacity: 0.8; }
+    50% { opacity: 1; }
+    100% { opacity: 0.8; }
+}

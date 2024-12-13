@@ -255,6 +255,25 @@ import { db, collection, addDoc, getDocs, query, orderBy, limit } from './fireba
 
         updateCatPosition();
         
+        // Update trick zone - add this before other updates
+        const inTrickZone = catY + catHeight < TRICK_THRESHOLD;
+        trickZone.style.height = `${TRICK_THRESHOLD}px`;
+        
+        if (inTrickZone && !isPaused) {
+            trickZone.classList.add('active');
+            trickZoneIntensity = Math.min(TRICK_INTENSITY_MAX, trickZoneIntensity + TRICK_INTENSITY_RATE);
+            
+            if (trickZoneIntensity > TRICK_INTENSITY_MAX * 0.7) {
+                trickZone.classList.add('intense');
+            }
+        } else {
+            trickZone.classList.remove('active', 'intense');
+            trickZoneIntensity = Math.max(0, trickZoneIntensity - TRICK_INTENSITY_RATE * 2);
+        }
+        
+        // Update opacity based on intensity
+        trickZone.style.opacity = (trickZoneIntensity / TRICK_INTENSITY_MAX) * 0.8;
+
         // Update trick timer and display time
         if (Tricks.isTrickActive) {
             Tricks.setTrickTimer(Tricks.trickTimer - deltaTime * 1000);
@@ -1203,11 +1222,16 @@ import { db, collection, addDoc, getDocs, query, orderBy, limit } from './fireba
             isGameRunning, 
             isGameOver, 
             score,
+            trickZoneIntensity / TRICK_INTENSITY_MAX, // Pass intensity factor
             updateScore
         );
+        
         if (scoreIncrease > 0) {
             score += scoreIncrease;
             updateScore();
+            // Reset intensity after successful trick
+            trickZoneIntensity = 0;
+            trickZone.classList.remove('intense');
         }
     }
 
@@ -1544,4 +1568,12 @@ import { db, collection, addDoc, getDocs, query, orderBy, limit } from './fireba
         img.src = trashItem.src;
         loadedTrashImages[index] = img;
     });
+
+    // Add after other initialization code
+    const trickZone = document.createElement('div');
+    trickZone.className = 'trick-zone';
+    document.getElementById('game-container').appendChild(trickZone);
+    let trickZoneIntensity = 0;
+    const TRICK_INTENSITY_MAX = 100;
+    const TRICK_INTENSITY_RATE = 4; // Doubled the rate at which intensity builds
 })();

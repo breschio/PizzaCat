@@ -1,10 +1,11 @@
-import { songs } from './songConfig.js';
+import songs from './songConfig.js';
 
 class MediaPlayer {
     constructor() {
         this.songs = songs;
         this.currentAudio = null;
-        this.isMuted = true; // Start muted
+        this.currentSongIndex = 0;
+        this.isMuted = false; // Start unmuted
         
         // Setup volume controls
         this.volumeSlider = document.getElementById('volume-slider');
@@ -12,8 +13,8 @@ class MediaPlayer {
         this.volumeControl = document.getElementById('volume-control');
         
         // Set initial state
-        this.volumeSlider.value = 0;
-        this.volumeSlider.style.display = 'none'; // Hide slider initially
+        this.volumeSlider.value = 25; // Start at 25% volume
+        this.volumeSlider.style.display = 'block'; // Show slider initially
         this.updateSpeakerIcon();
         
         this.volumeSliderTimeout = null;
@@ -137,8 +138,8 @@ class MediaPlayer {
     }
 
     startGameMusic() {
-        // Pick a random song
-        const randomSong = this.songs[Math.floor(Math.random() * this.songs.length)];
+        // Get current song
+        const currentSong = this.songs[this.currentSongIndex];
         
         // If there's currently playing audio, stop it
         if (this.currentAudio) {
@@ -146,9 +147,21 @@ class MediaPlayer {
         }
 
         // Create and play new audio
-        this.currentAudio = new Audio(`./assets/music/${randomSong.file}`);
+        this.currentAudio = new Audio(`./assets/music/${currentSong.file}`);
         this.currentAudio.volume = this.volumeSlider.value / 100;
+        
+        // Add ended event listener to play next song
+        this.currentAudio.addEventListener('ended', () => {
+            this.playNextSong();
+        });
+        
         this.currentAudio.play().catch(error => console.error("Error playing music:", error));
+    }
+
+    playNextSong() {
+        // Move to next song, loop back to start if at end
+        this.currentSongIndex = (this.currentSongIndex + 1) % this.songs.length;
+        this.startGameMusic();
     }
 
     startWaveSound() {
@@ -181,6 +194,8 @@ class MediaPlayer {
     stopAllSounds() {
         // Stop background music
         if (this.currentAudio) {
+            // Remove ended event listener to prevent memory leaks
+            this.currentAudio.removeEventListener('ended', this.playNextSong);
             this.currentAudio.pause();
             this.currentAudio = null;
         }
