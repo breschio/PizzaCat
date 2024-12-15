@@ -250,25 +250,91 @@ import { db, collection, addDoc, getDocs, query, orderBy, limit } from './fireba
         }
     }
 
+    // Add near the top with other state variables
+    let isPaused = false;
+    let lastGameState = null;
+    let inTrickZone = false;
+    let trickZoneIntensity = 0;
+    const TRICK_INTENSITY_MAX = 100;
+    const TRICK_INTENSITY_RATE = 4;
+    let trickCountdown = null;
+    let currentTrickIndex = 0;
+    const TRICK_NAMES = [
+        'Wisker Flip',
+        'Tail Spin', 
+        'Paw Plant', 
+        'Pizza Roll'
+    ];
+
+    // Create trick zone elements
+    const trickZone = document.createElement('div');
+    trickZone.className = 'trick-zone';
+    document.getElementById('game-container').appendChild(trickZone);
+
+    const trickZoneBar = document.createElement('div');
+    trickZoneBar.className = 'trick-zone-bar';
+
+    const trickZoneLabel = document.createElement('div');
+    trickZoneLabel.className = 'trick-zone-label';
+    trickZoneLabel.textContent = 'TRICK ZONE';
+
+    const trickZoneBarBg = document.createElement('div');
+    trickZoneBarBg.className = 'trick-zone-bar-background';
+
+    const trickZoneBarFill = document.createElement('div');
+    trickZoneBarFill.className = 'trick-zone-bar-fill';
+
+    const trickInstruction = document.createElement('div');
+    trickInstruction.className = 'trick-instruction';
+
+    // Assemble the elements
+    trickZoneBarBg.appendChild(trickZoneBarFill);
+    trickZoneBar.appendChild(trickZoneLabel);
+    trickZoneBar.appendChild(trickZoneBarBg);
+    document.getElementById('game-container').appendChild(trickZoneBar);
+    document.getElementById('game-container').appendChild(trickInstruction);
+
     function update(deltaTime) {
         if (isGameOver || !isGameRunning) return;
 
         updateCatPosition();
         
-        // Update trick zone - add this before other updates
-        const inTrickZone = catY + catHeight < TRICK_THRESHOLD;
+        // Update trick zone
+        inTrickZone = catY + catHeight < TRICK_THRESHOLD;
         trickZone.style.height = `${TRICK_THRESHOLD}px`;
+        
+        // Toggle UI visibility
+        document.getElementById('game-container').classList.toggle('in-trick-zone', inTrickZone);
         
         if (inTrickZone && !isPaused) {
             trickZone.classList.add('active');
-            trickZoneIntensity = Math.min(TRICK_INTENSITY_MAX, trickZoneIntensity + TRICK_INTENSITY_RATE);
+            trickZoneBar.classList.add('active');
+            trickInstruction.classList.add('active');
             
-            if (trickZoneIntensity > TRICK_INTENSITY_MAX * 0.7) {
-                trickZone.classList.add('intense');
+            if (!trickCountdown) {
+                // Reset and start countdown
+                trickZoneBarFill.style.width = '100%';
+                void trickZoneBarFill.offsetWidth; // Force reflow
+                trickZoneBarFill.style.width = '0%';
+                
+                // Update instruction
+                trickInstruction.textContent = `Press spacebar to: ${TRICK_NAMES[currentTrickIndex]}`;
+                
+                // Set timer for next trick
+                trickCountdown = setTimeout(() => {
+                    currentTrickIndex = (currentTrickIndex + 1) % TRICK_NAMES.length;
+                    trickCountdown = null;
+                }, 5000);
             }
         } else {
-            trickZone.classList.remove('active', 'intense');
-            trickZoneIntensity = Math.max(0, trickZoneIntensity - TRICK_INTENSITY_RATE * 2);
+            // Reset trick zone state
+            trickZone.classList.remove('active');
+            trickZoneBar.classList.remove('active');
+            trickInstruction.classList.remove('active');
+            if (trickCountdown) {
+                clearTimeout(trickCountdown);
+                trickCountdown = null;
+            }
         }
         
         // Update opacity based on intensity
@@ -1215,23 +1281,31 @@ import { db, collection, addDoc, getDocs, query, orderBy, limit } from './fireba
     const TRICK_THRESHOLD = Tricks.calculateTrickThreshold(canvas);
 
     function handleTrick() {
-        const scoreIncrease = Tricks.performTrick(
-            catY, 
-            catHeight, 
-            TRICK_THRESHOLD, 
-            isGameRunning, 
-            isGameOver, 
-            score,
-            trickZoneIntensity / TRICK_INTENSITY_MAX, // Pass intensity factor
-            updateScore
-        );
-        
-        if (scoreIncrease > 0) {
-            score += scoreIncrease;
-            updateScore();
-            // Reset intensity after successful trick
-            trickZoneIntensity = 0;
-            trickZone.classList.remove('intense');
+        if (inTrickZone && !isPaused) {
+            const currentTrick = TRICK_NAMES[currentTrickIndex];
+            // Perform trick and update score
+            const scoreIncrease = Tricks.performTrick(
+                catY,
+                catHeight,
+                TRICK_THRESHOLD,
+                isGameRunning,
+                isGameOver,
+                score
+            );
+            
+            if (scoreIncrease > 0) {
+                score += scoreIncrease;
+                updateScore();
+                
+                // Reset trick countdown
+                if (trickCountdown) {
+                    clearTimeout(trickCountdown);
+                    trickCountdown = null;
+                }
+                
+                // Move to next trick
+                currentTrickIndex = (currentTrickIndex + 1) % TRICK_NAMES.length;
+            }
         }
     }
 
@@ -1530,50 +1604,4 @@ import { db, collection, addDoc, getDocs, query, orderBy, limit } from './fireba
         console.error('Failed to load catnip image');
         imageLoaded();
     };
-
-    // Add these state variables near the top with other game state variables
-    let isPaused = false;
-    let lastGameState = null;
-
-    // Add error handling for image loading
-    function handleImageError(imageName) {
-        return function(error) {
-            console.error(`Failed to load ${imageName} image:`, error);
-            imageLoaded(); // Still call imageLoaded to avoid blocking the game
-        };
-    }
-
-    // Update image loading with better error handling
-    mouseImage.onload = imageLoaded;
-    mouseImage.onerror = handleImageError('mouse');
-    mouseImage.src = './assets/mouse.png';
-
-    pizzaImage.onload = imageLoaded;
-    pizzaImage.onerror = handleImageError('pizza');
-    pizzaImage.src = './assets/pizza.png';
-
-    tacoImage.onload = imageLoaded;
-    tacoImage.onerror = handleImageError('taco');
-    tacoImage.src = './assets/taco.png';
-
-    catnipImage.onload = imageLoaded;
-    catnipImage.onerror = handleImageError('catnip');
-    catnipImage.src = './assets/catnip.png';
-
-    // Update trash image loading
-    trashImages.forEach((trashItem, index) => {
-        const img = new Image();
-        img.onload = imageLoaded;
-        img.onerror = handleImageError(`trash-${index}`);
-        img.src = trashItem.src;
-        loadedTrashImages[index] = img;
-    });
-
-    // Add after other initialization code
-    const trickZone = document.createElement('div');
-    trickZone.className = 'trick-zone';
-    document.getElementById('game-container').appendChild(trickZone);
-    let trickZoneIntensity = 0;
-    const TRICK_INTENSITY_MAX = 100;
-    const TRICK_INTENSITY_RATE = 4; // Doubled the rate at which intensity builds
 })();
