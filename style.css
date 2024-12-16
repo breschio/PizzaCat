@@ -269,7 +269,16 @@ button {
     border-radius: 8px;
     font-family: 'Press Start 2P', 'Courier New', Courier, monospace;
     z-index: 1000;
-    animation: slideInFromBottom 0.5s ease-out, fadeOut 0.5s ease-in 2.5s forwards;
+    animation: slideInFromBottom 0.5s ease-out, fadeOut 0.5s ease-in 1.5s forwards;
+    margin-bottom: 10px;
+}
+
+.toast-notification:nth-child(2) {
+    bottom: 160px;
+}
+
+.toast-notification:nth-child(3) {
+    bottom: 240px;
 }
 
 .toast-notification .reaction {
@@ -485,6 +494,7 @@ button {
     display: flex;
     align-items: center;
     gap: 10px;
+    transition: opacity 0.3s ease;
 }
 
 #health-bar-background {
@@ -617,14 +627,14 @@ button {
     }
 }
 
-/* Trick zone styles */
+/* Update trick zone styles */
 .trick-zone {
     position: absolute;
     top: 0;
     left: 0;
     right: 0;
     pointer-events: none;
-    opacity: 0.4;
+    opacity: 0;  /* Start hidden */
     background: linear-gradient(180deg, 
         rgba(255, 140, 0, 0.2) 0%,
         rgba(255, 69, 0, 0.3) 50%,
@@ -634,27 +644,76 @@ button {
 }
 
 .trick-zone.active {
+    opacity: 0.4;  /* Show when active */
+}
+
+/* Update trick button styles */
+.trick-button {
+    position: fixed;
+    bottom: 80px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #FF6B6B;
+    color: white;
+    border: 3px solid #FFD93D;
+    padding: 15px 30px;
+    font-family: 'Press Start 2P', cursive;
+    font-size: 16px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    z-index: 1000;
+    text-shadow: 2px 2px 0 #000;
+    box-shadow: 0 4px 0 #E84855;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.trick-button.active {
     opacity: 1;
+    pointer-events: auto;
+    animation: buttonPulse 1.5s infinite;
 }
 
-.trick-zone.intense {
-    background: linear-gradient(180deg, 
-        rgba(255, 215, 0, 0.3) 0%,
-        rgba(255, 140, 0, 0.35) 50%,
-        rgba(255, 69, 0, 0.4) 100%);
-    animation: pulseGlow 0.8s ease-in-out infinite;
+@keyframes buttonPulse {
+    0% { transform: translateX(-50%) scale(1); }
+    50% { transform: translateX(-50%) scale(1.05); }
+    100% { transform: translateX(-50%) scale(1); }
 }
 
-@keyframes pulseGlow {
-    0% { opacity: 0.8; }
-    50% { opacity: 1; }
-    100% { opacity: 0.8; }
+.trick-button:hover {
+    background: #FF8C42;
+    transform: translateX(-50%) scale(1.05);
 }
 
-/* Trick zone bar container */
+.trick-button:active {
+    transform: translateX(-50%) scale(0.95);
+    box-shadow: 0 2px 0 #E84855;
+}
+
+/* Mobile styles for trick button */
+@media screen and (max-width: 768px) {
+    .trick-button {
+        bottom: 100px;  /* Move up more on mobile */
+        font-size: 14px;
+        padding: 12px 24px;
+        width: auto;
+        max-width: 80%;  /* Prevent button from being too wide */
+        white-space: nowrap;  /* Keep text on one line */
+    }
+}
+
+/* Hide unnecessary UI when trick zone is active */
+.in-trick-zone #health-bar-container,
+.in-trick-zone #volume-control,
+.in-trick-zone #stop-button {
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease-in-out;
+}
+
 .trick-zone-bar {
-    position: absolute;
-    top: 20px;  /* Same position as health bar */
+    position: fixed;
+    top: 20px;
     left: 50%;
     transform: translateX(-50%);
     width: 400px;
@@ -663,15 +722,23 @@ button {
     align-items: center;
     gap: 10px;
     opacity: 0;
-    transition: opacity 0.3s ease-in-out;
+    transition: opacity 0.3s ease;
 }
 
 .trick-zone-bar.active {
     opacity: 1;
 }
 
+.trick-zone-label {
+    color: white;
+    font-size: 16px;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+    white-space: nowrap;
+    margin-right: 10px;  /* Match health-label margin */
+}
+
 .trick-zone-bar-background {
-    background-color: rgba(255, 20, 147, 0.3);  /* Hot pink with transparency */
+    background-color: rgba(255, 140, 66, 0.3);  /* Orange background */
     height: 20px;
     border: 2px solid white;
     border-radius: 4px;
@@ -680,59 +747,73 @@ button {
 }
 
 .trick-zone-bar-fill {
-    background-color: rgba(255, 20, 147, 0.7);
+    background-color: rgba(255, 140, 66, 0.7);  /* Orange fill */
     height: 100%;
     width: 100%;
-    transition: width 5s linear;  /* 5 second linear countdown */
+    transition: width 0.1s linear;
 }
 
-.trick-zone-label {
-    color: #FF1493;  /* Hot pink */
+.trick-zone-text {
+    color: white;
+    font-family: 'Press Start 2P', cursive;
     font-size: 16px;
     text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
     white-space: nowrap;
 }
 
-.trick-instruction {
-    position: absolute;
-    bottom: 100px;
-    left: 50%;
-    transform: translateX(-50%);
-    color: #FF1493;
-    font-size: 14px;
-    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
-    white-space: nowrap;
-    opacity: 0;
-    transition: opacity 0.3s ease-in-out;
-    text-transform: uppercase;  /* Make text all caps */
-}
-
-.trick-instruction.active {
-    opacity: 1;
-}
-
+/* Mobile styles */
 @media screen and (max-width: 768px) {
     .trick-zone-bar {
-        top: 90px;
+        top: 55px;
         width: 90%;
+        left: 0;
+        right: 0;
+        transform: none;
+        width: auto;
         margin: 0 20px;
+        box-sizing: border-box;
     }
     
     .trick-zone-label {
         font-size: 12px;
+        flex: 1;
+        margin-right: 8px;
     }
     
-    .trick-instruction {
+    .trick-zone-text {
         font-size: 12px;
-        bottom: 80px;
+        min-width: 30px;
+    }
+    
+    .trick-zone-bar-background {
+        height: 15px;
+        flex: 3;
     }
 }
 
-/* Hide UI elements when in trick zone */
-.in-trick-zone #health-bar-container,
-.in-trick-zone #volume-control,
-.in-trick-zone #stop-button {
+.spacebar-instruction {
+    position: fixed;
+    bottom: 50px;  /* Position below the trick button */
+    left: 50%;
+    transform: translateX(-50%);
+    color: white;
+    font-family: 'Press Start 2P', cursive;
+    font-size: 14px;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+    z-index: 1000;
+    text-align: center;
     opacity: 0;
-    pointer-events: none;
-    transition: opacity 0.3s ease-in-out;
+    transition: opacity 0.3s ease;
+}
+
+.spacebar-instruction.active {
+    opacity: 1;
+}
+
+/* Update mobile styles */
+@media screen and (max-width: 768px) {
+    .spacebar-instruction {
+        bottom: 70px;  /* Adjust position for mobile */
+        font-size: 12px;
+    }
 }

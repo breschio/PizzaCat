@@ -1,3 +1,21 @@
+import { 
+    performTrick,
+    startSurfMove,
+    updateSurfMove,
+    endSurfMove,
+    drawTrickName,
+    calculateTrickThreshold,
+    TRICK_DURATION,
+    TRICK_COOLDOWN,
+    TRICK_NAME_DISPLAY_DURATION,
+    TRICK_THRESHOLD,
+    showTrickToast,
+    updateTrickButton,
+    drawTrickZone,
+    updateTrickZoneState,
+    isTrickZoneActive,
+    trickZoneTimeLeft
+} from './tricks.js';
 import * as Tricks from './tricks.js';
 import { mediaPlayer } from './mediaPlayer.js';
 import { db, collection, addDoc, getDocs, query, orderBy, limit } from './firebase-config.js';
@@ -214,6 +232,7 @@ import { db, collection, addDoc, getDocs, query, orderBy, limit } from './fireba
         trashSpawnRate = INITIAL_TRASH_SPAWN_RATE;
         fishSpawnRate = INITIAL_FISH_SPAWN_RATE;
         waveSpeed = INITIAL_WAVE_SPEED;
+        setupTrickButton();
     }
 
     function drawInitialState() {
@@ -297,71 +316,25 @@ import { db, collection, addDoc, getDocs, query, orderBy, limit } from './fireba
     function update(deltaTime) {
         if (isGameOver || !isGameRunning) return;
 
+        // Update trick zone state
+        inTrickZone = Tricks.updateTrickZoneState(
+            catY,
+            catHeight,
+            TRICK_THRESHOLD,
+            deltaTime
+        );
+
+        // Update cat position - Add this back!
         updateCatPosition();
         
-        // Update trick zone
-        inTrickZone = catY + catHeight < TRICK_THRESHOLD;
-        trickZone.style.height = `${TRICK_THRESHOLD}px`;
-        
-        // Toggle UI visibility
-        document.getElementById('game-container').classList.toggle('in-trick-zone', inTrickZone);
-        
-        if (inTrickZone && !isPaused) {
-            trickZone.classList.add('active');
-            trickZoneBar.classList.add('active');
-            trickInstruction.classList.add('active');
-            
-            if (!trickCountdown) {
-                // Reset and start countdown
-                trickZoneBarFill.style.width = '100%';
-                void trickZoneBarFill.offsetWidth; // Force reflow
-                trickZoneBarFill.style.width = '0%';
-                
-                // Update instruction
-                trickInstruction.textContent = `Press spacebar to: ${TRICK_NAMES[currentTrickIndex]}`;
-                
-                // Set timer for next trick
-                trickCountdown = setTimeout(() => {
-                    currentTrickIndex = (currentTrickIndex + 1) % TRICK_NAMES.length;
-                    trickCountdown = null;
-                }, 5000);
-            }
-        } else {
-            // Reset trick zone state
-            trickZone.classList.remove('active');
-            trickZoneBar.classList.remove('active');
-            trickInstruction.classList.remove('active');
-            if (trickCountdown) {
-                clearTimeout(trickCountdown);
-                trickCountdown = null;
-            }
-        }
-        
-        // Update opacity based on intensity
-        trickZone.style.opacity = (trickZoneIntensity / TRICK_INTENSITY_MAX) * 0.8;
-
-        // Update trick timer and display time
-        if (Tricks.isTrickActive) {
-            Tricks.setTrickTimer(Tricks.trickTimer - deltaTime * 1000);
-            if (Tricks.trickTimer <= 0) {
-                Tricks.setTrickActive(false);
-                Tricks.setTrickAnimationActive(false);
-            }
-        }
-
-        // Update trick name display timer
-        if (Tricks.trickNameDisplayTime > 0) {
-            Tricks.setTrickNameDisplayTime(Tricks.trickNameDisplayTime - deltaTime * 1000);
-        }
-
+        // Update game objects
         if (!isGameOver) {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            drawCat();
             updateGameObjects(deltaTime);
-            drawGameObjects();
             updateHealthBar();
             drawSurfMoveEffect();
         }
+
+        // Rest of update function...
     }
 
     const surfMoves = [
@@ -389,7 +362,6 @@ import { db, collection, addDoc, getDocs, query, orderBy, limit } from './fireba
 
     function handleTouch(event) {
         event.preventDefault();
-        isTouching = true;
         const rect = canvas.getBoundingClientRect();
         const touch = event.touches[0];
         touchX = (touch.clientX - rect.left) * (canvas.width / rect.width);
@@ -398,7 +370,19 @@ import { db, collection, addDoc, getDocs, query, orderBy, limit } from './fireba
         // Detect double tap for trick
         const currentTime = Date.now();
         if (currentTime - lastTapTime < 300) { // 300ms between taps
-            performTrick();
+            const scoreIncrease = performTrick(
+                catY,
+                catHeight,
+                TRICK_THRESHOLD,
+                isGameRunning,
+                isGameOver,
+                score,
+                updateScore
+            );
+            if (scoreIncrease > 0) {
+                score += scoreIncrease;
+                updateScore();
+            }
         }
         lastTapTime = currentTime;
     }
@@ -409,7 +393,7 @@ import { db, collection, addDoc, getDocs, query, orderBy, limit } from './fireba
     const RESISTANCE = 0.1; // Adjust this value to change the level of resistance (0.1 = 10% movement towards target per frame)
 
     function updateCatPosition() {
-        // Update cat velocity based on key presses
+        // Keyboard controls
         if (keys.ArrowLeft) {
             catVelocityX = Math.max(catVelocityX - catAcceleration, -catMaxSpeed);
             catFacingRight = false;
@@ -421,7 +405,22 @@ import { db, collection, addDoc, getDocs, query, orderBy, limit } from './fireba
         if (keys.ArrowUp) catVelocityY = Math.max(catVelocityY - catAcceleration, -catMaxSpeed);
         if (keys.ArrowDown) catVelocityY = Math.min(catVelocityY + catAcceleration, catMaxSpeed);
 
-        // Update cat position
+        // Touch controls
+        if (isTouching) {
+            const dx = touchX - (catX + catWidth / 2);
+            const dy = touchY - (catY + catHeight / 2);
+            
+            // Apply touch movement with sensitivity
+            catVelocityX += dx * RESISTANCE;
+            catVelocityY += dy * RESISTANCE;
+
+            // Update facing direction based on touch movement
+            if (Math.abs(dx) > Math.abs(dy)) {
+                catFacingRight = dx > 0;
+            }
+        }
+
+        // Apply velocity
         catX += catVelocityX;
         catY += catVelocityY;
 
@@ -429,7 +428,7 @@ import { db, collection, addDoc, getDocs, query, orderBy, limit } from './fireba
         catVelocityX *= catDeceleration;
         catVelocityY *= catDeceleration;
 
-        // Keep the cat within the canvas bounds
+        // Keep cat within bounds
         catX = Math.max(0, Math.min(canvas.width - catWidth, catX));
         catY = Math.max(0, Math.min(canvas.height - catHeight, catY));
     }
@@ -486,13 +485,10 @@ import { db, collection, addDoc, getDocs, query, orderBy, limit } from './fireba
         ctx.save();
         ctx.translate(catX + catWidth/2, catY + catHeight/2);
         
-        if (Tricks.trickAnimationActive) {
-            const trickProgress = (Date.now() - Tricks.trickStartTime) / Tricks.TRICK_DURATION;
-            if (trickProgress <= 1) {
-                ctx.rotate(Math.PI * 2 * trickProgress);
-            } else {
-                Tricks.setTrickAnimationActive(false);
-            }
+        // Apply trick rotation if any
+        const rotation = Tricks.getTrickRotation();
+        if (rotation > 0) {
+            ctx.rotate(rotation);
         }
         
         if (!catFacingRight) {
@@ -742,48 +738,52 @@ import { db, collection, addDoc, getDocs, query, orderBy, limit } from './fireba
     // Modify the drawGameObjects function
     function drawGameObjects() {
         for (let obj of gameObjects) {
-            if (DEBUG_MODE) {
-                console.log('Drawing object:', {
-                    type: obj.type,
-                    x: obj.x,
-                    y: obj.y,
-                    width: obj.width,
-                    height: obj.height,
-                    imageLoaded: obj.type === 'pizza' ? pizzaImage.complete :
-                               obj.type === 'taco' ? tacoImage.complete :
-                               obj.type === 'catnip' ? catnipImage.complete : 'n/a'
-                });
+            // Skip drawing if the image isn't loaded yet
+            if (obj.type === 'trash' && (!loadedTrashImages[obj.imageIndex] || !loadedTrashImages[obj.imageIndex].complete)) {
+                continue;
+            }
+            if (obj.type === 'mouse' && (!mouseImage || !mouseImage.complete)) {
+                continue;
+            }
+            if (obj.type === 'pizza' && (!pizzaImage || !pizzaImage.complete)) {
+                continue;
+            }
+            if (obj.type === 'taco' && (!tacoImage || !tacoImage.complete)) {
+                continue;
+            }
+            if (obj.type === 'catnip' && (!catnipImage || !catnipImage.complete)) {
+                continue;
             }
 
-            if (obj.type === 'trash' && loadedTrashImages[obj.imageIndex] && loadedTrashImages[obj.imageIndex].complete) {
-                ctx.save(); // Save the current context state
-                
-                // If it's the trash bag (index 2), rotate it
-                if (obj.imageIndex === 2) { // Assuming trash bag is at index 2
-                    // Translate to the center of where the image will be
-                    ctx.translate(obj.x + obj.width/2, obj.y + obj.height/2);
-                    // Rotate 90 degrees (Math.PI/2 radians)
-                    ctx.rotate(Math.PI/2);
-                    // Draw the image centered at the rotation point
-                    ctx.drawImage(loadedTrashImages[obj.imageIndex], 
-                        -obj.width/2, -obj.height/2, 
-                        obj.width, obj.height);
-                } else {
-                    // Draw other trash normally
-                    ctx.drawImage(loadedTrashImages[obj.imageIndex], 
-                        obj.x, obj.y, 
-                        obj.width, obj.height);
+            try {
+                if (obj.type === 'trash' && loadedTrashImages[obj.imageIndex]) {
+                    ctx.save();
+                    
+                    // If it's the trash bag (index 2), rotate it
+                    if (obj.imageIndex === 2) {
+                        ctx.translate(obj.x + obj.width/2, obj.y + obj.height/2);
+                        ctx.rotate(Math.PI/2);
+                        ctx.drawImage(loadedTrashImages[obj.imageIndex], 
+                            -obj.width/2, -obj.height/2, 
+                            obj.width, obj.height);
+                    } else {
+                        ctx.drawImage(loadedTrashImages[obj.imageIndex], 
+                            obj.x, obj.y, 
+                            obj.width, obj.height);
+                    }
+                    
+                    ctx.restore();
+                } else if (obj.type === 'mouse' && mouseImage) {
+                    ctx.drawImage(mouseImage, obj.x, obj.y, obj.width, obj.height);
+                } else if (obj.type === 'pizza' && pizzaImage) {
+                    ctx.drawImage(pizzaImage, obj.x, obj.y, obj.width, obj.height);
+                } else if (obj.type === 'taco' && tacoImage) {
+                    ctx.drawImage(tacoImage, obj.x, obj.y, obj.width, obj.height);
+                } else if (obj.type === 'catnip' && catnipImage) {
+                    ctx.drawImage(catnipImage, obj.x, obj.y, obj.width, obj.height);
                 }
-                
-                ctx.restore(); // Restore the context state
-            } else if (obj.type === 'mouse' && mouseImage && mouseImage.complete) {
-                ctx.drawImage(mouseImage, obj.x, obj.y, obj.width, obj.height);
-            } else if (obj.type === 'pizza' && pizzaImage && pizzaImage.complete) {
-                ctx.drawImage(pizzaImage, obj.x, obj.y, obj.width, obj.height);
-            } else if (obj.type === 'taco' && tacoImage && tacoImage.complete) {
-                ctx.drawImage(tacoImage, obj.x, obj.y, obj.width, obj.height);
-            } else if (obj.type === 'catnip' && catnipImage && catnipImage.complete) {
-                ctx.drawImage(catnipImage, obj.x, obj.y, obj.width, obj.height);
+            } catch (error) {
+                console.warn(`Failed to draw object of type ${obj.type}:`, error);
             }
         }
     }
@@ -1282,29 +1282,21 @@ import { db, collection, addDoc, getDocs, query, orderBy, limit } from './fireba
 
     function handleTrick() {
         if (inTrickZone && !isPaused) {
-            const currentTrick = TRICK_NAMES[currentTrickIndex];
-            // Perform trick and update score
-            const scoreIncrease = Tricks.performTrick(
+            console.log('Handling trick...'); // Debug log
+            const scoreIncrease = performTrick(
                 catY,
                 catHeight,
                 TRICK_THRESHOLD,
                 isGameRunning,
                 isGameOver,
-                score
+                score,
+                updateScore
             );
             
             if (scoreIncrease > 0) {
+                console.log('Trick successful! Score increase:', scoreIncrease); // Debug log
                 score += scoreIncrease;
                 updateScore();
-                
-                // Reset trick countdown
-                if (trickCountdown) {
-                    clearTimeout(trickCountdown);
-                    trickCountdown = null;
-                }
-                
-                // Move to next trick
-                currentTrickIndex = (currentTrickIndex + 1) % TRICK_NAMES.length;
             }
         }
     }
@@ -1335,37 +1327,20 @@ import { db, collection, addDoc, getDocs, query, orderBy, limit } from './fireba
         // Clear the canvas
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-        // Debug log to check if cat image is loaded
-        if (DEBUG_MODE) {
-            console.log('Cat image status:', {
-                complete: catImage.complete,
-                src: catImage.src,
-                width: catWidth,
-                height: catHeight,
-                x: catX,
-                y: catY
-            });
-        }
-
-        // Always try to draw the cat first, with more explicit error checking
-        if (catImage.complete) {
-            drawCat();
-        } else {
-            console.warn('Cat image not yet loaded');
-            // Try loading the image again if it failed
-            if (!catImage.src) {
-                catImage.src = './assets/pizza-cat.png';
-            }
-        }
-
         // Draw game objects if game is running
         if (isGameRunning && !isGameOver) {
             drawGameObjects();
             drawSurfMoveEffect();
-            
-            if (DEBUG_MODE) {
-                drawTrickZone();
-            }
+        }
+
+        // Draw the trick zone if cat is in it
+        if (catY + catHeight < TRICK_THRESHOLD) {
+            Tricks.drawTrickZone(ctx, canvas);
+        }
+
+        // Draw the cat (always on top)
+        if (catImage.complete) {
+            drawCat();
         }
 
         // Draw flash overlay if active
@@ -1393,11 +1368,6 @@ import { db, collection, addDoc, getDocs, query, orderBy, limit } from './fireba
                 isFlashing = false;
                 isSpectrumFlash = false;
             }
-        }
-
-        // Draw debug info if enabled
-        if (DEBUG_MODE) {
-            drawDebugInfo();
         }
 
         // Draw pause overlay if game is paused
@@ -1530,7 +1500,9 @@ import { db, collection, addDoc, getDocs, query, orderBy, limit } from './fireba
     document.addEventListener('keydown', function(event) {
         if (event.code === 'Space') {
             event.preventDefault();
-            handleTrick();
+            if (inTrickZone) {
+                handleTrick();
+            }
         }
     });
 
@@ -1604,4 +1576,14 @@ import { db, collection, addDoc, getDocs, query, orderBy, limit } from './fireba
         console.error('Failed to load catnip image');
         imageLoaded();
     };
+
+    // Add this near your other event listeners
+    function setupTrickButton() {
+        document.body.addEventListener('click', (e) => {
+            if (e.target.classList.contains('trick-button')) {
+                console.log('Trick button clicked!'); // Debug log
+                handleTrick();
+            }
+        });
+    }
 })();
