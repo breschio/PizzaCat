@@ -575,19 +575,31 @@ import { db, collection, addDoc, getDocs, query, orderBy, limit } from './fireba
         for (let i = gameObjects.length - 1; i >= 0; i--) {
             const obj = gameObjects[i];
             
-            // Move objects at a more controlled pace
             if (obj.type === 'mouse') {
-                // Mouse movement remains special but slower
-                obj.x += obj.directionX * obj.speed * deltaTime * 0.5; // Added 0.5 multiplier to slow down
-                obj.y += obj.directionY * obj.speed * deltaTime * 0.5;
-                obj.y += Math.sin(currentTime / 500) * deltaTime * 25; // Reduced from 50 to 25
+                if (!obj.hasMimicked) {
+                    // Update rat's direction to mimic the cat's movement once
+                    const dx = (catX + catWidth / 2) - (obj.x + obj.width / 2);
+                    const dy = (catY + catHeight / 2) - (obj.y + obj.height / 2);
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+
+                    // Normalize the direction
+                    obj.directionX = dx / distance;
+                    obj.directionY = dy / distance;
+
+                    // Mark as mimicked
+                    obj.hasMimicked = true;
+                }
+
+                // Move rat towards the cat
+                obj.x += obj.directionX * obj.speed * deltaTime;
+                obj.y += obj.directionY * obj.speed * deltaTime;
             } else {
                 // Normal object movement
-                obj.x -= obj.speed * deltaTime * 0.5; // Added 0.5 multiplier to slow down
+                obj.x -= obj.speed * deltaTime;
             }
 
             // Remove objects that are off-screen
-            if (obj.x + obj.width < 0) {
+            if (obj.x + obj.width < 0 || obj.y + obj.height < 0 || obj.y > canvas.height) {
                 gameObjects.splice(i, 1);
                 continue;
             }
@@ -714,26 +726,29 @@ import { db, collection, addDoc, getDocs, query, orderBy, limit } from './fireba
         const maxY = canvas.height - 50;
         const objectY = minY + Math.random() * (maxY - minY);
         
-        // Check if it's time to spawn a mouse
-        if (currentTime - lastMouseSpawnTime > MOUSE_SPAWN_INTERVAL) {
+        // Ensure only one rat is on screen at a time
+        const existingRats = gameObjects.filter(obj => obj.type === 'mouse');
+        if (existingRats.length === 0 && currentTime - lastMouseSpawnTime > MOUSE_SPAWN_INTERVAL) {
             // Calculate initial direction towards cat
-            const dx = (catX + catWidth/2) - (canvas.width + MOUSE_WIDTH/2);
-            const dy = (catY + catHeight/2) - objectY;
+            const dx = (catX + catWidth / 2) - (canvas.width + MOUSE_WIDTH / 2);
+            const dy = (catY + catHeight / 2) - objectY;
             const distance = Math.sqrt(dx * dx + dy * dy);
-            
-            // Normalize the direction
+
+            // Normalize the direction and set speed to 1.5x for aggressive movement
             const dirX = dx / distance;
             const dirY = dy / distance;
-            
+            const aggressiveSpeed = BASE_SPEED * 1.5; // 1.5x speed for aggression
+
             gameObjects.push({
                 x: canvas.width,
                 y: objectY,
                 width: MOUSE_WIDTH,
                 height: MOUSE_HEIGHT,
                 type: 'mouse',
-                speed: BASE_SPEED + Math.random() * SPEED_VARIATION,
+                speed: aggressiveSpeed,
                 directionX: dirX,
-                directionY: dirY
+                directionY: dirY,
+                hasMimicked: false // New property to track if the rat has mimicked the cat
             });
             lastMouseSpawnTime = currentTime;
             return;
