@@ -47,8 +47,9 @@ import { db, collection, addDoc, getDocs, query, orderBy, limit } from './fireba
     let catImage = new Image();
     let loadedTrashImages = [];
     let mouseImage = new Image();
-    let pizzaImage = new Image();
-    let tacoImage = new Image();
+    let tunaImage = new Image();
+    let buffaloFishImage = new Image();
+    let salmonImage = new Image();
     let catnipImage = new Image();
     let loadedCollectibleImages = [];
 
@@ -62,14 +63,15 @@ import { db, collection, addDoc, getDocs, query, orderBy, limit } from './fireba
     const trashImages = [
         { src: './assets/trash-can.png', width: 60, height: 80 },    // Doubled from 30x40
         { src: './assets/trash-bottle.png', width: 40, height: 80 }, // Doubled from 20x40
-        { src: './assets/trash-bag.png', width: 70, height: 70 },    // Doubled from 35x35
+        { src: './assets/trash-bag.png', width: 80, height: 80 },    // Doubled from 35x35
     ];
 
     // Add these constants for collectible properties
     const COLLECTIBLES = [
-        { type: 'pizza', points: 15, health: 15, image: pizzaImage, width: 60, height: 60 },
-        { type: 'taco', points: 10, health: 10, image: tacoImage, width: 50, height: 50 },
-        { type: 'catnip', points: 20, health: 5, image: catnipImage, width: 40, height: 40 }
+        { type: 'tuna', points: 25, health: 25, image: tunaImage, width: 100, height: 100 },
+        { type: 'buffalo-fish', points: 10, health: 10, image: buffaloFishImage, width: 70, height: 40 },
+        { type: 'salmon', points: 20, health: 20, image: salmonImage, width: 120, height: 120 },
+        { type: 'catnip', points: 100, health: 100, image: catnipImage, width: 40, height: 40 }
     ];
 
     // Modify the imageLoaded function
@@ -536,6 +538,23 @@ import { db, collection, addDoc, getDocs, query, orderBy, limit } from './fireba
     const BASE_SPEED = 200; // Base speed for all objects
     const SPEED_VARIATION = 50; // How much random variation to add
 
+    // Function to show a toast notification
+    function showFishToast(fishType, points, emoji = '🐟') {
+        const toast = document.createElement('div');
+        toast.className = 'toast-notification';
+        toast.innerHTML = `
+            <div class="reaction">${emoji}</div>
+            <div class="trick-name">${fishType.toUpperCase()}</div>
+            <div class="points">+${points} PTS</div>
+        `;
+        document.body.appendChild(toast);
+
+        // Remove the toast after the animation ends
+        setTimeout(() => {
+            toast.remove();
+        }, 2000); // Adjust the duration as needed
+    }
+
     // Modify the updateGameObjects function
     function updateGameObjects(deltaTime) {
         const currentTime = Date.now();
@@ -603,24 +622,39 @@ import { db, collection, addDoc, getDocs, query, orderBy, limit } from './fireba
                         flashStartTime = Date.now();
                         break;
                         
-                    case 'pizza':
+                    case 'tuna':
                         score += obj.points;
                         catHealth = Math.min(maxCatHealth, catHealth + obj.health);
                         updateScore();
                         updateHealthBar();
                         mediaPlayer.playNextFishCatchSound();
+                        showFishToast('Tuna', obj.points); // Show toast for tuna
                         isFlashing = true;
                         isSpectrumFlash = true;
                         flashAlpha = 0.2;
                         flashStartTime = Date.now();
                         break;
                         
-                    case 'taco':
+                    case 'buffalo-fish':
                         score += obj.points;
                         catHealth = Math.min(maxCatHealth, catHealth + obj.health);
                         updateScore();
                         updateHealthBar();
                         mediaPlayer.playNextFishCatchSound();
+                        showFishToast('Buffalo Fish', obj.points); // Show toast for buffalo fish
+                        isFlashing = true;
+                        isSpectrumFlash = true;
+                        flashAlpha = 0.2;
+                        flashStartTime = Date.now();
+                        break;
+                        
+                    case 'salmon':
+                        score += obj.points;
+                        catHealth = Math.min(maxCatHealth, catHealth + obj.health);
+                        updateScore();
+                        updateHealthBar();
+                        mediaPlayer.playNextFishCatchSound();
+                        showFishToast('Salmon', obj.points); // Show toast for salmon
                         isFlashing = true;
                         isSpectrumFlash = true;
                         flashAlpha = 0.2;
@@ -633,6 +667,7 @@ import { db, collection, addDoc, getDocs, query, orderBy, limit } from './fireba
                         updateScore();
                         updateHealthBar();
                         mediaPlayer.playNextFishCatchSound();
+                        showFishToast('Catnip', obj.points, '🌿'); // Show toast for catnip with plant emoji
                         isFlashing = true;
                         isSpectrumFlash = true;
                         flashAlpha = 0.2;
@@ -739,16 +774,16 @@ import { db, collection, addDoc, getDocs, query, orderBy, limit } from './fireba
     function drawGameObjects() {
         for (let obj of gameObjects) {
             // Skip drawing if the image isn't loaded yet
-            if (obj.type === 'trash' && (!loadedTrashImages[obj.imageIndex] || !loadedTrashImages[obj.imageIndex].complete)) {
-                continue;
-            }
             if (obj.type === 'mouse' && (!mouseImage || !mouseImage.complete)) {
                 continue;
             }
-            if (obj.type === 'pizza' && (!pizzaImage || !pizzaImage.complete)) {
+            if (obj.type === 'tuna' && (!tunaImage || !tunaImage.complete)) {
                 continue;
             }
-            if (obj.type === 'taco' && (!tacoImage || !tacoImage.complete)) {
+            if (obj.type === 'buffalo-fish' && (!buffaloFishImage || !buffaloFishImage.complete)) {
+                continue;
+            }
+            if (obj.type === 'salmon' && (!salmonImage || !salmonImage.complete)) {
                 continue;
             }
             if (obj.type === 'catnip' && (!catnipImage || !catnipImage.complete)) {
@@ -756,29 +791,20 @@ import { db, collection, addDoc, getDocs, query, orderBy, limit } from './fireba
             }
 
             try {
-                if (obj.type === 'trash' && loadedTrashImages[obj.imageIndex]) {
-                    ctx.save();
-                    
-                    // If it's the trash bag (index 2), rotate it
-                    if (obj.imageIndex === 2) {
-                        ctx.translate(obj.x + obj.width/2, obj.y + obj.height/2);
-                        ctx.rotate(Math.PI/2);
-                        ctx.drawImage(loadedTrashImages[obj.imageIndex], 
-                            -obj.width/2, -obj.height/2, 
-                            obj.width, obj.height);
-                    } else {
-                        ctx.drawImage(loadedTrashImages[obj.imageIndex], 
-                            obj.x, obj.y, 
-                            obj.width, obj.height);
-                    }
-                    
-                    ctx.restore();
-                } else if (obj.type === 'mouse' && mouseImage) {
+                // Comment out or remove the trash drawing logic
+                // if (obj.type === 'trash' && loadedTrashImages[obj.imageIndex]) {
+                //     ctx.save();
+                //     ctx.drawImage(loadedTrashImages[obj.imageIndex], obj.x, obj.y, obj.width, obj.height);
+                //     ctx.restore();
+                // } else 
+                if (obj.type === 'mouse' && mouseImage) {
                     ctx.drawImage(mouseImage, obj.x, obj.y, obj.width, obj.height);
-                } else if (obj.type === 'pizza' && pizzaImage) {
-                    ctx.drawImage(pizzaImage, obj.x, obj.y, obj.width, obj.height);
-                } else if (obj.type === 'taco' && tacoImage) {
-                    ctx.drawImage(tacoImage, obj.x, obj.y, obj.width, obj.height);
+                } else if (obj.type === 'tuna' && tunaImage) {
+                    ctx.drawImage(tunaImage, obj.x, obj.y, obj.width, obj.height);
+                } else if (obj.type === 'buffalo-fish' && buffaloFishImage) {
+                    ctx.drawImage(buffaloFishImage, obj.x, obj.y, obj.width, obj.height);
+                } else if (obj.type === 'salmon' && salmonImage) {
+                    ctx.drawImage(salmonImage, obj.x, obj.y, obj.width, obj.height);
                 } else if (obj.type === 'catnip' && catnipImage) {
                     ctx.drawImage(catnipImage, obj.x, obj.y, obj.width, obj.height);
                 }
@@ -1552,23 +1578,31 @@ import { db, collection, addDoc, getDocs, query, orderBy, limit } from './fireba
     const COLLECTIBLE_SPAWN_RATE = 0.02; // Increased from 0.015
 
     // Update the image loading section
-    pizzaImage.onload = imageLoaded;
-    pizzaImage.src = './assets/pizza.png';
+    tunaImage.onload = imageLoaded;
+    tunaImage.src = './assets/tuna.png';
 
-    tacoImage.onload = imageLoaded;
-    tacoImage.src = './assets/taco.png';
+    buffaloFishImage.onload = imageLoaded;
+    buffaloFishImage.src = './assets/buffalo-fish.png';
+
+    salmonImage.onload = imageLoaded;
+    salmonImage.src = './assets/salmon.png';
 
     catnipImage.onload = imageLoaded;
     catnipImage.src = './assets/catnip.png';
 
     // Add error handlers for the new images
-    pizzaImage.onerror = function() {
-        console.error('Failed to load pizza image');
+    tunaImage.onerror = function() {
+        console.error('Failed to load tuna image');
         imageLoaded(); // Still call imageLoaded to avoid blocking the game
     };
 
-    tacoImage.onerror = function() {
-        console.error('Failed to load taco image');
+    buffaloFishImage.onerror = function() {
+        console.error('Failed to load buffalo fish image');
+        imageLoaded();
+    };
+
+    salmonImage.onerror = function() {
+        console.error('Failed to load salmon image');
         imageLoaded();
     };
 
