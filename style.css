@@ -858,3 +858,45 @@ button {
         top: 10px; /* Align with header */
     }
 }
+
+#start-screen-button {
+    position: fixed;
+    bottom: 80px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #FF6B6B;
+    color: white;
+    border: 3px solid #FFD93D;
+    border-radius: 3px;
+    padding: 8px 16px;
+    font-family: 'Press Start 2P', cursive;
+    font-size: 16px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    z-index: 1000;
+    text-shadow: 2px 2px 0 #000;
+    box-shadow: 0 4px 0 #E84855;
+    opacity: 1;
+    pointer-events: auto;
+    animation: buttonPulse 1.5s infinite;
+}
+
+#start-screen-button:hover {
+    background: #FF8C42;
+    transform: translateX(-50%) scale(1.05);
+}
+
+#start-screen-button:active {
+    transform: translateX(-50%) scale(0.95);
+    box-shadow: 0 2px 0 #E84855;
+}
+
+@keyframes buttonPulse {
+    0% { transform: translateX(-50%) scale(1); }
+    50% { transform: translateX(-50%) scale(1.05); }
+    100% { transform: translateX(-50%) scale(1); }
+}
+
+#start-button {
+    display: none;
+}
