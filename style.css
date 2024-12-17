@@ -254,7 +254,6 @@ button {
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
-    text-fill-color: transparent;
     z-index: 3;
     padding: 10px;
 }
@@ -262,7 +261,8 @@ button {
 .toast-notification {
     position: fixed;
     bottom: 80px;
-    right: 20px;
+    left: 50%;
+    transform: translateX(-50%);
     background-color: rgba(0, 0, 0, 0.8);
     color: white;
     padding: 15px 20px;
@@ -271,6 +271,9 @@ button {
     z-index: 1000;
     animation: slideInFromBottom 0.5s ease-out, fadeOut 0.5s ease-in 1.5s forwards;
     margin-bottom: 10px;
+    min-width: 200px;
+    max-width: 90%;
+    text-align: center;
 }
 
 .toast-notification:nth-child(2) {
@@ -300,11 +303,11 @@ button {
 
 @keyframes slideInFromBottom {
     from {
-        transform: translateY(100%);
+        transform: translate(-50%, 100%);
         opacity: 0;
     }
     to {
-        transform: translateY(0);
+        transform: translate(-50%, 0);
         opacity: 1;
     }
 }
@@ -392,6 +395,7 @@ button {
 #volume-slider {
     width: 80px;
     height: 8px;
+    appearance: none;
     -webkit-appearance: none;
     background: rgba(255, 140, 66, 0.2);
     border-radius: 2px;
