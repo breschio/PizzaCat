@@ -51,43 +51,33 @@ function calculateTrickThreshold(canvas) {
 }
 
 function performTrick(catY, catHeight, TRICK_THRESHOLD, isGameRunning, isGameOver, score, updateScore) {
-    // First check if trick zone is active and hasn't been used yet
     if (!_trickZoneActive || _hasDoneTrickInZone) return 0;
     
     if (isGameRunning && !isGameOver && catY + catHeight < TRICK_THRESHOLD) {
-        // Mark that we've done a trick in this zone
         _hasDoneTrickInZone = true;
+        _trickRotation = MAX_ROTATION; // Set rotation for the trick
         
-        // Set rotation for the trick
-        _trickRotation = MAX_ROTATION;
-        
-        // Set trick name and show toast
         const trickNames = ['Tail Spin', 'Paw Flip', 'Whisker Twist', 'Furry 360', 'Meow Spin'];
         _currentTrickName = trickNames[Math.floor(Math.random() * trickNames.length)];
         
-        // Show toast notification
         showTrickToast(_currentTrickName, 5);
-
-        // Deactivate trick zone and clean up UI
+        
         _trickZoneActive = false;
         _trickZoneTimeLeft = 0;
-        _lastTrickZoneEnterTime = Date.now(); // Prevent immediate reactivation
+        _lastTrickZoneEnterTime = Date.now();
         
-        // Remove trick zone bar and button
         removeTrickZoneBar();
         const existingButton = document.querySelector('.trick-button');
         if (existingButton) {
             existingButton.remove();
         }
-
-        // Show health bar again
+        
         const healthBar = document.getElementById('health-bar-container');
         if (healthBar) {
             healthBar.style.opacity = '1';
             healthBar.style.pointerEvents = 'auto';
         }
         
-        // Return score increase
         return 5;
     }
     return 0;

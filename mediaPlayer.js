@@ -26,10 +26,8 @@ class MediaPlayer {
             this.resetSliderTimeout();
         });
 
-        // Add the missing click event listener for the speaker icon
         this.speakerIcon.addEventListener('click', () => this.toggleMute());
 
-        // Add mouse enter/leave events for the volume control
         this.volumeControl.addEventListener('mouseenter', () => {
             this.clearSliderTimeout();
             if (!this.isMuted) {
@@ -60,10 +58,16 @@ class MediaPlayer {
             this.catSounds.meow2
         ];
 
+        // Load music files
+        this.catnipMusic = new Audio('./assets/music/wave-bumper.mp3');
+        this.catnipMusic.loop = true;
+
+        this.normalMusic = new Audio('./assets/music/pawed-up.mp3');
+        this.normalMusic.loop = true;
+
         // Set initial volumes
         this.setInitialVolumes();
 
-        // Add click outside listener
         document.addEventListener('click', (event) => {
             const isClickInside = this.volumeControl.contains(event.target);
             if (!isClickInside && !this.isMuted) {
@@ -71,7 +75,6 @@ class MediaPlayer {
             }
         });
 
-        // Prevent clicks on volume control from triggering the document click handler
         this.volumeControl.addEventListener('click', (event) => {
             event.stopPropagation();
         });
@@ -79,13 +82,11 @@ class MediaPlayer {
 
     toggleMute() {
         if (this.isMuted) {
-            // Unmute - set to 25%
             this.isMuted = false;
             this.volumeSlider.value = 25;
             this.showVolumeSlider();
             this.startSliderTimeout();
         } else {
-            // Mute
             this.isMuted = true;
             this.volumeSlider.value = 0;
             this.hideVolumeSlider();
@@ -96,7 +97,6 @@ class MediaPlayer {
     }
 
     updateSpeakerIcon() {
-        // Update speaker icon based on volume level
         if (this.isMuted || this.volumeSlider.value == 0) {
             this.speakerIcon.innerHTML = '🔇';
             this.speakerIcon.title = 'Unmute';
@@ -110,73 +110,94 @@ class MediaPlayer {
     }
 
     setInitialVolumes() {
-        const volume = this.isMuted ? 0 : this.volumeSlider.value / 100;
-        this.waveSound.volume = volume * 0.5;
-        
-        Object.values(this.catSounds).forEach(sound => {
-            sound.volume = volume;
-        });
+        this.catnipMusic.volume = 0.25;
+        this.normalMusic.volume = 0.25;
+        this.waveSound.volume = 0.25;
+        this.catSounds.meow1.volume = 0.25;
+        this.catSounds.meow2.volume = 0.25;
+        this.catSounds.bite.volume = 0.25;
     }
 
     updateVolume() {
-        const volume = this.isMuted ? 0 : this.volumeSlider.value / 100;
-        
-        // Update the slider's fill visualization
-        this.volumeSlider.style.setProperty('--value', this.volumeSlider.value + '%');
-        
+        const volume = this.volumeSlider.value / 100;
         if (this.currentAudio) {
             this.currentAudio.volume = volume;
         }
-
-        this.waveSound.volume = volume * 0.5;
-
-        Object.values(this.catSounds).forEach(sound => {
-            sound.volume = volume;
-        });
-
-        this.updateSpeakerIcon();
+        this.waveSound.volume = volume;
+        this.catSounds.meow1.volume = volume;
+        this.catSounds.meow2.volume = volume;
+        this.catSounds.bite.volume = volume;
     }
 
-    startGameMusic() {
-        // Get current song
-        const currentSong = this.songs[this.currentSongIndex];
-        
-        // If there's currently playing audio, stop it
+    startNormalMusic() {
         if (this.currentAudio) {
             this.currentAudio.pause();
         }
 
-        // Create and play new audio
-        this.currentAudio = new Audio(`./assets/music/${currentSong.file}`);
-        this.currentAudio.volume = this.volumeSlider.value / 100;
-        
-        // Add ended event listener to play next song
-        this.currentAudio.addEventListener('ended', () => {
-            this.playNextSong();
-        });
-        
-        this.currentAudio.play().catch(error => console.error("Error playing music:", error));
+        this.currentAudio = this.normalMusic;
+        this.currentAudio.currentTime = 0;
+        this.currentAudio.play().catch(error => console.error("Error playing normal music:", error));
     }
 
-    playNextSong() {
-        // Move to next song, loop back to start if at end
-        this.currentSongIndex = (this.currentSongIndex + 1) % this.songs.length;
-        this.startGameMusic();
+    startCatnipMusic() {
+        if (this.currentAudio) {
+            this.currentAudio.pause();
+        }
+
+        this.currentAudio = this.catnipMusic;
+        this.currentAudio.currentTime = 0;
+        this.currentAudio.play().catch(error => console.error("Error playing catnip music:", error));
+    }
+
+    stopCatnipMusic() {
+        this.catnipMusic.pause();
+        this.catnipMusic.currentTime = 0;
+
+        this.startNormalMusic();
+    }
+
+    playCatnipModeMusic() {
+        if (this.currentAudio !== this.catnipMusic) {
+            if (this.currentAudio) {
+                this.currentAudio.pause();
+            }
+            this.currentAudio = this.catnipMusic;
+            this.currentAudio.play();
+        }
+    }
+
+    playNormalModeMusic() {
+        if (this.currentAudio !== this.normalMusic) {
+            if (this.currentAudio) {
+                this.currentAudio.pause();
+            }
+            this.currentAudio = this.normalMusic;
+            this.currentAudio.play();
+        }
     }
 
     startWaveSound() {
-        this.waveSound.currentTime = 0;
-        this.waveSound.play().catch(error => console.error("Error playing wave sound:", error));
+        if (this.waveSound) {
+            this.waveSound.currentTime = 0;
+            this.waveSound.play().catch(error => console.error("Error playing wave sound:", error));
+        }
     }
 
-    stopWaveSound() {
-        this.waveSound.pause();
-        this.waveSound.currentTime = 0;
+    startGameMusic() {
+        this.startNormalMusic();
+    }
+
+    playCatMeowSound() {
+        const currentSound = this.fishCatchSounds[this.currentFishSoundIndex];
+        if (currentSound.paused) {
+            currentSound.currentTime = 0;
+            currentSound.play().catch(e => console.error("Error playing cat meow sound:", e));
+            this.currentFishSoundIndex = (this.currentFishSoundIndex + 1) % this.fishCatchSounds.length;
+        }
     }
 
     playNextFishCatchSound() {
         const currentSound = this.fishCatchSounds[this.currentFishSoundIndex];
-        
         if (currentSound.paused) {
             currentSound.currentTime = 0;
             currentSound.play().catch(e => console.error("Error playing fish catch sound:", e));
@@ -184,75 +205,31 @@ class MediaPlayer {
         }
     }
 
-    playCatMeowSound() {
-        // Use meow2 for damage sounds
-        const meowSound = this.catSounds.meow2;
-        meowSound.currentTime = 0;
-        meowSound.play().catch(e => console.error("Error playing cat meow sound:", e));
+    playWaveSound() {
+        if (this.waveSound) {
+            this.waveSound.currentTime = 0;
+            this.waveSound.play().catch(error => console.error("Error playing wave sound:", error));
+        }
+    }
+
+    stopWaveSound() {
+        if (this.waveSound) {
+            this.waveSound.pause();
+            this.waveSound.currentTime = 0;
+        }
     }
 
     stopAllSounds() {
-        // Stop background music
         if (this.currentAudio) {
-            // Remove ended event listener to prevent memory leaks
-            this.currentAudio.removeEventListener('ended', this.playNextSong);
             this.currentAudio.pause();
-            this.currentAudio = null;
+            this.currentAudio.currentTime = 0;
         }
-
-        // Stop wave sound
-        this.stopWaveSound();
-
-        // Stop all cat sounds
-        Object.values(this.catSounds).forEach(sound => {
-            sound.pause();
-            sound.currentTime = 0;
-        });
-    }
-
-    showVolumeSlider() {
-        this.volumeSlider.style.display = 'block';
-        // Force a reflow to ensure the transition works
-        void this.volumeSlider.offsetWidth;
-        this.volumeSlider.style.opacity = '1';
-        this.volumeSlider.style.width = '80px';
-    }
-
-    hideVolumeSlider() {
-        // Don't hide if user is currently interacting with the slider
-        if (document.activeElement === this.volumeSlider) {
-            return;
-        }
-        
-        this.volumeSlider.style.opacity = '0';
-        this.volumeSlider.style.width = '0';
-        setTimeout(() => {
-            if (this.volumeSlider.style.opacity === '0') {
-                this.volumeSlider.style.display = 'none';
-            }
-        }, 300);
-    }
-
-    startSliderTimeout() {
-        this.clearSliderTimeout();
-        this.volumeSliderTimeout = setTimeout(() => {
-            if (!this.isMuted) {
-                this.hideVolumeSlider();
-            }
-        }, this.SLIDER_HIDE_DELAY);
-    }
-
-    clearSliderTimeout() {
-        if (this.volumeSliderTimeout) {
-            clearTimeout(this.volumeSliderTimeout);
-            this.volumeSliderTimeout = null;
-        }
-    }
-
-    resetSliderTimeout() {
-        if (!this.isMuted) {
-            this.startSliderTimeout();
-        }
+        this.waveSound.pause();
+        this.waveSound.currentTime = 0;
+        this.catnipMusic.pause();
+        this.catnipMusic.currentTime = 0;
+        this.normalMusic.pause();
+        this.normalMusic.currentTime = 0;
     }
 }
 

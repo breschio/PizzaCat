@@ -45,6 +45,7 @@ import { db, collection, addDoc, getDocs, query, orderBy, limit } from './fireba
     // Load images
     let fishImage = new Image();
     let catImage = new Image();
+    let catSunnyImage = new Image(); // New sunny image
     let loadedTrashImages = [];
     let mouseImage = new Image();
     let tunaImage = new Image();
@@ -95,7 +96,9 @@ import { db, collection, addDoc, getDocs, query, orderBy, limit } from './fireba
         catY = canvas.height / 2 - catHeight / 2;
         draw();
     };
-    catImage.src = './assets/pizza-cat.png'; // Make sure to set the source!
+    catImage.src = './assets/pizza-cat.png'; // Default cat image
+
+    catSunnyImage.src = './assets/pizza-cat-sunny.png'; // Sunny cat image
 
     fishImage.onload = imageLoaded;
     fishImage.src = './assets/buffalo-fish.png'; // Make sure this path is correct
@@ -485,7 +488,7 @@ import { db, collection, addDoc, getDocs, query, orderBy, limit } from './fireba
         }
         
         ctx.save();
-        ctx.translate(catX + catWidth/2, catY + catHeight/2);
+        ctx.translate(catX + catWidth / 2, catY + catHeight / 2);
         
         // Apply trick rotation if any
         const rotation = Tricks.getTrickRotation();
@@ -498,7 +501,7 @@ import { db, collection, addDoc, getDocs, query, orderBy, limit } from './fireba
         }
         
         try {
-            ctx.drawImage(catImage, -catWidth/2, -catHeight/2, catWidth, catHeight);
+            ctx.drawImage(catImage, -catWidth / 2, -catHeight / 2, catWidth, catHeight);
         } catch (error) {
             console.error('Error drawing cat:', error);
         }
@@ -662,7 +665,7 @@ import { db, collection, addDoc, getDocs, query, orderBy, limit } from './fireba
                         break;
                         
                     case 'catnip':
-                        score += obj.points;
+                        score += obj.points * (isCatnipMode ? 2 : 1); // Double score in catnip mode
                         catHealth = Math.min(maxCatHealth, catHealth + obj.health);
                         updateScore();
                         updateHealthBar();
@@ -673,12 +676,7 @@ import { db, collection, addDoc, getDocs, query, orderBy, limit } from './fireba
                         flashAlpha = 0.2;
                         flashStartTime = Date.now();
                         
-                        // Special catnip effect: temporary speed boost
-                        const originalSpeed = catMaxSpeed;
-                        catMaxSpeed *= 1.5;
-                        setTimeout(() => {
-                            catMaxSpeed = originalSpeed;
-                        }, 5000); // 5 second speed boost
+                        startCatnipMode(); // Start catnip mode
                         break;
                 }
 
@@ -1307,7 +1305,7 @@ import { db, collection, addDoc, getDocs, query, orderBy, limit } from './fireba
     const TRICK_THRESHOLD = Tricks.calculateTrickThreshold(canvas);
 
     function handleTrick() {
-        if (inTrickZone && !isPaused) {
+        if (isTrickZoneActive && !isPaused) {
             console.log('Handling trick...'); // Debug log
             const scoreIncrease = performTrick(
                 catY,
@@ -1323,7 +1321,11 @@ import { db, collection, addDoc, getDocs, query, orderBy, limit } from './fireba
                 console.log('Trick successful! Score increase:', scoreIncrease); // Debug log
                 score += scoreIncrease;
                 updateScore();
+            } else {
+                console.log('Trick failed or not possible.'); // Debug log
             }
+        } else {
+            console.log('Not in trick zone or game is paused.'); // Debug log
         }
     }
 
@@ -1349,6 +1351,7 @@ import { db, collection, addDoc, getDocs, query, orderBy, limit } from './fireba
     // Call this function when the page loads
     window.addEventListener('load', loadAudio);
 
+    // Modify the draw function to remove the halo effect
     function draw() {
         // Clear the canvas
         ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -1367,6 +1370,11 @@ import { db, collection, addDoc, getDocs, query, orderBy, limit } from './fireba
         // Draw the cat (always on top)
         if (catImage.complete) {
             drawCat();
+        }
+
+        // Draw catnip mode effects
+        if (isCatnipMode) {
+            drawCatnipOverlay();
         }
 
         // Draw flash overlay if active
@@ -1526,7 +1534,7 @@ import { db, collection, addDoc, getDocs, query, orderBy, limit } from './fireba
     document.addEventListener('keydown', function(event) {
         if (event.code === 'Space') {
             event.preventDefault();
-            if (inTrickZone) {
+            if (isTrickZoneActive && !isPaused) {
                 handleTrick();
             }
         }
@@ -1619,5 +1627,67 @@ import { db, collection, addDoc, getDocs, query, orderBy, limit } from './fireba
                 handleTrick();
             }
         });
+    }
+
+    let isCatnipMode = false;
+    let catnipModeStartTime = 0;
+    const CATNIP_MODE_DURATION = 9000; // 9 seconds
+
+    // Function to start catnip mode
+    function startCatnipMode() {
+        isCatnipMode = true;
+        catnipModeStartTime = Date.now();
+        catMaxSpeed *= 1.5; // Speed boost
+
+        // Switch to sunny cat image
+        catImage = catSunnyImage;
+
+        // Start catnip music
+        mediaPlayer.startCatnipMusic();
+
+        // Set a timeout to end catnip mode after 9 seconds
+        setTimeout(endCatnipMode, CATNIP_MODE_DURATION);
+    }
+
+    // Function to end catnip mode
+    function endCatnipMode() {
+        isCatnipMode = false;
+        catMaxSpeed /= 1.5; // Reset speed
+
+        // Revert to default cat image
+        catImage = new Image();
+        catImage.src = './assets/pizza-cat.png';
+
+        // Stop catnip music and resume normal music
+        mediaPlayer.stopCatnipMusic();
+    }
+
+    // Function to draw a spinning halo around the cat
+    function drawCatnipHalo() {
+        ctx.save();
+        ctx.translate(catX + catWidth / 2, catY + catHeight / 2);
+        ctx.rotate((Date.now() - catnipModeStartTime) / 1000); // Rotate over time
+        ctx.strokeStyle = 'rgba(255, 255, 0, 0.8)'; // Yellow halo
+        ctx.lineWidth = 5;
+        ctx.beginPath();
+        ctx.arc(0, 0, catWidth / 2 + 10, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+    }
+
+    // Function to draw a multi-color overlay
+    function drawCatnipOverlay() {
+        ctx.save();
+        ctx.globalAlpha = 0.3; // Adjust opacity
+        const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+        gradient.addColorStop(0, '#FF6B6B');
+        gradient.addColorStop(0.2, '#FFD93D');
+        gradient.addColorStop(0.4, '#6BCB77');
+        gradient.addColorStop(0.6, '#4D96FF');
+        gradient.addColorStop(0.8, '#9B5DE5');
+        gradient.addColorStop(1, '#FF6B6B');
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.restore();
     }
 })();
