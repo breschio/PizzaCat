@@ -260,9 +260,9 @@ button {
 
 .toast-notification {
     position: fixed;
-    bottom: 80px;
-    left: 50%;
-    transform: translateX(-50%);
+    bottom: 20px;
+    left: 20px;
+    transform: none;
     background-color: rgba(0, 0, 0, 0.8);
     color: white;
     padding: 15px 20px;
@@ -277,11 +277,11 @@ button {
 }
 
 .toast-notification:nth-child(2) {
-    bottom: 160px;
+    bottom: 100px;
 }
 
 .toast-notification:nth-child(3) {
-    bottom: 240px;
+    bottom: 180px;
 }
 
 .toast-notification .reaction {
@@ -303,11 +303,11 @@ button {
 
 @keyframes slideInFromBottom {
     from {
-        transform: translate(-50%, 100%);
+        transform: translateY(100%);
         opacity: 0;
     }
     to {
-        transform: translate(-50%, 0);
+        transform: translateY(0);
         opacity: 1;
     }
 }
@@ -611,21 +611,30 @@ button {
 /* Add mobile styles for toast */
 @media screen and (max-width: 768px) {
     .toast-notification {
-        right: 50%;
-        transform: translateX(50%);
+        bottom: 20px;
+        left: 20px;
+        transform: none;
         min-width: 200px;
         max-width: 90%;
         text-align: center;
     }
 
-    /* Update animation for centered toast on mobile */
+    .toast-notification:nth-child(2) {
+        bottom: 100px;
+    }
+
+    .toast-notification:nth-child(3) {
+        bottom: 180px;
+    }
+
+    /* Update animation for mobile to match desktop */
     @keyframes slideInFromBottom {
         from {
-            transform: translate(50%, 100%);
+            transform: translateY(100%);
             opacity: 0;
         }
         to {
-            transform: translate(50%, 0);
+            transform: translateY(0);
             opacity: 1;
         }
     }
