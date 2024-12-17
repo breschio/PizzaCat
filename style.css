@@ -817,3 +817,20 @@ button {
         font-size: 12px;
     }
 }
+
+/* Mobile styles for header */
+@media screen and (max-width: 768px) {
+    #header {
+        top: 10px; /* Adjust the top position */
+        padding: 0 10px; /* Reduce padding */
+    }
+
+    #game-title {
+        font-size: 16px; /* Smaller font size for mobile */
+    }
+
+    #score {
+        font-size: 16px; /* Smaller font size for mobile */
+        top: 10px; /* Align with header */
+    }
+}
