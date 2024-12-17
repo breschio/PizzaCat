@@ -262,7 +262,6 @@ button {
     position: fixed;
     bottom: 20px;
     left: 20px;
-    transform: none;
     background-color: rgba(0, 0, 0, 0.8);
     color: white;
     padding: 15px 20px;
@@ -273,15 +272,27 @@ button {
     margin-bottom: 10px;
     min-width: 200px;
     max-width: 90%;
-    text-align: center;
+    text-align: left;
 }
 
-.toast-notification:nth-child(2) {
-    bottom: 100px;
+.toast-notification .reaction,
+.toast-notification .trick-name,
+.toast-notification .points {
+    text-align: left;
 }
 
-.toast-notification:nth-child(3) {
-    bottom: 180px;
+@media screen and (max-width: 768px) {
+    .toast-notification {
+        bottom: 20px;
+    }
+
+    .toast-notification:nth-child(2) {
+        bottom: 80px;
+    }
+
+    .toast-notification:nth-child(3) {
+        bottom: 140px;
+    }
 }
 
 .toast-notification .reaction {

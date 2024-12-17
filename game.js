@@ -542,17 +542,22 @@ import { db, collection, addDoc, getDocs, query, orderBy, limit } from './fireba
     const SPEED_VARIATION = 50; // How much random variation to add
 
     // Function to show a toast notification
-    function showFishToast(fishType, points, emoji = '🐟') {
+    function showToast(message, points, emoji = '🐟') {
+        const existingToast = document.querySelector('.toast-notification');
+        if (existingToast) {
+            existingToast.remove(); // Remove any existing toast
+        }
+
         const toast = document.createElement('div');
         toast.className = 'toast-notification';
         toast.innerHTML = `
             <div class="reaction">${emoji}</div>
-            <div class="trick-name">${fishType.toUpperCase()}</div>
+            <div class="trick-name">${message}</div>
             <div class="points">+${points} PTS</div>
         `;
+
         document.body.appendChild(toast);
 
-        // Remove the toast after the animation ends
         setTimeout(() => {
             toast.remove();
         }, 2000); // Adjust the duration as needed
@@ -631,7 +636,7 @@ import { db, collection, addDoc, getDocs, query, orderBy, limit } from './fireba
                         updateScore();
                         updateHealthBar();
                         mediaPlayer.playNextFishCatchSound();
-                        showFishToast('Tuna', obj.points); // Show toast for tuna
+                        showToast('Tuna', obj.points); // Show toast for tuna
                         isFlashing = true;
                         isSpectrumFlash = true;
                         flashAlpha = 0.2;
@@ -644,7 +649,7 @@ import { db, collection, addDoc, getDocs, query, orderBy, limit } from './fireba
                         updateScore();
                         updateHealthBar();
                         mediaPlayer.playNextFishCatchSound();
-                        showFishToast('Buffalo Fish', obj.points); // Show toast for buffalo fish
+                        showToast('Buffalo Fish', obj.points); // Show toast for buffalo fish
                         isFlashing = true;
                         isSpectrumFlash = true;
                         flashAlpha = 0.2;
@@ -657,7 +662,7 @@ import { db, collection, addDoc, getDocs, query, orderBy, limit } from './fireba
                         updateScore();
                         updateHealthBar();
                         mediaPlayer.playNextFishCatchSound();
-                        showFishToast('Salmon', obj.points); // Show toast for salmon
+                        showToast('Salmon', obj.points); // Show toast for salmon
                         isFlashing = true;
                         isSpectrumFlash = true;
                         flashAlpha = 0.2;
@@ -670,7 +675,7 @@ import { db, collection, addDoc, getDocs, query, orderBy, limit } from './fireba
                         updateScore();
                         updateHealthBar();
                         mediaPlayer.playNextFishCatchSound();
-                        showFishToast('Catnip', obj.points, '🌿'); // Show toast for catnip with plant emoji
+                        showToast('Catnip', obj.points, '🌿'); // Show toast for catnip with plant emoji
                         isFlashing = true;
                         isSpectrumFlash = true;
                         flashAlpha = 0.2;

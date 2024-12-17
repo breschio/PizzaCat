@@ -133,7 +133,7 @@ function showTrickToast(trickName, points) {
     const toast = document.createElement('div');
     toast.className = 'toast-notification';
     toast.innerHTML = `
-        <div class="reaction">MEOWABUNGA!</div>
+        <div class="reaction">🏄‍♂️</div>
         <div class="trick-name">${trickName}</div>
         <div class="points">+${points} pts</div>
     `;
