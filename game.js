@@ -859,6 +859,8 @@ import { db, collection, addDoc, getDocs, query, orderBy, limit } from './fireba
 
     // Modify the drawGameObjects function
     function drawGameObjects() {
+        const time = Date.now() / 1000; // Get the current time in seconds
+
         for (let obj of gameObjects) {
             if (obj.type === 'mouse' && (!mouseImage || !mouseImage.complete)) {
                 continue;
@@ -901,14 +903,23 @@ import { db, collection, addDoc, getDocs, query, orderBy, limit } from './fireba
 
                     // Draw the catnip image
                     ctx.drawImage(catnipImage, obj.x, obj.y, obj.width, obj.height);
+                } else if (obj.type === 'tuna' && tunaImage) {
+                    ctx.save();
+                    const waveOffset = Math.sin(time * 1.5 + obj.x / 50) * 10; // Frequency 1.5, Amplitude 10
+                    ctx.drawImage(tunaImage, obj.x, obj.y + waveOffset, obj.width, obj.height);
+                    ctx.restore();
+                } else if (obj.type === 'buffalo-fish' && buffaloFishImage) {
+                    ctx.save();
+                    const waveOffset = Math.sin(time * 1.5 + obj.x / 50) * 10;
+                    ctx.drawImage(buffaloFishImage, obj.x, obj.y + waveOffset, obj.width, obj.height);
+                    ctx.restore();
+                } else if (obj.type === 'salmon' && salmonImage) {
+                    ctx.save();
+                    const waveOffset = Math.sin(time * 1.5 + obj.x / 50) * 10;
+                    ctx.drawImage(salmonImage, obj.x, obj.y + waveOffset, obj.width, obj.height);
+                    ctx.restore();
                 } else if (obj.type === 'mouse' && mouseImage) {
                     ctx.drawImage(mouseImage, obj.x, obj.y, obj.width, obj.height);
-                } else if (obj.type === 'tuna' && tunaImage) {
-                    ctx.drawImage(tunaImage, obj.x, obj.y, obj.width, obj.height);
-                } else if (obj.type === 'buffalo-fish' && buffaloFishImage) {
-                    ctx.drawImage(buffaloFishImage, obj.x, obj.y, obj.width, obj.height);
-                } else if (obj.type === 'salmon' && salmonImage) {
-                    ctx.drawImage(salmonImage, obj.x, obj.y, obj.width, obj.height);
                 }
             } catch (error) {
                 console.warn(`Failed to draw object of type ${obj.type}:`, error);
@@ -1176,8 +1187,10 @@ import { db, collection, addDoc, getDocs, query, orderBy, limit } from './fireba
         // Close instructions
         document.getElementById('close-instructions').addEventListener('click', () => {
             instructionsContainer.classList.remove('show');
+            instructionsContainer.classList.add('hide'); // Add hide class for smooth transition
             setTimeout(() => {
                 instructionsContainer.style.display = 'none';
+                instructionsContainer.classList.remove('hide'); // Remove hide class after transition
             }, 500);
         });
     });
