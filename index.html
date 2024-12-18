@@ -41,6 +41,21 @@
         </div>
         <div id="health-text">100</div>
     </div>
+    <div id="instructions-container" class="game-text">
+      <div id="close-instructions" class="close-icon">✖</div>
+      <div id="instruction-media">
+        <!-- Placeholder for media (e.g., video or image) -->
+        <video id="instruction-video" width="320" height="240" controls style="display: none;">
+          <source src="" type="video/mp4">
+          Your browser does not support the video tag.
+        </video>
+      </div>
+      <div id="instruction-text"></div>
+      <div id="carousel-dots"></div>
+      <button id="next-instruction-button">Next</button>
+    </div>
+    <button id="start-screen-button" class="game-text">Start Game</button>
+    <button id="how-to-play-button" class="game-text link-button">How to Play</button>
   </div>
   <script src="game.js" type="module"></script>
 </body>

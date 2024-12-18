@@ -868,7 +868,7 @@ button {
     color: white;
     border: 3px solid #FFD93D;
     border-radius: 3px;
-    padding: 8px 16px;
+    padding: 10px 20px;
     font-family: 'Press Start 2P', cursive;
     font-size: 16px;
     cursor: pointer;
@@ -879,6 +879,7 @@ button {
     opacity: 1;
     pointer-events: auto;
     animation: buttonPulse 1.5s infinite;
+    margin-bottom: 20px;
 }
 
 #start-screen-button:hover {
@@ -899,4 +900,134 @@ button {
 
 #start-button {
     display: none;
+}
+
+#instructions-container {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background-color: rgba(0, 0, 0, 0.8);
+    color: white;
+    padding: 20px;
+    border-radius: 10px;
+    text-align: center;
+    z-index: 1000;
+    display: none; /* Initially hidden */
+    width: 90%; /* Set a fixed width */
+    max-width: 600px; /* Maximum width */
+    height: 400px; /* Set a fixed height */
+    box-sizing: border-box; /* Include padding in the element's total width and height */
+    transition: opacity 0.5s ease, transform 0.5s ease; /* Smooth transition */
+    opacity: 0; /* Start hidden */
+    transform: translate(-50%, -60%); /* Start slightly above */
+}
+
+#instructions-container.show {
+    opacity: 1;
+    transform: translate(-50%, -50%);
+}
+
+.close-icon {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    font-size: 36px;
+    width: 48px;
+    height: 48px;
+    color: white;
+    cursor: pointer;
+    transition: color 0.3s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 10px;
+    box-sizing: content-box;
+    z-index: 1001; /* Ensure it's above the media */
+}
+
+.close-icon:hover {
+    color: #FF6B6B;
+}
+
+#instruction-text {
+    font-size: 18px;
+    margin-bottom: 10px;
+}
+
+#next-instruction-button {
+    background-color: #FF8C42;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    font-size: 16px;
+    cursor: pointer;
+    border-radius: 5px;
+    transition: background-color 0.3s;
+    margin-top: 24px; /* Added margin above the button */
+}
+
+#next-instruction-button:hover {
+    background-color: #FF6B6B;
+}
+
+#instruction-media {
+    position: relative;
+    width: 100%;
+    height: 60%; /* Adjust to fit within the modal */
+    margin-bottom: 10px;
+    text-align: center;
+    overflow: hidden;
+    z-index: 1000; /* Default z-index for media */
+}
+
+#instruction-video {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+#carousel-dots {
+    display: flex;
+    justify-content: center;
+    margin-top: 10px;
+}
+
+.carousel-dot {
+    width: 10px;
+    height: 10px;
+    margin: 0 5px;
+    background-color: white; /* Set inactive dots to white */
+    border-radius: 50%;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+.carousel-dot.active {
+    background-color: #FF6B6B; /* Active dot color */
+}
+
+#how-to-play-button {
+    background: none;
+    border: none;
+    color: white;
+    font-size: 16px;
+    cursor: pointer;
+    text-decoration: underline;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+    margin-top: 20px;
+    transition: color 0.3s;
+    position: fixed;
+    bottom: 50px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 1001;
+}
+
+#how-to-play-button:hover {
+    color: #FF8C42;
 }

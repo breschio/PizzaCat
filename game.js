@@ -207,28 +207,28 @@ import { db, collection, addDoc, getDocs, query, orderBy, limit } from './fireba
     let currentInstructionIndex = 0;
     const instructions = [
         {
-            text: "Move with your finger",
-            images: ["☝️"] // Unicode arrow emojis
+            text: "Move with your finger ☝️",
+            images: []
         },
         {
-            text: "Move with arrow keys",
-            images: ["⬆️", "⬇️", "⬅️", "➡️"] // Unicode arrow emojis
+            text: "Move with arrow keys ⬆️⬇️⬅️➡️",
+            images: []
         },
         {
-            text: "Collect fish",
+            text: "Collect fish 🐟",
             images: ["./assets/tuna.png", "./assets/buffalo-fish.png", "./assets/salmon.png"]
         },
         {
-            text: "Dodge Ninja Rat",
+            text: "Dodge Ninja Rat 🐭",
             images: ["./assets/mouse.png"]
         },
         {
-            text: "Do tricks above the wave",
-            images: ["🏄‍♂️"] // Surfer emoji
+            text: "Do tricks above the wave 🏄‍♂️",
+            images: []
         },
         {
-            text: "Catnip mode",
-            images: ["🌿"] // Plant emoji
+            text: "Catnip mode 🌿",
+            images: []
         }
     ];
 
@@ -250,76 +250,17 @@ import { db, collection, addDoc, getDocs, query, orderBy, limit } from './fireba
 
         ctx.drawImage(catImage, catStartX, catStartY, catStartWidth, catStartHeight);
 
-        // Display current instruction
-        const instruction = instructions[currentInstructionIndex];
-        const instructionText = document.createElement('div');
-        instructionText.id = 'instruction-text';
-        instructionText.textContent = instruction.text;
-        instructionText.style.position = 'absolute';
-        instructionText.style.left = '50%';
-        instructionText.style.top = `${catStartY + catStartHeight + 20}px`;
-        instructionText.style.transform = 'translateX(-50%)';
-        instructionText.style.color = 'white';
-        instructionText.style.fontSize = '20px';
-        instructionText.style.textAlign = 'center';
-        document.body.appendChild(instructionText);
+        // Show instructions
+        const instructionsContainer = document.getElementById('instructions-container');
+        instructionsContainer.style.display = 'block';
+        setTimeout(() => {
+            instructionsContainer.classList.add('show');
+        }, 10); // Slight delay to trigger transition
 
-        // Display images or emojis
-        const instructionImages = document.createElement('div');
-        instructionImages.id = 'instruction-images';
-        instructionImages.style.position = 'absolute';
-        instructionImages.style.left = '50%';
-        instructionImages.style.top = `${catStartY + catStartHeight + 60}px`;
-        instructionImages.style.transform = 'translateX(-50%)';
-        instructionImages.style.display = 'flex';
-        instructionImages.style.justifyContent = 'center';
-        instructionImages.style.gap = '10px';
-        document.body.appendChild(instructionImages);
+        updateInstruction();
 
-        instruction.images.forEach(src => {
-            const element = document.createElement('div');
-            if (src.startsWith('./')) {
-                const img = document.createElement('img');
-                img.src = src;
-                img.style.width = '24px'; // Updated width
-                img.style.height = '24px'; // Updated height
-                element.appendChild(img);
-            } else {
-                element.textContent = src; // For emojis
-                element.style.fontSize = '50px';
-            }
-            instructionImages.appendChild(element);
-        });
-
-        // Create and position the next button
-        const nextButton = document.createElement('button');
-        nextButton.id = 'next-button';
-        nextButton.textContent = 'Next';
-        nextButton.style.position = 'absolute';
-        nextButton.style.left = '50%';
-        nextButton.style.top = `${catStartY + catStartHeight + 120}px`;
-        nextButton.style.transform = 'translateX(-50%)';
-        nextButton.style.zIndex = '10000'; // Ensure the button is on top of other elements
-        document.body.appendChild(nextButton);
-
-        // Add event listener for the next button
-        nextButton.addEventListener('click', () => {
-            currentInstructionIndex = (currentInstructionIndex + 1) % instructions.length;
-            updateInstruction();
-        });
-
-        // Ensure the start button is always available
-        const startScreenButton = document.createElement('button');
-        startScreenButton.id = 'start-screen-button';
-        startScreenButton.textContent = 'Start Game';
-        startScreenButton.style.position = 'absolute';
-        startScreenButton.style.left = '50%';
-        startScreenButton.style.top = `${catStartY + catStartHeight + 200}px`;
-        startScreenButton.style.transform = 'translateX(-50%)';
-        startScreenButton.style.zIndex = '10000'; // Ensure the button is on top of other elements
-        startScreenButton.style.padding = '10px 20px'; // Even padding at top and bottom
-        document.body.appendChild(startScreenButton);
-
+        // Add event listener to the existing button
+        const startScreenButton = document.getElementById('start-screen-button');
         startScreenButton.addEventListener('click', () => {
             startGame();
             removeStartScreen();
@@ -329,30 +270,43 @@ import { db, collection, addDoc, getDocs, query, orderBy, limit } from './fireba
     function updateInstruction() {
         const instruction = instructions[currentInstructionIndex];
         const instructionText = document.getElementById('instruction-text');
-        const instructionImages = document.getElementById('instruction-images');
+        const instructionVideo = document.getElementById('instruction-video');
+        const carouselDots = document.getElementById('carousel-dots');
 
         if (instructionText) {
             instructionText.textContent = instruction.text;
         }
 
-        if (instructionImages) {
-            instructionImages.innerHTML = ''; // Clear existing images
-            instruction.images.forEach(src => {
-                const element = document.createElement('div');
-                if (src.startsWith('./')) {
-                    const img = document.createElement('img');
-                    img.src = src;
-                    img.style.width = '50px';
-                    img.style.height = '50px';
-                    element.appendChild(img);
-                } else {
-                    element.textContent = src; // For emojis
-                    element.style.fontSize = '50px';
+        // Update video source if applicable
+        if (instruction.videoSrc) {
+            instructionVideo.src = instruction.videoSrc;
+            instructionVideo.style.display = 'block';
+        } else {
+            instructionVideo.style.display = 'none';
+        }
+
+        // Update carousel dots
+        if (carouselDots) {
+            carouselDots.innerHTML = ''; // Clear existing dots
+            instructions.forEach((_, index) => {
+                const dot = document.createElement('div');
+                dot.className = 'carousel-dot';
+                if (index === currentInstructionIndex) {
+                    dot.classList.add('active');
                 }
-                instructionImages.appendChild(element);
+                dot.addEventListener('click', () => {
+                    currentInstructionIndex = index;
+                    updateInstruction();
+                });
+                carouselDots.appendChild(dot);
             });
         }
     }
+
+    document.getElementById('next-instruction-button').addEventListener('click', () => {
+        currentInstructionIndex = (currentInstructionIndex + 1) % instructions.length;
+        updateInstruction();
+    });
 
     function removeStartScreen() {
         const startButton = document.getElementById('start-screen-button');
@@ -364,6 +318,9 @@ import { db, collection, addDoc, getDocs, query, orderBy, limit } from './fireba
         if (nextButton) nextButton.remove();
         if (instructionText) instructionText.remove();
         if (instructionImages) instructionImages.remove();
+
+        // Hide instructions
+        document.getElementById('instructions-container').style.display = 'none';
     }
 
     // Modify the initializeGame function to show the start mode first
@@ -1183,34 +1140,30 @@ import { db, collection, addDoc, getDocs, query, orderBy, limit } from './fireba
     // Make sure your startGame function looks like this:
     function startGame() {
         if (!isGameRunning && !isPaused) {
-            // This is a fresh start
             isGameRunning = true;
             isGameOver = false;
-            // Reset game state
             score = 0;
             catHealth = maxCatHealth;
             initializeCat();
             gameObjects = [];
             gameTime = 0;
 
-            // Start sounds
             mediaPlayer.startWaveSound();
             mediaPlayer.startGameMusic();
         } else if (isPaused) {
-            // This is resuming from pause
             isPaused = false;
             isGameRunning = true;
             
-            // Resume sounds
             mediaPlayer.startWaveSound();
             mediaPlayer.startGameMusic();
         }
 
-        // Update UI
         document.getElementById('start-button').style.display = 'none';
         document.getElementById('stop-button').style.display = 'inline-block';
 
-        // Ensure game loop is running
+        // Hide the "How to Play" button
+        document.getElementById('how-to-play-button').style.display = 'none';
+
         if (!gameLoopRunning) {
             gameLoopRunning = true;
             lastTime = performance.now();
@@ -1244,6 +1197,26 @@ import { db, collection, addDoc, getDocs, query, orderBy, limit } from './fireba
     // Initialize the game when the DOM is fully loaded
     document.addEventListener('DOMContentLoaded', () => {
         initializeGame();
+
+        // Hide instructions initially
+        const instructionsContainer = document.getElementById('instructions-container');
+        instructionsContainer.style.display = 'none';
+
+        // Show instructions when "How to Play" is clicked
+        document.getElementById('how-to-play-button').addEventListener('click', () => {
+            instructionsContainer.style.display = 'block';
+            setTimeout(() => {
+                instructionsContainer.classList.add('show');
+            }, 10);
+        });
+
+        // Close instructions
+        document.getElementById('close-instructions').addEventListener('click', () => {
+            instructionsContainer.classList.remove('show');
+            setTimeout(() => {
+                instructionsContainer.style.display = 'none';
+            }, 500);
+        });
     });
 
     // Function to resize canvas and adjust game elements
@@ -1876,4 +1849,20 @@ import { db, collection, addDoc, getDocs, query, orderBy, limit } from './fireba
         ctx.fillRect(0, 0, canvas.width, canvas.height);
         ctx.restore();
     }
+
+    document.getElementById('close-instructions').addEventListener('click', () => {
+        const instructionsContainer = document.getElementById('instructions-container');
+        instructionsContainer.classList.remove('show');
+        setTimeout(() => {
+            instructionsContainer.style.display = 'none';
+        }, 500); // Match the transition duration
+    });
+
+    document.getElementById('how-to-play-button').addEventListener('click', () => {
+        const instructionsContainer = document.getElementById('instructions-container');
+        instructionsContainer.style.display = 'block';
+        setTimeout(() => {
+            instructionsContainer.classList.add('show');
+        }, 10); // Slight delay to trigger transition
+    });
 })();
