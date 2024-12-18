@@ -754,7 +754,7 @@ import { db, collection, addDoc, getDocs, query, orderBy, limit } from './fireba
                     case 'mouse':
                         catHealth = Math.max(0, catHealth - MOUSE_DAMAGE);
                         updateHealthBar();
-                        mediaPlayer.playCatMeowSound();
+                        mediaPlayer.playHurtSound();
                         isFlashing = true;
                         isSpectrumFlash = false;
                         flashColor = 'red';
@@ -774,38 +774,14 @@ import { db, collection, addDoc, getDocs, query, orderBy, limit } from './fireba
                         break;
                         
                     case 'tuna':
-                        score += obj.points;
-                        catHealth = Math.min(maxCatHealth, catHealth + obj.health);
-                        updateScore();
-                        updateHealthBar();
-                        mediaPlayer.playNextFishCatchSound();
-                        showToast('Tuna', obj.points); // Show toast for tuna
-                        isFlashing = true;
-                        isSpectrumFlash = true;
-                        flashAlpha = 0.2;
-                        flashStartTime = Date.now();
-                        break;
-                        
                     case 'buffalo-fish':
-                        score += obj.points;
-                        catHealth = Math.min(maxCatHealth, catHealth + obj.health);
-                        updateScore();
-                        updateHealthBar();
-                        mediaPlayer.playNextFishCatchSound();
-                        showToast('Buffalo Fish', obj.points); // Show toast for buffalo fish
-                        isFlashing = true;
-                        isSpectrumFlash = true;
-                        flashAlpha = 0.2;
-                        flashStartTime = Date.now();
-                        break;
-                        
                     case 'salmon':
                         score += obj.points;
                         catHealth = Math.min(maxCatHealth, catHealth + obj.health);
                         updateScore();
                         updateHealthBar();
-                        mediaPlayer.playNextFishCatchSound();
-                        showToast('Salmon', obj.points); // Show toast for salmon
+                        mediaPlayer.playYumSound();
+                        showToast(obj.type.charAt(0).toUpperCase() + obj.type.slice(1), obj.points); // Show toast for fish
                         isFlashing = true;
                         isSpectrumFlash = true;
                         flashAlpha = 0.2;
@@ -817,7 +793,7 @@ import { db, collection, addDoc, getDocs, query, orderBy, limit } from './fireba
                         catHealth = Math.min(maxCatHealth, catHealth + obj.health);
                         updateScore();
                         updateHealthBar();
-                        mediaPlayer.playNextFishCatchSound();
+                        mediaPlayer.playCatnipSound(); // Play the catnip sound alternately
                         showToast('Catnip', obj.points, '🌿'); // Show toast for catnip with plant emoji
                         isFlashing = true;
                         isSpectrumFlash = true;
@@ -1158,24 +1134,25 @@ import { db, collection, addDoc, getDocs, query, orderBy, limit } from './fireba
 
             mediaPlayer.startWaveSound();
             mediaPlayer.startGameMusic();
+            mediaPlayer.playPizzaCatSound(); // Play the pizza-cat sound
+
+            document.getElementById('start-button').style.display = 'none';
+            document.getElementById('stop-button').style.display = 'inline-block';
+
+            // Hide the "How to Play" button
+            document.getElementById('how-to-play-button').style.display = 'none';
+
+            if (!gameLoopRunning) {
+                gameLoopRunning = true;
+                lastTime = performance.now();
+                requestAnimationFrame(gameLoop);
+            }
         } else if (isPaused) {
             isPaused = false;
             isGameRunning = true;
             
             mediaPlayer.startWaveSound();
             mediaPlayer.startGameMusic();
-        }
-
-        document.getElementById('start-button').style.display = 'none';
-        document.getElementById('stop-button').style.display = 'inline-block';
-
-        // Hide the "How to Play" button
-        document.getElementById('how-to-play-button').style.display = 'none';
-
-        if (!gameLoopRunning) {
-            gameLoopRunning = true;
-            lastTime = performance.now();
-            requestAnimationFrame(gameLoop);
         }
     }
 

@@ -1,3 +1,5 @@
+import { mediaPlayer } from './mediaPlayer.js';
+
 // Constants
 const TRICK_DURATION = 200; // Even shorter duration for quicker tricks
 const TRICK_COOLDOWN = 200; // Reduced to 0.2 seconds between tricks
@@ -61,6 +63,8 @@ function performTrick(catY, catHeight, TRICK_THRESHOLD, isGameRunning, isGameOve
         _currentTrickName = trickNames[Math.floor(Math.random() * trickNames.length)];
         
         showTrickToast(_currentTrickName, 5);
+        
+        mediaPlayer.playMewoabungaSound(); // Play the mewoabunga sound
         
         _trickZoneActive = false;
         _trickZoneTimeLeft = 0;

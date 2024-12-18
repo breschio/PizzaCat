@@ -48,14 +48,26 @@ class MediaPlayer {
         this.catSounds = {
             meow1: new Audio('./assets/cat-meow-1.MP3'),
             meow2: new Audio('./assets/cat-meow-2.MP3'),
-            bite: new Audio('./assets/cat-bite-1.MP3')
+            bite: new Audio('./assets/cat-bite-1.MP3'),
+            hurt: new Audio('./assets/meow-hurt.mp3'),
+            yum1: new Audio('./assets/meowyum.mp3'),
+            yum2: new Audio('./assets/meowyum-2.mp3'),
+            catnip1: new Audio('./assets/catnip.mp3'),
+            catnip2: new Audio('./assets/catnip-2.mp3'),
+            mewoabunga: new Audio('./assets/meowabunga.MP3'),
+            pizzaCat: new Audio('./assets/pizza-cat.mp3')
         };
 
-        this.currentFishSoundIndex = 0;
-        this.fishCatchSounds = [
-            this.catSounds.meow1,
-            this.catSounds.bite,
-            this.catSounds.meow2
+        this.currentCatnipSoundIndex = 0;
+        this.catnipSounds = [
+            this.catSounds.catnip1,
+            this.catSounds.catnip2
+        ];
+
+        this.currentYumSoundIndex = 0;
+        this.yumSounds = [
+            this.catSounds.yum1,
+            this.catSounds.yum2
         ];
 
         // Load music files
@@ -78,6 +90,12 @@ class MediaPlayer {
         this.volumeControl.addEventListener('click', (event) => {
             event.stopPropagation();
         });
+
+        this.fishCatchSounds = [
+            this.catSounds.meow1,
+            this.catSounds.bite,
+            this.catSounds.meow2
+        ];
     }
 
     toggleMute() {
@@ -188,8 +206,11 @@ class MediaPlayer {
     }
 
     playCatMeowSound() {
+        console.log("Current fish sound index:", this.currentFishSoundIndex);
+        console.log("Fish catch sounds:", this.fishCatchSounds);
+
         const currentSound = this.fishCatchSounds[this.currentFishSoundIndex];
-        if (currentSound.paused) {
+        if (currentSound && currentSound.paused) {
             currentSound.currentTime = 0;
             currentSound.play().catch(e => console.error("Error playing cat meow sound:", e));
             this.currentFishSoundIndex = (this.currentFishSoundIndex + 1) % this.fishCatchSounds.length;
@@ -230,6 +251,35 @@ class MediaPlayer {
         this.catnipMusic.currentTime = 0;
         this.normalMusic.pause();
         this.normalMusic.currentTime = 0;
+    }
+
+    playHurtSound() {
+        this.catSounds.hurt.currentTime = 0;
+        this.catSounds.hurt.play().catch(e => console.error("Error playing hurt sound:", e));
+    }
+
+    playYumSound() {
+        const currentSound = this.yumSounds[this.currentYumSoundIndex];
+        currentSound.currentTime = 0;
+        currentSound.play().catch(e => console.error("Error playing yum sound:", e));
+        this.currentYumSoundIndex = (this.currentYumSoundIndex + 1) % this.yumSounds.length;
+    }
+
+    playCatnipSound() {
+        const currentSound = this.catnipSounds[this.currentCatnipSoundIndex];
+        currentSound.currentTime = 0;
+        currentSound.play().catch(e => console.error("Error playing catnip sound:", e));
+        this.currentCatnipSoundIndex = (this.currentCatnipSoundIndex + 1) % this.catnipSounds.length;
+    }
+
+    playMewoabungaSound() {
+        this.catSounds.mewoabunga.currentTime = 0;
+        this.catSounds.mewoabunga.play().catch(e => console.error("Error playing mewoabunga sound:", e));
+    }
+
+    playPizzaCatSound() {
+        this.catSounds.pizzaCat.currentTime = 0;
+        this.catSounds.pizzaCat.play().catch(e => console.error("Error playing pizza-cat sound:", e));
     }
 }
 
