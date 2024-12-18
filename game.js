@@ -207,28 +207,32 @@ import { db, collection, addDoc, getDocs, query, orderBy, limit } from './fireba
     let currentInstructionIndex = 0;
     const instructions = [
         {
+            text: "Get all the fish 🐟",
+            videoSrc: "./assets/video/tut-fish-web.mp4"
+            /*images: ["./assets/tuna.png", "./assets/buffalo-fish.png", "./assets/salmon.png"]*/
+        },
+        {
             text: "Move with your finger ☝️",
-            images: []
+            videoSrc: "./assets/video/tut-finger-web.mp4"
         },
         {
-            text: "Move with arrow keys ⬆️⬇️⬅️➡️",
-            images: []
+            text: "Or use arrow keys ⬆️⬇️⬅️➡️",
+            videoSrc: "./assets/video/tut-arrows-web.mp4"
         },
         {
-            text: "Collect fish 🐟",
-            images: ["./assets/tuna.png", "./assets/buffalo-fish.png", "./assets/salmon.png"]
+            text: "Dodge Ninja Rat 🥷",
+            videoSrc: "./assets/video/tut-rat-web.mp4"
+            /*images: ["./assets/mouse.png"]*/
         },
         {
-            text: "Dodge Ninja Rat 🐭",
-            images: ["./assets/mouse.png"]
+            text: "Do a trick over the wave! [Spacebar] on desktop",
+            videoSrc: "./assets/video/tut-trick-web.mp4"
+            /*images: []*/
         },
         {
-            text: "Do tricks above the wave 🏄‍♂️",
-            images: []
-        },
-        {
-            text: "Catnip mode 🌿",
-            images: []
+            text: "Chill out in Catnip mode 🌿",
+            videoSrc: "./assets/video/tut-catnip-web.mp4"
+            /*images: []*/
         }
     ];
 
@@ -281,6 +285,10 @@ import { db, collection, addDoc, getDocs, query, orderBy, limit } from './fireba
         if (instruction.videoSrc) {
             instructionVideo.src = instruction.videoSrc;
             instructionVideo.style.display = 'block';
+            instructionVideo.autoplay = true;
+            instructionVideo.loop = true;
+            instructionVideo.controls = false;
+            instructionVideo.muted = true; // Mute the video
         } else {
             instructionVideo.style.display = 'none';
         }
@@ -1853,9 +1861,11 @@ import { db, collection, addDoc, getDocs, query, orderBy, limit } from './fireba
     document.getElementById('close-instructions').addEventListener('click', () => {
         const instructionsContainer = document.getElementById('instructions-container');
         instructionsContainer.classList.remove('show');
+        instructionsContainer.classList.add('hide'); // Add hide class for smooth transition
         setTimeout(() => {
             instructionsContainer.style.display = 'none';
-        }, 500); // Match the transition duration
+            instructionsContainer.classList.remove('hide'); // Remove hide class after transition
+        }, 500);
     });
 
     document.getElementById('how-to-play-button').addEventListener('click', () => {
@@ -1865,4 +1875,31 @@ import { db, collection, addDoc, getDocs, query, orderBy, limit } from './fireba
             instructionsContainer.classList.add('show');
         }, 10); // Slight delay to trigger transition
     });
+
+    function showInstructions() {
+        const instructionsContainer = document.getElementById('instructions-container');
+        const gameContainer = document.getElementById('game-container');
+
+        gameContainer.classList.add('blur'); // Add blur effect
+        instructionsContainer.style.display = 'block';
+        setTimeout(() => {
+            instructionsContainer.classList.add('show');
+        }, 10);
+    }
+
+    function hideInstructions() {
+        const instructionsContainer = document.getElementById('instructions-container');
+        const gameContainer = document.getElementById('game-container');
+
+        instructionsContainer.classList.remove('show');
+        instructionsContainer.classList.add('hide'); // Add hide class for smooth transition
+        setTimeout(() => {
+            instructionsContainer.style.display = 'none';
+            instructionsContainer.classList.remove('hide'); // Remove hide class after transition
+            gameContainer.classList.remove('blur'); // Remove blur effect
+        }, 500);
+    }
+
+    document.getElementById('how-to-play-button').addEventListener('click', showInstructions);
+    document.getElementById('close-instructions').addEventListener('click', hideInstructions);
 })();

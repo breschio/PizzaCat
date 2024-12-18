@@ -12,6 +12,26 @@ body {
     background-repeat: no-repeat;
     background-position: center center;
     background-attachment: fixed;
+    overflow: hidden;
+}
+
+#game-container::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: inherit;
+    filter: blur(8px);
+    z-index: 1000;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.5s ease;
+}
+
+#game-container.blur::before {
+    opacity: 1;
 }
 
 #gameCanvas {
@@ -500,12 +520,12 @@ button {
 }
 
 #health-bar-container {
-    position: fixed;
-    top: 20px;
+    position: absolute;
+    top: 10px;
     left: 50%;
     transform: translateX(-50%);
+    z-index: 999;
     width: 400px;
-    z-index: 1000;
     display: flex;
     align-items: center;
     gap: 10px;
@@ -873,7 +893,7 @@ button {
     font-size: 16px;
     cursor: pointer;
     transition: all 0.3s ease;
-    z-index: 1000;
+    z-index: 999;
     text-shadow: 2px 2px 0 #000;
     box-shadow: 0 4px 0 #E84855;
     opacity: 1;
@@ -904,28 +924,33 @@ button {
 
 #instructions-container {
     position: absolute;
-    top: 50%;
+    bottom: -100%; /* Start off-screen at the bottom */
     left: 50%;
-    transform: translate(-50%, -50%);
+    transform: translate(-50%, 0);
     background-color: rgba(0, 0, 0, 0.8);
     color: white;
     padding: 20px;
     border-radius: 10px;
     text-align: center;
-    z-index: 1000;
-    display: none; /* Initially hidden */
-    width: 90%; /* Set a fixed width */
-    max-width: 600px; /* Maximum width */
-    height: 400px; /* Set a fixed height */
-    box-sizing: border-box; /* Include padding in the element's total width and height */
-    transition: opacity 0.5s ease, transform 0.5s ease; /* Smooth transition */
-    opacity: 0; /* Start hidden */
-    transform: translate(-50%, -60%); /* Start slightly above */
+    z-index: 1002; /* Ensure it's above the blurred background */
+    display: none;
+    width: auto;
+    max-width: 90%;
+    box-sizing: border-box;
+    transition: bottom 0.5s ease, opacity 0.5s ease, transform 0.5s ease;
+    opacity: 0;
 }
 
 #instructions-container.show {
+    bottom: 50%; /* Move to the center of the page */
     opacity: 1;
-    transform: translate(-50%, -50%);
+    transform: translate(-50%, 50%);
+}
+
+#instructions-container.hide {
+    bottom: -100%; /* Move off-screen smoothly */
+    opacity: 0;
+    transform: translate(-50%, 0);
 }
 
 .close-icon {
@@ -951,8 +976,10 @@ button {
 }
 
 #instruction-text {
-    font-size: 18px;
-    margin-bottom: 10px;
+    font-size: 16px;
+    margin: 16px auto;
+    width: 400px;
+    line-height: 1.5;
 }
 
 #next-instruction-button {
@@ -973,12 +1000,12 @@ button {
 
 #instruction-media {
     position: relative;
-    width: 100%;
-    height: 60%; /* Adjust to fit within the modal */
-    margin-bottom: 10px;
+    width: 400px; /* Set width to 400px */
+    height: 400px; /* Set height to 400px */
+    margin: 0 auto 10px;
     text-align: center;
     overflow: hidden;
-    z-index: 1000; /* Default z-index for media */
+    z-index: 1000;
 }
 
 #instruction-video {
@@ -989,6 +1016,7 @@ button {
     height: 100%;
     border-radius: 8px;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    object-fit: cover;
 }
 
 #carousel-dots {
@@ -1025,9 +1053,33 @@ button {
     bottom: 50px;
     left: 50%;
     transform: translateX(-50%);
-    z-index: 1001;
+    z-index: 999;
 }
 
 #how-to-play-button:hover {
     color: #FF8C42;
+}
+
+@media screen and (max-width: 768px) {
+    #instructions-container {
+        max-width: 95%; /* Allow more width on mobile */
+        padding: 10px; /* Adjust padding for mobile */
+        bottom: 20%; /* Adjust position for mobile */
+    }
+
+    #instruction-media {
+        width: 90%; /* Use most of the screen width */
+        height: auto; /* Maintain aspect ratio */
+        max-width: 300px; /* Limit max width */
+    }
+
+    #instruction-text {
+        font-size: 14px; /* Smaller font size for mobile */
+        width: 90%; /* Match the media width */
+    }
+
+    #next-instruction-button {
+        font-size: 14px; /* Adjust button size for mobile */
+        padding: 8px 16px; /* Adjust padding for mobile */
+    }
 }
