@@ -49,13 +49,13 @@ class MediaPlayer {
             meow1: new Audio('./assets/cat-meow-1.MP3'),
             meow2: new Audio('./assets/cat-meow-2.MP3'),
             bite: new Audio('./assets/cat-bite-1.MP3'),
-            hurt: new Audio('./assets/meow-hurt.mp3'),
-            yum1: new Audio('./assets/meowyum.mp3'),
-            yum2: new Audio('./assets/meowyum-2.mp3'),
-            catnip1: new Audio('./assets/catnip.mp3'),
-            catnip2: new Audio('./assets/catnip-2.mp3'),
+            hurt: new Audio('./assets/meow-hurt.MP3'),
+            yum1: new Audio('./assets/meowyum.MP3'),
+            yum2: new Audio('./assets/meowyum-2.MP3'),
+            catnip1: new Audio('./assets/catnip.MP3'),
+            catnip2: new Audio('./assets/catnip-2.MP3'),
             mewoabunga: new Audio('./assets/meowabunga.MP3'),
-            pizzaCat: new Audio('./assets/pizza-cat.mp3')
+            pizzaCat: new Audio('./assets/pizza-cat.MP3')
         };
 
         this.currentCatnipSoundIndex = 0;
@@ -96,6 +96,19 @@ class MediaPlayer {
             this.catSounds.bite,
             this.catSounds.meow2
         ];
+
+        console.log("Cat sounds:", {
+            meow1: this.catSounds.meow1.src,
+            meow2: this.catSounds.meow2.src,
+            bite: this.catSounds.bite.src,
+            hurt: this.catSounds.hurt.src,
+            yum1: this.catSounds.yum1.src,
+            yum2: this.catSounds.yum2.src,
+            catnip1: this.catSounds.catnip1.src,
+            catnip2: this.catSounds.catnip2.src,
+            mewoabunga: this.catSounds.mewoabunga.src,
+            pizzaCat: this.catSounds.pizzaCat.src
+        });
     }
 
     toggleMute() {
@@ -267,6 +280,7 @@ class MediaPlayer {
 
     playCatnipSound() {
         const currentSound = this.catnipSounds[this.currentCatnipSoundIndex];
+        console.log("Attempting to play catnip sound:", currentSound.src);
         currentSound.currentTime = 0;
         currentSound.play().catch(e => console.error("Error playing catnip sound:", e));
         this.currentCatnipSoundIndex = (this.currentCatnipSoundIndex + 1) % this.catnipSounds.length;
