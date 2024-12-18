@@ -1134,10 +1134,11 @@ import { db, collection, addDoc, getDocs, query, orderBy, limit } from './fireba
 
             mediaPlayer.startWaveSound();
             mediaPlayer.startGameMusic();
-            mediaPlayer.playPizzaCatSound(); // Play the pizza-cat sound
+            // mediaPlayer.playPizzaCatSound(); // Remove or comment out this line to stop playing the pizza-cat sound
 
             document.getElementById('start-button').style.display = 'none';
             document.getElementById('stop-button').style.display = 'inline-block';
+            document.getElementById('start-screen-button').style.display = 'none'; // Hide the start screen button
 
             // Hide the "How to Play" button
             document.getElementById('how-to-play-button').style.display = 'none';
