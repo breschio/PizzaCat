@@ -46,26 +46,18 @@ import { db, collection, addDoc, getDocs, query, orderBy, limit } from './fireba
     let fishImage = new Image();
     let catImage = new Image();
     let catSunnyImage = new Image(); // New sunny image
-    let loadedTrashImages = [];
+    let loadedCollectibleImages = [];
     let mouseImage = new Image();
     let tunaImage = new Image();
     let buffaloFishImage = new Image();
     let salmonImage = new Image();
     let catnipImage = new Image();
-    let loadedCollectibleImages = [];
 
     let imagesLoaded = 0;
     const totalImages = 9; // 3 original + 3 new collectibles + 3 trash images
 
     let catHealth = 100; // New variable for cat's health
     const maxCatHealth = 100; // Maximum cat health
-
-    // Add this to your existing array of images to load
-    const trashImages = [
-        { src: './assets/trash-can.png', width: 60, height: 80 },    // Doubled from 30x40
-        { src: './assets/trash-bottle.png', width: 40, height: 80 }, // Doubled from 20x40
-        { src: './assets/trash-bag.png', width: 80, height: 80 },    // Doubled from 35x35
-    ];
 
     // Add these constants for collectible properties
     const COLLECTIBLES = [
@@ -78,9 +70,9 @@ import { db, collection, addDoc, getDocs, query, orderBy, limit } from './fireba
     // Modify the imageLoaded function
     function imageLoaded() {
         imagesLoaded++;
-        console.log(`Image loaded. Total: ${imagesLoaded}/${totalImages + trashImages.length}`); // Debug log
-        if (imagesLoaded === totalImages + trashImages.length) {
-            console.log('All images loaded. Initializing game.'); // Debug log
+        console.log(`Image loaded. Total: ${imagesLoaded}/${totalImages}`); // Adjusted totalImages count
+        if (imagesLoaded === totalImages) {
+            console.log('All images loaded. Initializing game.');
             initializeGame();
         }
     }
@@ -102,18 +94,6 @@ import { db, collection, addDoc, getDocs, query, orderBy, limit } from './fireba
 
     fishImage.onload = imageLoaded;
     fishImage.src = './assets/buffalo-fish.png'; // Make sure this path is correct
-
-    // Load trash images
-    trashImages.forEach((trashItem, index) => {
-        const img = new Image();
-        img.onload = imageLoaded;
-        img.onerror = function() {
-            console.error(`Failed to load image: ${trashItem.src}`);
-            imageLoaded(); // Still call imageLoaded to avoid blocking the game
-        };
-        img.src = trashItem.src;
-        loadedTrashImages[index] = img;
-    });
 
     let catFacingRight = true; // New variable to track cat's facing direction
 
@@ -161,9 +141,9 @@ import { db, collection, addDoc, getDocs, query, orderBy, limit } from './fireba
     const MAX_TRASH_SPAWN_RATE = 0.025;
     const TRASH_SPEED_VARIATION = 0.7;
 
-    // Add these new constants for fish
-    const INITIAL_FISH_SPAWN_RATE = 0.005;
-    const MAX_FISH_SPAWN_RATE = 0.015;
+    // Increase the initial fish spawn rate
+    const INITIAL_FISH_SPAWN_RATE = 0.02; // Increased from 0.007
+    const MAX_FISH_SPAWN_RATE = 0.03; // Increased from 0.02
 
     // Time (in seconds) to reach maximum difficulty
     const TIME_TO_MAX_DIFFICULTY = 180; // 3 minutes
@@ -699,7 +679,7 @@ import { db, collection, addDoc, getDocs, query, orderBy, limit } from './fireba
         const currentTime = Date.now();
         
         // Spawn new objects
-        if (Math.random() < trashSpawnRate + fishSpawnRate) {
+        if (Math.random() < fishSpawnRate) { // Only spawn fish and collectibles
             spawnObject();
         }
         
@@ -708,34 +688,26 @@ import { db, collection, addDoc, getDocs, query, orderBy, limit } from './fireba
             
             if (obj.type === 'mouse') {
                 if (!obj.hasMimicked) {
-                    // Update rat's direction to mimic the cat's movement once
                     const dx = (catX + catWidth / 2) - (obj.x + obj.width / 2);
                     const dy = (catY + catHeight / 2) - (obj.y + obj.height / 2);
                     const distance = Math.sqrt(dx * dx + dy * dy);
 
-                    // Normalize the direction
                     obj.directionX = dx / distance;
                     obj.directionY = dy / distance;
-
-                    // Mark as mimicked
                     obj.hasMimicked = true;
                 }
 
-                // Move rat towards the cat
                 obj.x += obj.directionX * obj.speed * deltaTime;
                 obj.y += obj.directionY * obj.speed * deltaTime;
             } else {
-                // Normal object movement
                 obj.x -= obj.speed * deltaTime;
             }
 
-            // Remove objects that are off-screen
             if (obj.x + obj.width < 0 || obj.y + obj.height < 0 || obj.y > canvas.height) {
                 gameObjects.splice(i, 1);
                 continue;
             }
 
-            // Collision detection
             const catCenterX = catX + catWidth / 2;
             const catCenterY = catY + catHeight / 2;
             const objCenterX = obj.x + obj.width / 2;
@@ -744,28 +716,16 @@ import { db, collection, addDoc, getDocs, query, orderBy, limit } from './fireba
             const distanceX = Math.abs(catCenterX - objCenterX);
             const distanceY = Math.abs(catCenterY - objCenterY);
 
-            // Check for collision
             if (distanceX < (catWidth + obj.width) / 2 * 0.8 &&
                 distanceY < (catHeight + obj.height) / 2 * 0.8) {
                 
-                gameObjects.splice(i, 1); // Remove the collected/hit object
+                gameObjects.splice(i, 1);
                 
                 switch(obj.type) {
                     case 'mouse':
                         catHealth = Math.max(0, catHealth - MOUSE_DAMAGE);
                         updateHealthBar();
                         mediaPlayer.playHurtSound();
-                        isFlashing = true;
-                        isSpectrumFlash = false;
-                        flashColor = 'red';
-                        flashAlpha = 0.3;
-                        flashStartTime = Date.now();
-                        break;
-                        
-                    case 'trash':
-                        catHealth = Math.max(0, catHealth - 20);
-                        updateHealthBar();
-                        mediaPlayer.playCatMeowSound();
                         isFlashing = true;
                         isSpectrumFlash = false;
                         flashColor = 'red';
@@ -781,7 +741,7 @@ import { db, collection, addDoc, getDocs, query, orderBy, limit } from './fireba
                         updateScore();
                         updateHealthBar();
                         mediaPlayer.playYumSound();
-                        showToast(obj.type.charAt(0).toUpperCase() + obj.type.slice(1), obj.points); // Show toast for fish
+                        showToast(obj.type.charAt(0).toUpperCase() + obj.type.slice(1), obj.points);
                         isFlashing = true;
                         isSpectrumFlash = true;
                         flashAlpha = 0.2;
@@ -789,43 +749,49 @@ import { db, collection, addDoc, getDocs, query, orderBy, limit } from './fireba
                         break;
                         
                     case 'catnip':
-                        score += obj.points * (isCatnipMode ? 2 : 1); // Double score in catnip mode
+                        score += obj.points * (isCatnipMode ? 2 : 1);
                         catHealth = Math.min(maxCatHealth, catHealth + obj.health);
                         updateScore();
                         updateHealthBar();
-                        mediaPlayer.playCatnipSound(); // Play the catnip sound alternately
-                        showToast('Catnip', obj.points, '🌿'); // Show toast for catnip with plant emoji
+                        mediaPlayer.playCatnipSound();
+                        showToast('Catnip', obj.points, '🌿');
                         isFlashing = true;
                         isSpectrumFlash = true;
                         flashAlpha = 0.2;
                         flashStartTime = Date.now();
                         
-                        startCatnipMode(); // Start catnip mode
+                        startCatnipMode();
                         break;
                 }
 
-                // Check for game over
                 if (catHealth <= 0) {
                     gameOver();
                 }
             }
         }
 
-        // Update flash effect
         if (isFlashing && Date.now() - flashStartTime > flashDuration) {
             isFlashing = false;
         }
 
-        // Check for game over condition
         if (catHealth <= 0) {
             gameOver();
         }
 
-        // Update trick name display time
         if (Tricks.trickNameDisplayTime > 0) {
             Tricks.setTrickNameDisplayTime(Tricks.trickNameDisplayTime - deltaTime);
         }
     }
+
+    // Add a separate spawn rate for catnip
+    const CATNIP_SPAWN_RATE = 0.05; // 5x the previous rate of 0.01
+
+    let isCatnipMode = false;
+    let catnipModeStartTime = 0;
+    const CATNIP_MODE_DURATION = 9000; // 9 seconds
+    let originalFishSpawnRate = INITIAL_FISH_SPAWN_RATE; // Store original fish spawn rate
+    let lastCatnipEndTime = 0; // Track the last time catnip mode ended
+    const CATNIP_COOLDOWN = 30000; // 30 seconds cooldown
 
     function spawnObject() {
         const currentTime = Date.now();
@@ -833,55 +799,51 @@ import { db, collection, addDoc, getDocs, query, orderBy, limit } from './fireba
         const maxY = canvas.height - 50;
         const objectY = minY + Math.random() * (maxY - minY);
         
-        // Ensure only one rat is on screen at a time
-        const existingRats = gameObjects.filter(obj => obj.type === 'mouse');
-        if (existingRats.length === 0 && currentTime - lastMouseSpawnTime > MOUSE_SPAWN_INTERVAL) {
-            // Calculate initial direction towards cat
-            const dx = (catX + catWidth / 2) - (canvas.width + MOUSE_WIDTH / 2);
-            const dy = (catY + catHeight / 2) - objectY;
-            const distance = Math.sqrt(dx * dx + dy * dy);
+        // Prevent ninja rats from spawning during catnip mode
+        if (!isCatnipMode) {
+            const existingRats = gameObjects.filter(obj => obj.type === 'mouse');
+            if (existingRats.length === 0 && currentTime - lastMouseSpawnTime > MOUSE_SPAWN_INTERVAL) {
+                const dx = (catX + catWidth / 2) - (canvas.width + MOUSE_WIDTH / 2);
+                const dy = (catY + catHeight / 2) - objectY;
+                const distance = Math.sqrt(dx * dx + dy * dy);
 
-            // Normalize the direction and set speed to 1.5x for aggressive movement
-            const dirX = dx / distance;
-            const dirY = dy / distance;
-            const aggressiveSpeed = BASE_SPEED * 1.5; // 1.5x speed for aggression
+                const dirX = dx / distance;
+                const dirY = dy / distance;
+                const aggressiveSpeed = BASE_SPEED * 1.5;
 
-            gameObjects.push({
-                x: canvas.width,
-                y: objectY,
-                width: MOUSE_WIDTH,
-                height: MOUSE_HEIGHT,
-                type: 'mouse',
-                speed: aggressiveSpeed,
-                directionX: dirX,
-                directionY: dirY,
-                hasMimicked: false // New property to track if the rat has mimicked the cat
-            });
-            lastMouseSpawnTime = currentTime;
-            return;
+                gameObjects.push({
+                    x: canvas.width,
+                    y: objectY,
+                    width: MOUSE_WIDTH,
+                    height: MOUSE_HEIGHT,
+                    type: 'mouse',
+                    speed: aggressiveSpeed,
+                    directionX: dirX,
+                    directionY: dirY,
+                    hasMimicked: false
+                });
+                lastMouseSpawnTime = currentTime;
+                return;
+            }
         }
 
-        const canSpawnTrash = gameObjects.filter(obj => obj.type === 'trash').length < maxTrashItems 
-            && Math.random() < (trashSpawnRate / (trashSpawnRate + COLLECTIBLE_SPAWN_RATE));
-
-        if (canSpawnTrash) {
-            const trashIndex = Math.floor(Math.random() * trashImages.length);
-            const trashItem = trashImages[trashIndex];
-            const scaleFactor = Math.random() * 0.3 + 0.5;
-            const trashWidth = trashItem.width * scaleFactor;
-            const trashHeight = trashItem.height * scaleFactor;
+        // Determine if catnip should spawn, considering cooldown
+        if (!isCatnipMode && currentTime - lastCatnipEndTime > CATNIP_COOLDOWN && Math.random() < CATNIP_SPAWN_RATE) {
+            const catnip = COLLECTIBLES.find(item => item.type === 'catnip');
             gameObjects.push({
                 x: canvas.width,
                 y: objectY,
-                width: trashWidth,
-                height: trashHeight,
-                type: 'trash',
-                imageIndex: trashIndex,
+                width: catnip.width,
+                height: catnip.height,
+                type: catnip.type,
+                points: catnip.points,
+                health: catnip.health,
                 speed: BASE_SPEED + Math.random() * SPEED_VARIATION
             });
         } else {
-            // Spawn a random collectible
-            const collectible = COLLECTIBLES[Math.floor(Math.random() * COLLECTIBLES.length)];
+            // Spawn a random fish
+            const fish = COLLECTIBLES.filter(item => item.type !== 'catnip');
+            const collectible = fish[Math.floor(Math.random() * fish.length)];
             gameObjects.push({
                 x: canvas.width,
                 y: objectY,
@@ -898,7 +860,6 @@ import { db, collection, addDoc, getDocs, query, orderBy, limit } from './fireba
     // Modify the drawGameObjects function
     function drawGameObjects() {
         for (let obj of gameObjects) {
-            // Skip drawing if the image isn't loaded yet
             if (obj.type === 'mouse' && (!mouseImage || !mouseImage.complete)) {
                 continue;
             }
@@ -916,13 +877,31 @@ import { db, collection, addDoc, getDocs, query, orderBy, limit } from './fireba
             }
 
             try {
-                // Comment out or remove the trash drawing logic
-                // if (obj.type === 'trash' && loadedTrashImages[obj.imageIndex]) {
-                //     ctx.save();
-                //     ctx.drawImage(loadedTrashImages[obj.imageIndex], obj.x, obj.y, obj.width, obj.height);
-                //     ctx.restore();
-                // } else 
-                if (obj.type === 'mouse' && mouseImage) {
+                if (obj.type === 'catnip' && catnipImage) {
+                    // Draw a glowing radial gradient behind the catnip
+                    const gradient = ctx.createRadialGradient(
+                        obj.x + obj.width / 2, 
+                        obj.y + obj.height / 2, 
+                        0, 
+                        obj.x + obj.width / 2, 
+                        obj.y + obj.height / 2, 
+                        obj.width
+                    );
+                    gradient.addColorStop(0, 'rgba(255, 107, 107, 0.8)'); // Coral
+                    gradient.addColorStop(0.2, 'rgba(255, 217, 61, 0.6)'); // Yellow
+                    gradient.addColorStop(0.4, 'rgba(107, 203, 119, 0.4)'); // Mint
+                    gradient.addColorStop(0.6, 'rgba(77, 150, 255, 0.2)'); // Blue
+                    gradient.addColorStop(0.8, 'rgba(155, 93, 229, 0.1)'); // Purple
+                    gradient.addColorStop(1, 'rgba(255, 107, 107, 0)'); // Coral
+
+                    ctx.save();
+                    ctx.fillStyle = gradient;
+                    ctx.fillRect(obj.x - obj.width / 2, obj.y - obj.height / 2, obj.width * 2, obj.height * 2);
+                    ctx.restore();
+
+                    // Draw the catnip image
+                    ctx.drawImage(catnipImage, obj.x, obj.y, obj.width, obj.height);
+                } else if (obj.type === 'mouse' && mouseImage) {
                     ctx.drawImage(mouseImage, obj.x, obj.y, obj.width, obj.height);
                 } else if (obj.type === 'tuna' && tunaImage) {
                     ctx.drawImage(tunaImage, obj.x, obj.y, obj.width, obj.height);
@@ -930,8 +909,6 @@ import { db, collection, addDoc, getDocs, query, orderBy, limit } from './fireba
                     ctx.drawImage(buffaloFishImage, obj.x, obj.y, obj.width, obj.height);
                 } else if (obj.type === 'salmon' && salmonImage) {
                     ctx.drawImage(salmonImage, obj.x, obj.y, obj.width, obj.height);
-                } else if (obj.type === 'catnip' && catnipImage) {
-                    ctx.drawImage(catnipImage, obj.x, obj.y, obj.width, obj.height);
                 }
             } catch (error) {
                 console.warn(`Failed to draw object of type ${obj.type}:`, error);
@@ -1258,9 +1235,6 @@ import { db, collection, addDoc, getDocs, query, orderBy, limit } from './fireba
         // Gradually increase maxTrashItems (linear progression)
         maxTrashItems = Math.floor(INITIAL_MAX_TRASH_ITEMS + (MAX_POSSIBLE_TRASH_ITEMS - INITIAL_MAX_TRASH_ITEMS) * difficultyProgress);
         
-        // Gradually increase trashSpawnRate (with easing)
-        trashSpawnRate = INITIAL_TRASH_SPAWN_RATE + (MAX_TRASH_SPAWN_RATE - INITIAL_TRASH_SPAWN_RATE) * spawnRateProgress;
-
         // Gradually increase fishSpawnRate (with easing, but slower than trash)
         fishSpawnRate = INITIAL_FISH_SPAWN_RATE + (MAX_FISH_SPAWN_RATE - INITIAL_FISH_SPAWN_RATE) * (spawnRateProgress * 0.5);
 
@@ -1774,15 +1748,15 @@ import { db, collection, addDoc, getDocs, query, orderBy, limit } from './fireba
         });
     }
 
-    let isCatnipMode = false;
-    let catnipModeStartTime = 0;
-    const CATNIP_MODE_DURATION = 9000; // 9 seconds
-
     // Function to start catnip mode
     function startCatnipMode() {
         isCatnipMode = true;
         catnipModeStartTime = Date.now();
-        catMaxSpeed *= 1.5; // Speed boost
+        catMaxSpeed *= 2; // Increase speed by 2x
+
+        // Increase fish spawn rate by 10x
+        originalFishSpawnRate = fishSpawnRate;
+        fishSpawnRate *= 10;
 
         // Switch to sunny cat image
         catImage = catSunnyImage;
@@ -1797,7 +1771,10 @@ import { db, collection, addDoc, getDocs, query, orderBy, limit } from './fireba
     // Function to end catnip mode
     function endCatnipMode() {
         isCatnipMode = false;
-        catMaxSpeed /= 1.5; // Reset speed
+        catMaxSpeed /= 2; // Reset speed to normal
+
+        // Revert fish spawn rate to original
+        fishSpawnRate = originalFishSpawnRate;
 
         // Revert to default cat image
         catImage = new Image();
@@ -1805,6 +1782,9 @@ import { db, collection, addDoc, getDocs, query, orderBy, limit } from './fireba
 
         // Stop catnip music and resume normal music
         mediaPlayer.stopCatnipMusic();
+
+        // Record the time catnip mode ended
+        lastCatnipEndTime = Date.now();
     }
 
     // Function to draw a spinning halo around the cat
