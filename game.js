@@ -716,8 +716,11 @@ import { db, collection, addDoc, getDocs, query, orderBy, limit } from './fireba
             const distanceX = Math.abs(catCenterX - objCenterX);
             const distanceY = Math.abs(catCenterY - objCenterY);
 
-            if (distanceX < (catWidth + obj.width) / 2 * 0.8 &&
-                distanceY < (catHeight + obj.height) / 2 * 0.8) {
+            // Adjust the collision boundary by increasing the margin
+            const collisionMargin = 0.7; // Reduced from 0.8 to 0.7 for a smaller collision boundary
+
+            if (distanceX < (catWidth + obj.width) / 2 * collisionMargin &&
+                distanceY < (catHeight + obj.height) / 2 * collisionMargin) {
                 
                 gameObjects.splice(i, 1);
                 

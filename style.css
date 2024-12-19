@@ -1083,3 +1083,13 @@ button {
         padding: 8px 16px; /* Adjust padding for mobile */
     }
 }
+
+/* Apply the same text shadow to all game text */
+.game-text, #game-title, #score, button, #instruction-text, .trick-zone-label, .trick-zone-text, .spacebar-instruction, #health-text, .health-label, #pause-text {
+    text-shadow: 2px 2px 0 rgba(0, 0, 0, 0.8); /* Apply the same text shadow with reduced opacity */
+}
+
+/* Ensure other text elements have the same shadow */
+#instruction-text, .trick-zone-label, .trick-zone-text, .spacebar-instruction, #health-text, .health-label, #pause-text {
+    text-shadow: 2px 2px 0 rgba(0, 0, 0, 0.8); /* Apply the same text shadow with reduced opacity */
+}
