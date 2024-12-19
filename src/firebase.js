@@ -2,14 +2,12 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.0.2/firebas
 import { getFirestore } from 'https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js';
 
 const firebaseConfig = {
-    // Your Firebase config object here
-    // You can get this from your Firebase Console
-    apiKey: "your-api-key",
-    authDomain: "your-auth-domain",
-    projectId: "your-project-id",
-    storageBucket: "your-storage-bucket",
-    messagingSenderId: "your-messaging-sender-id",
-    appId: "your-app-id"
+    apiKey: process.env.API_KEY,
+    authDomain: process.env.AUTH_DOMAIN,
+    projectId: process.env.PROJECT_ID,
+    storageBucket: process.env.STORAGE_BUCKET,
+    messagingSenderId: process.env.MESSAGING_SENDER_ID,
+    appId: process.env.APP_ID
 };
 
 // Initialize Firebase

@@ -80,6 +80,7 @@ import { db, collection, addDoc, getDocs, query, orderBy, limit } from './fireba
 
     // Load cat and fish images
     catImage.onload = function() {
+        console.log('Cat image loaded successfully.'); // Debug log
         imageLoaded();
         // Initialize cat dimensions once image is loaded
         catWidth = CAT_WIDTH;
@@ -175,13 +176,13 @@ import { db, collection, addDoc, getDocs, query, orderBy, limit } from './fireba
     let downPressed = false;
 
     // Adjust these values to make the cat slightly smaller
-    const CAT_WIDTH = 200;  // Reduced from 250 to 200
-    const CAT_HEIGHT = 200; // Reduced from 250 to 200
+    const CAT_WIDTH = 300;  // Increased from 200 to 300
+    const CAT_HEIGHT = 300; // Increased from 200 to 300
 
     function initializeCat() {
         catWidth = CAT_WIDTH;
         catHeight = CAT_HEIGHT;
-        catX = canvas.width / 5; // Adjust initial position
+        catX = (canvas.width - catWidth) / 2; // Center horizontally
         catY = (canvas.height - catHeight) / 2; // Center vertically
     }
 
@@ -1238,350 +1239,6 @@ import { db, collection, addDoc, getDocs, query, orderBy, limit } from './fireba
         console.log(gameObjects);
     }
 
-    // Near the top of your file with other initializations
-    const catMeowSound = new Audio('./assets/cat-meow-2.MP3');
-
-    // Add this function to play the cat meow sound
-    function playCatMeowSound() {
-        catMeowSound.currentTime = 0; // Reset the audio to the beginning
-        catMeowSound.play().catch(e => console.error("Error playing cat meow sound:", e));
-    }
-
-    // Modify the updateDifficulty function
-    function updateDifficulty() {
-        const difficultyProgress = Math.min(gameTime / TIME_TO_MAX_DIFFICULTY, 1);
-        
-        // Use easing function for spawn rates
-        const spawnRateProgress = easeOutQuad(difficultyProgress);
-        
-        // Gradually increase maxTrashItems (linear progression)
-        maxTrashItems = Math.floor(INITIAL_MAX_TRASH_ITEMS + (MAX_POSSIBLE_TRASH_ITEMS - INITIAL_MAX_TRASH_ITEMS) * difficultyProgress);
-        
-        // Gradually increase fishSpawnRate (with easing, but slower than trash)
-        fishSpawnRate = INITIAL_FISH_SPAWN_RATE + (MAX_FISH_SPAWN_RATE - INITIAL_FISH_SPAWN_RATE) * (spawnRateProgress * 0.5);
-
-        // Gradually increase wave speed (with different easing)
-        const speedProgress = easeInOutQuad(Math.min(gameTime / TIME_TO_MAX_SPEED, 1));
-        waveSpeed = INITIAL_WAVE_SPEED + (MAX_WAVE_SPEED - INITIAL_WAVE_SPEED) * speedProgress;
-    }
-
-    // Add this easing function for a smoother speed increase
-    function easeInOutQuad(t) {
-        return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
-    }
-
-    // Add this easing function
-    function easeOutQuad(t) {
-        return t * (2 - t);
-    }
-
-    // Add this function to handle game over
-    function gameOver() {
-        isGameOver = true;
-        isGameRunning = false;
-
-        // Stop the wave sound
-        mediaPlayer.stopWaveSound();
-
-        // Remove any existing game over screen
-        const existingScreen = document.getElementById('game-over-screen');
-        if (existingScreen) {
-            existingScreen.remove();
-        }
-
-        // Create and display game over message and input field
-        const gameOverScreen = document.createElement('div');
-        gameOverScreen.id = 'game-over-screen';
-        gameOverScreen.innerHTML = `
-            <h2>Game Over</h2>
-            <p>Your score: ${score}</p>
-            <input type="text" id="player-name" placeholder="Enter your name" maxlength="20">
-            <button id="submit-score">Submit Score</button>
-        `;
-        document.body.appendChild(gameOverScreen);
-
-        // Get input field and add event listeners
-        const inputField = document.getElementById('player-name');
-        if (inputField) {
-            // Focus on the input field
-            inputField.focus();
-            
-            // Add keydown event listener for Enter key
-            inputField.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter') {
-                    e.preventDefault(); // Prevent default form submission
-                    submitScore();
-                }
-            });
-        }
-
-        // Add event listener to the submit button
-        const submitButton = document.getElementById('submit-score');
-        if (submitButton) {
-            submitButton.addEventListener('click', submitScore);
-        }
-    }
-
-    let leaderboard = [];
-
-    async function submitScore() {
-        const playerNameInput = document.getElementById('player-name');
-        const playerName = playerNameInput ? playerNameInput.value.trim() : '';
-        
-        if (playerName) {
-            try {
-                console.log("Attempting to save score...");
-                // Add score to Firebase
-                const docRef = await addDoc(collection(db, "scores"), {
-                    name: playerName,
-                    score: score,
-                    timestamp: new Date().toISOString()
-                });
-                console.log("Score saved successfully with ID:", docRef.id);
-                
-                // Fetch and display updated leaderboard
-                await showLeaderboard();
-            } catch (error) {
-                console.error("Error saving score:", error);
-                // More detailed error message
-                let errorMessage = "Error saving score: ";
-                if (error.code === 'permission-denied') {
-                    errorMessage += "Permission denied. Please check Firestore rules.";
-                } else if (error.code === 'unavailable') {
-                    errorMessage += "Service unavailable. Please check your internet connection.";
-                } else {
-                    errorMessage += error.message || "Unknown error";
-                }
-                alert(errorMessage);
-            }
-        } else {
-            // Visual feedback if name is empty
-            if (playerNameInput) {
-                playerNameInput.style.borderColor = 'red';
-                playerNameInput.placeholder = 'Name required!';
-                setTimeout(() => {
-                    playerNameInput.style.borderColor = '#FF8C42';
-                    playerNameInput.placeholder = 'Enter your name';
-                }, 1500);
-            }
-        }
-    }
-
-    async function showLeaderboard() {
-        try {
-            // Remove ANY existing leaderboard screens first
-            const existingLeaderboards = document.querySelectorAll('#leaderboard-screen');
-            existingLeaderboards.forEach(board => board.remove());
-
-            // Remove game over screen if it exists
-            const gameOverScreen = document.getElementById('game-over-screen');
-            if (gameOverScreen) {
-                gameOverScreen.remove();
-            }
-
-            // Create query to get top 10 scores
-            const scoresQuery = query(
-                collection(db, "scores"),
-                orderBy("score", "desc"),
-                limit(10)
-            );
-
-            // Get scores from Firebase
-            const querySnapshot = await getDocs(scoresQuery);
-            leaderboard = [];
-            querySnapshot.forEach((doc) => {
-                leaderboard.push(doc.data());
-            });
-
-            // Create and display the leaderboard
-            const leaderboardScreen = document.createElement('div');
-            leaderboardScreen.id = 'leaderboard-screen';
-            leaderboardScreen.innerHTML = `
-                <h2>TOP CATS</h2>
-                <ul id="leaderboard-list"></ul>
-                <button id="restart-game">Play Again</button>
-            `;
-            document.body.appendChild(leaderboardScreen);
-
-            // Populate the leaderboard list
-            const leaderboardList = document.getElementById('leaderboard-list');
-            leaderboard.forEach((entry, index) => {
-                const listItem = document.createElement('li');
-                listItem.textContent = `${index + 1}. ${entry.name}: ${entry.score}`;
-                leaderboardList.appendChild(listItem);
-            });
-
-            // Add event listener to the restart button
-            const restartButton = document.getElementById('restart-game');
-            if (restartButton) {
-                restartButton.addEventListener('click', restartGame, { once: true }); // Add once: true to prevent multiple listeners
-            }
-        } catch (error) {
-            console.error("Error fetching leaderboard:", error);
-            alert("Error loading leaderboard. Please try again.");
-        }
-    }
-
-    // Add this variable to track if the game loop is running
-    let gameLoopRunning = false;
-
-    // Add this event listener for keyup
-    document.addEventListener('keyup', function(event) {
-        switch(event.code) {
-            case 'ArrowLeft':
-                leftPressed = false;
-                break;
-            case 'ArrowRight':
-                rightPressed = false;
-                break;
-            case 'ArrowUp':
-                upPressed = false;
-                break;
-            case 'ArrowDown':
-                downPressed = false;
-                break;
-        }
-    });
-
-    const TRICK_THRESHOLD = Tricks.calculateTrickThreshold(canvas);
-
-    function handleTrick() {
-        if (isTrickZoneActive && !isPaused) {
-            console.log('Handling trick...'); // Debug log
-            const scoreIncrease = performTrick(
-                catY,
-                catHeight,
-                TRICK_THRESHOLD,
-                isGameRunning,
-                isGameOver,
-                score,
-                updateScore
-            );
-            
-            if (scoreIncrease > 0) {
-                console.log('Trick successful! Score increase:', scoreIncrease); // Debug log
-                score += scoreIncrease;
-                updateScore();
-            } else {
-                console.log('Trick failed or not possible.'); // Debug log
-            }
-        } else {
-            console.log('Not in trick zone or game is paused.'); // Debug log
-        }
-    }
-
-    // Audio elements
-    let waveSoundAudio;
-
-    // Load audio files
-    function loadAudio() {
-        waveSoundAudio = new Audio('./assets/surf-sound-1.MP3');
-        waveSoundAudio.loop = true;
-        waveSoundAudio.volume = 0.5; // Set volume to 50%, adjust as needed
-        console.log("Attempting to load wave sound");
-        
-        waveSoundAudio.addEventListener('canplaythrough', () => {
-            console.log("Wave sound loaded successfully");
-        });
-        
-        waveSoundAudio.addEventListener('error', (e) => {
-            console.error("Error loading wave sound:", e);
-        });
-    }
-
-    // Call this function when the page loads
-    window.addEventListener('load', loadAudio);
-
-    // Modify the draw function to remove the halo effect
-    function draw() {
-        // Clear the canvas
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-        // Draw game objects if game is running
-        if (isGameRunning && !isGameOver) {
-            drawGameObjects();
-            drawSurfMoveEffect();
-        }
-
-        // Draw the trick zone if cat is in it
-        if (catY + catHeight < TRICK_THRESHOLD) {
-            Tricks.drawTrickZone(ctx, canvas);
-        }
-
-        // Draw the cat (always on top)
-        if (catImage.complete) {
-            drawCat();
-        }
-
-        // Draw catnip mode effects
-        if (isCatnipMode) {
-            drawCatnipOverlay();
-        }
-
-        // Draw flash overlay if active
-        if (isFlashing) {
-            ctx.save();
-            if (isSpectrumFlash) {
-                const progress = (Date.now() - flashStartTime) / flashDuration;
-                const colorPosition = progress * (HAWAIIAN_COLORS.length - 1);
-                const index1 = Math.floor(colorPosition);
-                const index2 = Math.min(HAWAIIAN_COLORS.length - 1, index1 + 1);
-                const lerpAmount = colorPosition - index1;
-                
-                if (index1 < HAWAIIAN_COLORS.length) {
-                    const color1 = HAWAIIAN_COLORS[index1];
-                    const color2 = HAWAIIAN_COLORS[index2];
-                    flashColor = lerpColors(color1, color2, lerpAmount);
-                }
-            }
-            ctx.globalAlpha = flashAlpha * (1 - (Date.now() - flashStartTime) / flashDuration);
-            ctx.fillStyle = flashColor;
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-            ctx.restore();
-            
-            if (Date.now() - flashStartTime > flashDuration) {
-                isFlashing = false;
-                isSpectrumFlash = false;
-            }
-        }
-
-        // Draw pause overlay if game is paused
-        if (isPaused) {
-            ctx.save();
-            ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-            ctx.restore();
-        }
-    }
-
-    function drawDebugInfo() {
-        if (!DEBUG_MODE) return; // Exit early if debug mode is off
-        
-        ctx.font = '14px Silkscreen';
-        ctx.fillStyle = 'white';
-        ctx.textAlign = 'left';
-        
-        // Calculate total speed (magnitude of velocity vector)
-        const totalSpeed = Math.sqrt(catVelocityX * catVelocityX + catVelocityY * catVelocityY);
-        
-        const debugInfo = [
-            `Cat Y: ${Math.round(catY)}`,
-            `Cat Bottom: ${Math.round(catY + catHeight)}`,
-            `Trick Threshold: ${Math.round(TRICK_THRESHOLD)}`,
-            `In Trick Zone: ${catY + catHeight < TRICK_THRESHOLD}`,
-            `Trick Active: ${Tricks.isTrickActive}`,
-            `Current Trick: ${Tricks.currentTrickName}`,
-            `Trick Timer: ${Math.round(Tricks.trickTimer)}`,
-            `Speed: ${totalSpeed.toFixed(2)}`,
-            `Velocity X: ${catVelocityX.toFixed(2)}`,
-            `Velocity Y: ${catVelocityY.toFixed(2)}`
-        ];
-        
-        debugInfo.forEach((text, index) => {
-            ctx.fillText(text, 10, canvas.height - (debugInfo.length - index) * 20);
-        });
-    }
-
     let isFlashing = false;
     let flashStartTime = 0;
     const flashDuration = 800; // Increased from 200 to 800 milliseconds
@@ -1882,4 +1539,18 @@ import { db, collection, addDoc, getDocs, query, orderBy, limit } from './fireba
 
     document.getElementById('how-to-play-button').addEventListener('click', showInstructions);
     document.getElementById('close-instructions').addEventListener('click', hideInstructions);
+
+    catImage.onerror = function() {
+        console.error('Failed to load cat image.'); // Error log
+    };
+
+    function draw() {
+        // Clear the canvas
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        
+        // Draw the cat
+        drawCat();
+        
+        // Draw other game elements if needed
+    }
 })();
