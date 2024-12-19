@@ -1,6 +1,6 @@
 {
   "dependencies": {
-    "firebase": "^11.0.2"
+    "firebase": "^11.1.0"
   },
   "name": "pizzacat",
   "version": "1.0.0",

@@ -4,13 +4,12 @@ import { getFirestore, collection, addDoc, getDocs, query, orderBy, limit } from
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
-    apiKey: "AIzaSyBWxbHEI9eRLxFb0eDdNJrnXXk17sJGiRw",
-    authDomain: "pizzacat-d0c89.firebaseapp.com",
-    projectId: "pizzacat-d0c89",
-    storageBucket: "pizzacat-d0c89.firebasestorage.app",
-    messagingSenderId: "484007714262",
-    appId: "1:484007714262:web:835ce9b54b1133116b9877",
-    measurementId: "G-T5MZR5VBZ6"
+    apiKey: process.env.API_KEY,
+    authDomain: process.env.AUTH_DOMAIN,
+    projectId: process.env.PROJECT_ID,
+    storageBucket: process.env.STORAGE_BUCKET,
+    messagingSenderId: process.env.MESSAGING_SENDER_ID,
+    appId: process.env.APP_ID
 };
 
 // Initialize Firebase
