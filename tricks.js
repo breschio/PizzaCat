@@ -5,7 +5,7 @@ const TRICK_DURATION = 200; // Even shorter duration for quicker tricks
 const TRICK_COOLDOWN = 200; // Reduced to 0.2 seconds between tricks
 const TRICK_NAME_DISPLAY_DURATION = 500; // Shorter display time
 const TRICK_THRESHOLD = 200; // Default value
-const TRICK_ZONE_COOLDOWN = 500; // 0.5 second cooldown between trick zone activations
+const TRICK_ZONE_COOLDOWN = 200; // Reduced to 0.2 seconds
 const ROTATION_SPEED = 0.3; // Speed of rotation reduction
 const MAX_ROTATION = Math.PI * 4; // Maximum rotation (2 full spins)
 
@@ -22,6 +22,7 @@ const TRICK_ZONE_DURATION = 5000; // 5 seconds
 let _lastTrickZoneEnterTime = 0;
 let _trickRotation = 0;
 let _hasDoneTrickInZone = false;  // Track if a trick has been done in current zone
+let _hasExitedTrickZone = true; // New flag to track if the cat has exited the zone
 
 // Getter/Setter methods
 function setTrickTimer(value) {
@@ -71,10 +72,7 @@ function performTrick(catY, catHeight, TRICK_THRESHOLD, isGameRunning, isGameOve
         _lastTrickZoneEnterTime = Date.now();
         
         removeTrickZoneBar();
-        const existingButton = document.querySelector('.trick-button');
-        if (existingButton) {
-            existingButton.remove();
-        }
+        removeTrickButton();
         
         const healthBar = document.getElementById('health-bar-container');
         if (healthBar) {
@@ -161,7 +159,7 @@ function updateTrickButton(isInTrickZone) {
         // Create button
         const button = document.createElement('button');
         button.className = 'trick-button active';
-        button.textContent = 'DO TRICK';
+        button.textContent = 'DO A TRICK';
         button.style.opacity = '1';
         button.style.pointerEvents = 'auto';
         document.body.appendChild(button);
@@ -226,26 +224,39 @@ function drawTrickZone(ctx, canvas) {
 // Add this function to manage trick zone state
 function updateTrickZoneState(catY, catHeight, threshold, deltaTime) {
     const inZone = catY + catHeight < threshold;
-    
-    // Update button visibility only if zone is active and trick hasn't been done
-    if (_trickZoneActive && !_hasDoneTrickInZone) {
-        updateTrickButton(inZone);
-    }
-    
+
+    // Log the current state for debugging
+    console.log(`In Zone: ${inZone}, Trick Zone Active: ${_trickZoneActive}, Has Exited: ${_hasExitedTrickZone}`);
+
     // Check if cat just entered the zone and hasn't done a trick
-    if (inZone && !_trickZoneActive && !_hasDoneTrickInZone && 
+    if (inZone && !_trickZoneActive && _hasExitedTrickZone &&
         Date.now() - _lastTrickZoneEnterTime > TRICK_ZONE_COOLDOWN) {
+        console.log('Activating Trick Zone');
         _trickZoneActive = true;
         _trickZoneTimeLeft = TRICK_ZONE_DURATION;
         _lastTrickZoneEnterTime = Date.now();
+        _hasDoneTrickInZone = false; // Reset trick flag
+        _hasExitedTrickZone = false; // Reset exit flag
         createTrickZoneBar();
     }
-    
-    // Reset trick flag when leaving the zone
-    if (!inZone) {
-        _hasDoneTrickInZone = false;
+
+    // Set exit flag when leaving the zone
+    if (!inZone && !_hasExitedTrickZone) {
+        console.log('Exiting Trick Zone');
+        _hasExitedTrickZone = true; // Set exit flag
+        removeTrickZoneBar(); // Remove the bar when exiting the zone
+        removeTrickButton(); // Remove the button when exiting the zone
+        _trickZoneActive = false; // Deactivate the trick zone
     }
-    
+
+    // Ensure the trick zone doesn't reactivate immediately
+    if (_trickZoneTimeLeft <= 0) {
+        console.log('Trick Zone Time Up');
+        _trickZoneActive = false;
+        _hasDoneTrickInZone = true; // Prevent reactivation until the cat leaves the zone
+        removeTrickButton(); // Remove the button when time is up
+    }
+
     return _trickZoneActive && inZone;
 }
 
@@ -276,14 +287,25 @@ function createTrickZoneBar() {
     }
 }
 
-function updateTrickZoneBar(percentage) {
+function updateTrickZoneBar(deltaTime) {
+    _trickZoneTimeLeft -= deltaTime * 1000; // Reduce time left by deltaTime in milliseconds
+    const percentage = _trickZoneTimeLeft / TRICK_ZONE_DURATION;
+
     const barFill = document.querySelector('.trick-zone-bar-fill');
     const trickText = document.querySelector('.trick-zone-text');
     if (barFill) {
         barFill.style.width = `${Math.max(0, percentage * 100)}%`;
     }
     if (trickText) {
-        trickText.textContent = `${Math.ceil(_trickZoneTimeLeft / 1000)}`;
+        trickText.textContent = `${Math.ceil(_trickZoneTimeLeft / 1000)}`; // Update text to show remaining seconds
+    }
+
+    // Remove the bar and deactivate the trick zone if time is up
+    if (_trickZoneTimeLeft <= 0) {
+        removeTrickZoneBar();
+        _trickZoneActive = false;
+        _hasDoneTrickInZone = true; // Prevent reactivation until the cat leaves the zone
+        removeTrickButton(); // Remove the button when time is up
     }
 }
 
@@ -310,6 +332,13 @@ function getTrickRotation() {
     return _trickRotation;
 }
 
+function removeTrickButton() {
+    const existingButton = document.querySelector('.trick-button');
+    const existingInstruction = document.querySelector('.spacebar-instruction');
+    if (existingButton) existingButton.remove();
+    if (existingInstruction) existingInstruction.remove();
+}
+
 // Modified exports
 export {
     performTrick,
@@ -326,6 +355,7 @@ export {
     updateTrickButton,
     drawTrickZone,
     updateTrickZoneState,
+    updateTrickZoneBar,
     _trickZoneActive as isTrickZoneActive,
     _trickZoneTimeLeft as trickZoneTimeLeft,
     getTrickRotation

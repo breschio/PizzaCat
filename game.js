@@ -13,6 +13,7 @@ import {
     updateTrickButton,
     drawTrickZone,
     updateTrickZoneState,
+    updateTrickZoneBar,
     isTrickZoneActive,
     trickZoneTimeLeft
 } from './tricks.js';
@@ -440,7 +441,12 @@ import { db, collection, addDoc, getDocs, query, orderBy, limit } from './fireba
             deltaTime
         );
 
-        // Update cat position - Add this back!
+        // Update the trick zone bar if in trick zone
+        if (inTrickZone) {
+            Tricks.updateTrickZoneBar(deltaTime);
+        }
+
+        // Update cat position
         updateCatPosition();
         
         // Update game objects
