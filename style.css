@@ -1093,3 +1093,16 @@ button {
 #instruction-text, .trick-zone-label, .trick-zone-text, .spacebar-instruction, #health-text, .health-label, #pause-text {
     text-shadow: 2px 2px 0 rgba(0, 0, 0, 0.8); /* Apply the same text shadow with reduced opacity */
 }
+
+#start-screen {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 1000;
+}
+
+#start-cat {
+    width: 300px; /* Adjust size as needed */
+    height: auto;
+}

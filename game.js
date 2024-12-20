@@ -80,32 +80,25 @@ let gameLoopRunning = false;
         }
     }
 
-    // Load cat and fish images
-    catImage.onload = function() {
-        console.log('Cat image loaded successfully.');
-        imageLoaded();
-        // Initialize cat dimensions once image is loaded
-        catWidth = CAT_WIDTH;
-        catHeight = CAT_HEIGHT;
-        // Force initial position
-        catX = canvas.width / 3;
-        catY = canvas.height / 2 - catHeight / 2;
-        // Draw the cat
-        drawCat();
-    };
-    catImage.src = './assets/pizza-cat.png'; // Default cat image
+    // Ensure all images have onload handlers
+    catImage.onload = imageLoaded;
+    catSunnyImage.onload = imageLoaded;
+    fishImage.onload = imageLoaded;
+    mouseImage.onload = imageLoaded;
+    tunaImage.onload = imageLoaded;
+    buffaloFishImage.onload = imageLoaded;
+    salmonImage.onload = imageLoaded;
+    catnipImage.onload = imageLoaded;
 
-    catSunnyImage.onload = function() {
-        console.log('Sunny cat image loaded successfully.');
-        imageLoaded();
-    };
-    catSunnyImage.src = './assets/pizza-cat-sunny.png'; // Sunny cat image
-
-    fishImage.onload = function() {
-        console.log('Fish image loaded successfully.');
-        imageLoaded();
-    };
-    fishImage.src = './assets/buffalo-fish.png'; // Make sure this path is correct
+    // Set image sources
+    catImage.src = './assets/pizza-cat.png';
+    catSunnyImage.src = './assets/pizza-cat-sunny.png';
+    fishImage.src = './assets/buffalo-fish.png';
+    mouseImage.src = './assets/mouse.png';
+    tunaImage.src = './assets/tuna.png';
+    buffaloFishImage.src = './assets/buffalo-fish.png';
+    salmonImage.src = './assets/salmon.png';
+    catnipImage.src = './assets/catnip.png';
 
     let catFacingRight = true; // New variable to track cat's facing direction
 
@@ -342,9 +335,6 @@ let gameLoopRunning = false;
         // Show start button initially
         document.getElementById('start-button').style.display = 'inline-block';
         document.getElementById('stop-button').style.display = 'none';
-
-        // Force an initial draw
-        draw();
 
         // Start the game loop
         gameLoopRunning = true;
@@ -609,15 +599,25 @@ let gameLoopRunning = false;
 
     const DEBUG_MODE = false; // Set this to false to hide debug info
 
+    let isCatImageReady = false;
+
+    // Modify the imageLoaded function for the cat image
+    catImage.onload = function() {
+        isCatImageReady = true;
+        imageLoaded();
+    };
+
+    // Modify the drawCat function
     function drawCat() {
-        if (!catImage || !catImage.complete || catImage.naturalWidth === 0) {
+        if (!isCatImageReady) {
             console.warn('Cannot draw cat - image not ready');
-            setTimeout(drawCat, 100); // Retry after 100ms
-            return;
+            return; // Exit early if the image is not ready
         }
         
+        const scaleFactor = 0.7; // Adjust this value to make the cat slightly larger
+        
         ctx.save();
-        ctx.translate(catX + catWidth / 2, catY + catHeight / 2);
+        ctx.translate(catX + (catImage.naturalWidth * scaleFactor) / 2, catY + (catImage.naturalHeight * scaleFactor) / 2);
         
         // Apply trick rotation if any
         const rotation = Tricks.getTrickRotation();
@@ -630,7 +630,9 @@ let gameLoopRunning = false;
         }
         
         try {
-            ctx.drawImage(catImage, -catWidth / 2, -catHeight / 2, catWidth, catHeight);
+            // Scale the cat image
+            ctx.scale(scaleFactor, scaleFactor);
+            ctx.drawImage(catImage, -catImage.naturalWidth / 2, -catImage.naturalHeight / 2);
         } catch (error) {
             console.error('Error drawing cat:', error);
         }
@@ -1150,14 +1152,12 @@ let gameLoopRunning = false;
 
             mediaPlayer.startWaveSound();
             mediaPlayer.startGameMusic();
-            // mediaPlayer.playPizzaCatSound(); // Remove or comment out this line to stop playing the pizza-cat sound
 
             document.getElementById('start-button').style.display = 'none';
             document.getElementById('stop-button').style.display = 'inline-block';
-            document.getElementById('start-screen-button').style.display = 'none'; // Hide the start screen button
-
-            // Hide the "How to Play" button
-            document.getElementById('how-to-play-button').style.display = 'none';
+            document.getElementById('start-screen-button').style.display = 'none';
+            document.getElementById('start-screen').style.display = 'none'; // Hide start screen
+            document.getElementById('how-to-play-button').style.display = 'none'; // Hide "How to Play"
 
             if (!gameLoopRunning) {
                 gameLoopRunning = true;
@@ -1574,10 +1574,15 @@ let gameLoopRunning = false;
         // Clear the canvas
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         
-        // Draw the cat
-        drawCat();
+        // Draw the cat only if the game is running
+        if (isGameRunning) {
+            drawCat();
+        }
         
         // Draw other game elements if needed
+        drawGameObjects();
+        drawSurfMoveEffect();
+        drawTrickZone();
     }
 
     function handleTrick() {
