@@ -54,18 +54,21 @@ function calculateTrickThreshold(canvas) {
 }
 
 function performTrick(catY, catHeight, TRICK_THRESHOLD, isGameRunning, isGameOver, score, updateScore) {
-    if (!_trickZoneActive || _hasDoneTrickInZone) return 0;
+    if (!_trickZoneActive || _hasDoneTrickInZone) {
+        console.log("Trick not possible: Zone inactive or already done.");
+        return 0;
+    }
     
     if (isGameRunning && !isGameOver && catY + catHeight < TRICK_THRESHOLD) {
         _hasDoneTrickInZone = true;
-        _trickRotation = MAX_ROTATION; // Set rotation for the trick
+        _trickRotation = MAX_ROTATION;
         
         const trickNames = ['Tail Spin', 'Paw Flip', 'Whisker Twist', 'Furry 360', 'Meow Spin'];
         _currentTrickName = trickNames[Math.floor(Math.random() * trickNames.length)];
         
         showTrickToast(_currentTrickName, 5);
         
-        mediaPlayer.playMewoabungaSound(); // Play the mewoabunga sound
+        mediaPlayer.playMewoabungaSound();
         
         _trickZoneActive = false;
         _trickZoneTimeLeft = 0;
@@ -225,36 +228,32 @@ function drawTrickZone(ctx, canvas) {
 function updateTrickZoneState(catY, catHeight, threshold, deltaTime) {
     const inZone = catY + catHeight < threshold;
 
-    // Log the current state for debugging
     console.log(`In Zone: ${inZone}, Trick Zone Active: ${_trickZoneActive}, Has Exited: ${_hasExitedTrickZone}`);
 
-    // Check if cat just entered the zone and hasn't done a trick
     if (inZone && !_trickZoneActive && _hasExitedTrickZone &&
         Date.now() - _lastTrickZoneEnterTime > TRICK_ZONE_COOLDOWN) {
         console.log('Activating Trick Zone');
         _trickZoneActive = true;
         _trickZoneTimeLeft = TRICK_ZONE_DURATION;
         _lastTrickZoneEnterTime = Date.now();
-        _hasDoneTrickInZone = false; // Reset trick flag
-        _hasExitedTrickZone = false; // Reset exit flag
+        _hasDoneTrickInZone = false;
+        _hasExitedTrickZone = false;
         createTrickZoneBar();
     }
 
-    // Set exit flag when leaving the zone
     if (!inZone && !_hasExitedTrickZone) {
         console.log('Exiting Trick Zone');
-        _hasExitedTrickZone = true; // Set exit flag
-        removeTrickZoneBar(); // Remove the bar when exiting the zone
-        removeTrickButton(); // Remove the button when exiting the zone
-        _trickZoneActive = false; // Deactivate the trick zone
+        _hasExitedTrickZone = true;
+        removeTrickZoneBar();
+        removeTrickButton();
+        _trickZoneActive = false;
     }
 
-    // Ensure the trick zone doesn't reactivate immediately
     if (_trickZoneTimeLeft <= 0) {
         console.log('Trick Zone Time Up');
         _trickZoneActive = false;
-        _hasDoneTrickInZone = true; // Prevent reactivation until the cat leaves the zone
-        removeTrickButton(); // Remove the button when time is up
+        _hasDoneTrickInZone = true;
+        removeTrickButton();
     }
 
     return _trickZoneActive && inZone;

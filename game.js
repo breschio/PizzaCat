@@ -29,6 +29,14 @@ let gameLoopRunning = false;
     const mobileBreakpoint = 768; // typical tablet breakpoint
 
     const canvas = document.getElementById("gameCanvas");
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    window.addEventListener('resize', () => {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+    });
+
     const ctx = canvas.getContext("2d");
     let score = 0;
     let isFirstScoreUpdate = true;
@@ -41,9 +49,6 @@ let gameLoopRunning = false;
     const catDeceleration = 0.95; // Decreased from 0.97 to 0.95 for more friction
     let waveSpeed = 100; // Adjust this value to set the base speed of objects
     let isGameRunning = false;
-
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
 
     // Load images
     let fishImage = new Image();
@@ -183,10 +188,10 @@ let gameLoopRunning = false;
     const CAT_HEIGHT = 300; // Increased from 200 to 300
 
     function initializeCat() {
-        catWidth = CAT_WIDTH;
-        catHeight = CAT_HEIGHT;
-        catX = (canvas.width - catWidth) / 2; // Center horizontally
-        catY = (canvas.height - catHeight) / 2; // Center vertically
+        catX = canvas.width / 2 - (catImage.naturalWidth * 0.7) / 2;
+        catY = canvas.height / 2 - (catImage.naturalHeight * 0.7) / 2;
+        catVelocityX = 0;
+        catVelocityY = 0;
     }
 
     let currentInstructionIndex = 0;
@@ -403,6 +408,14 @@ let gameLoopRunning = false;
         'Pizza Roll'
     ];
 
+    // Add these variables for flash effects
+    let isFlashing = false;
+    let isPositiveFlash = false; // Define isPositiveFlash here
+    let flashStartTime = 0;
+    const flashDuration = 800; // Increased from 200 to 800 milliseconds
+    let flashColor = 'red'; // Default flash color
+    let flashAlpha = 0.3; // Default flash opacity
+
     // Create trick zone elements
     const trickZone = document.createElement('div');
     trickZone.className = 'trick-zone';
@@ -441,6 +454,9 @@ let gameLoopRunning = false;
             TRICK_THRESHOLD,
             deltaTime
         );
+
+        // Log trick zone state
+        console.log(`In Trick Zone: ${inTrickZone}`);
 
         // Update the trick zone bar if in trick zone
         if (inTrickZone) {
@@ -490,24 +506,15 @@ let gameLoopRunning = false;
         touchX = (touch.clientX - rect.left) * (canvas.width / rect.width);
         touchY = (touch.clientY - rect.top) * (canvas.height / rect.height);
 
-        // Detect double tap for trick
-        const currentTime = Date.now();
-        if (currentTime - lastTapTime < 300) { // 300ms between taps
-            const scoreIncrease = performTrick(
-                catY,
-                catHeight,
-                TRICK_THRESHOLD,
-                isGameRunning,
-                isGameOver,
-                score,
-                updateScore
-            );
-            if (scoreIncrease > 0) {
-                score += scoreIncrease;
-                updateScore();
-            }
+        const dx = touchX - (catX + catImage.naturalWidth / 2);
+        const dy = touchY - (catY + catImage.naturalHeight / 2);
+
+        catVelocityX += dx * RESISTANCE;
+        catVelocityY += dy * RESISTANCE;
+
+        if (Math.abs(dx) > Math.abs(dy)) {
+            catFacingRight = dx > 0;
         }
-        lastTapTime = currentTime;
     }
 
     // Add these variables at the top of your file
@@ -516,34 +523,21 @@ let gameLoopRunning = false;
     const RESISTANCE = 0.1; // Adjust this value to change the level of resistance (0.1 = 10% movement towards target per frame)
 
     function updateCatPosition() {
-        // Keyboard controls
-        if (keys.ArrowLeft) {
+        if (keys['ArrowLeft']) {
             catVelocityX = Math.max(catVelocityX - catAcceleration, -catMaxSpeed);
             catFacingRight = false;
         }
-        if (keys.ArrowRight) {
+        if (keys['ArrowRight']) {
             catVelocityX = Math.min(catVelocityX + catAcceleration, catMaxSpeed);
             catFacingRight = true;
         }
-        if (keys.ArrowUp) catVelocityY = Math.max(catVelocityY - catAcceleration, -catMaxSpeed);
-        if (keys.ArrowDown) catVelocityY = Math.min(catVelocityY + catAcceleration, catMaxSpeed);
-
-        // Touch controls
-        if (isTouching) {
-            const dx = touchX - (catX + catWidth / 2);
-            const dy = touchY - (catY + catHeight / 2);
-            
-            // Apply touch movement with sensitivity
-            catVelocityX += dx * RESISTANCE;
-            catVelocityY += dy * RESISTANCE;
-
-            // Update facing direction based on touch movement
-            if (Math.abs(dx) > Math.abs(dy)) {
-                catFacingRight = dx > 0;
-            }
+        if (keys['ArrowUp']) {
+            catVelocityY = Math.max(catVelocityY - catAcceleration, -catMaxSpeed);
+        }
+        if (keys['ArrowDown']) {
+            catVelocityY = Math.min(catVelocityY + catAcceleration, catMaxSpeed);
         }
 
-        // Apply velocity
         catX += catVelocityX;
         catY += catVelocityY;
 
@@ -551,9 +545,9 @@ let gameLoopRunning = false;
         catVelocityX *= catDeceleration;
         catVelocityY *= catDeceleration;
 
-        // Keep cat within bounds
-        catX = Math.max(0, Math.min(canvas.width - catWidth, catX));
-        catY = Math.max(0, Math.min(canvas.height - catHeight, catY));
+        // Ensure the cat stays within the canvas boundaries
+        catX = Math.max(0, Math.min(canvas.width - catImage.naturalWidth * 0.7, catX));
+        catY = Math.max(0, Math.min(canvas.height - catImage.naturalHeight * 0.7, catY));
     }
 
     function startSurfMove() {
@@ -750,9 +744,9 @@ let gameLoopRunning = false;
                         updateHealthBar();
                         mediaPlayer.playHurtSound();
                         isFlashing = true;
-                        isSpectrumFlash = false;
+                        isPositiveFlash = false;
                         flashColor = 'red';
-                        flashAlpha = 0.3;
+                        flashAlpha = 0.5;
                         flashStartTime = Date.now();
                         break;
                         
@@ -766,7 +760,7 @@ let gameLoopRunning = false;
                         mediaPlayer.playYumSound();
                         showToast(obj.type.charAt(0).toUpperCase() + obj.type.slice(1), obj.points);
                         isFlashing = true;
-                        isSpectrumFlash = true;
+                        isPositiveFlash = true;
                         flashAlpha = 0.2;
                         flashStartTime = Date.now();
                         break;
@@ -779,7 +773,6 @@ let gameLoopRunning = false;
                         mediaPlayer.playCatnipSound();
                         showToast('Catnip', obj.points, '🌿');
                         isFlashing = true;
-                        isSpectrumFlash = true;
                         flashAlpha = 0.2;
                         flashStartTime = Date.now();
                         
@@ -1257,16 +1250,17 @@ let gameLoopRunning = false;
         console.log(gameObjects);
     }
 
-    let isFlashing = false;
-    let flashStartTime = 0;
-    const flashDuration = 800; // Increased from 200 to 800 milliseconds
-    let flashColor = 'red'; // Default flash color
-    let flashAlpha = 0.3; // Default flash opacity
-
     function drawFlashOverlay() {
         if (isFlashing) {
             ctx.save();
-            ctx.fillStyle = 'rgba(255, 0, 0, 0.35)'; // Red with 35% opacity
+            // Determine the overlay style based on the collision type
+            if (isPositiveFlash) {
+                // Light blue overlay for fish
+                ctx.fillStyle = 'rgba(173, 216, 230, 0.2)'; // Light blue with 20% opacity
+            } else {
+                // Red overlay for ninja cat
+                ctx.fillStyle = 'rgba(255, 0, 0, 0.3)'; // Red with 30% opacity
+            }
             ctx.fillRect(0, 0, canvas.width, canvas.height);
             ctx.restore();
         }
@@ -1348,11 +1342,8 @@ let gameLoopRunning = false;
 
     // Add this with your other event listeners
     document.addEventListener('keydown', function(event) {
-        if (event.code === 'Space') {
-            event.preventDefault();
-            if (isTrickZoneActive && !isPaused) {
-                handleTrick();
-            }
+        if (event.code === 'Space' && isGameRunning && !isGameOver) {
+            handleTrick();
         }
     });
 
@@ -1379,7 +1370,6 @@ let gameLoopRunning = false;
         '#7AE7C7'  // Seafoam
     ];
     let colorIndex = 0;
-    let isSpectrumFlash = false;
 
     // Add this helper function for color interpolation
     function lerpColors(color1, color2, amount) {
@@ -1583,10 +1573,19 @@ let gameLoopRunning = false;
         drawGameObjects();
         drawSurfMoveEffect();
         drawTrickZone();
+
+        // Draw catnip overlay if in catnip mode
+        if (isCatnipMode) {
+            drawCatnipOverlay();
+        }
+
+        // Draw flash overlay if flashing
+        drawFlashOverlay();
     }
 
     function handleTrick() {
         if (isGameRunning && !isGameOver) {
+            console.log("Attempting trick...");
             const scoreIncrease = performTrick(
                 catY,
                 catHeight,
@@ -1600,6 +1599,8 @@ let gameLoopRunning = false;
                 score += scoreIncrease;
                 updateScore();
                 console.log("Trick performed! Score increased.");
+            } else {
+                console.log("Trick not performed.");
             }
         }
     }
