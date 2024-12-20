@@ -19,7 +19,7 @@
 
      // Enable CORS for specific origin
      app.use(cors({
-         origin: 'http://localhost:8000'
+         origin: ['http://localhost:8000', 'https://pizzacat.surf']
      }));
 
      // Endpoint to provide Firebase configuration

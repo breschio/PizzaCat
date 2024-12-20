@@ -73,7 +73,7 @@ let gameLoopRunning = false;
     // Modify the imageLoaded function
     function imageLoaded() {
         imagesLoaded++;
-        console.log(`Image loaded. Total: ${imagesLoaded}/${totalImages}`); // Adjusted totalImages count
+        console.log(`Image loaded. Total: ${imagesLoaded}/${totalImages}`);
         if (imagesLoaded === totalImages) {
             console.log('All images loaded. Initializing game.');
             initializeGame();
@@ -82,21 +82,29 @@ let gameLoopRunning = false;
 
     // Load cat and fish images
     catImage.onload = function() {
-        console.log('Cat image loaded successfully.'); // Debug log
+        console.log('Cat image loaded successfully.');
         imageLoaded();
         // Initialize cat dimensions once image is loaded
         catWidth = CAT_WIDTH;
         catHeight = CAT_HEIGHT;
-        // Force initial position and draw
+        // Force initial position
         catX = canvas.width / 3;
         catY = canvas.height / 2 - catHeight / 2;
-        draw();
+        // Draw the cat
+        drawCat();
     };
     catImage.src = './assets/pizza-cat.png'; // Default cat image
 
+    catSunnyImage.onload = function() {
+        console.log('Sunny cat image loaded successfully.');
+        imageLoaded();
+    };
     catSunnyImage.src = './assets/pizza-cat-sunny.png'; // Sunny cat image
 
-    fishImage.onload = imageLoaded;
+    fishImage.onload = function() {
+        console.log('Fish image loaded successfully.');
+        imageLoaded();
+    };
     fishImage.src = './assets/buffalo-fish.png'; // Make sure this path is correct
 
     let catFacingRight = true; // New variable to track cat's facing direction
@@ -602,8 +610,9 @@ let gameLoopRunning = false;
     const DEBUG_MODE = false; // Set this to false to hide debug info
 
     function drawCat() {
-        if (!catImage || !catImage.complete) {
+        if (!catImage || !catImage.complete || catImage.naturalWidth === 0) {
             console.warn('Cannot draw cat - image not ready');
+            setTimeout(drawCat, 100); // Retry after 100ms
             return;
         }
         
@@ -811,6 +820,9 @@ let gameLoopRunning = false;
         const maxY = canvas.height - 50;
         const objectY = minY + Math.random() * (maxY - minY);
         
+        // Log spawning of objects
+        console.log('Spawning object at Y:', objectY);
+        
         // Prevent ninja rats from spawning during catnip mode
         if (!isCatnipMode) {
             const existingRats = gameObjects.filter(obj => obj.type === 'mouse');
@@ -835,6 +847,7 @@ let gameLoopRunning = false;
                     hasMimicked: false
                 });
                 lastMouseSpawnTime = currentTime;
+                console.log('Spawned mouse at:', objectY);
                 return;
             }
         }
@@ -852,6 +865,7 @@ let gameLoopRunning = false;
                 health: catnip.health,
                 speed: BASE_SPEED + Math.random() * SPEED_VARIATION
             });
+            console.log('Spawned catnip at:', objectY);
         } else {
             // Spawn a random fish
             const fish = COLLECTIBLES.filter(item => item.type !== 'catnip');
@@ -866,6 +880,7 @@ let gameLoopRunning = false;
                 health: collectible.health,
                 speed: BASE_SPEED + Math.random() * SPEED_VARIATION
             });
+            console.log('Spawned fish:', collectible.type, 'at:', objectY);
         }
     }
 
@@ -874,6 +889,7 @@ let gameLoopRunning = false;
         const time = Date.now() / 1000; // Get the current time in seconds
 
         for (let obj of gameObjects) {
+            console.log('Drawing object:', obj.type, 'at X:', obj.x, 'Y:', obj.y);
             if (obj.type === 'mouse' && (!mouseImage || !mouseImage.complete)) {
                 continue;
             }
@@ -1546,6 +1562,14 @@ let gameLoopRunning = false;
         console.error('Failed to load cat image.'); // Error log
     };
 
+    catSunnyImage.onerror = function() {
+        console.error('Failed to load sunny cat image.');
+    };
+
+    fishImage.onerror = function() {
+        console.error('Failed to load fish image.');
+    };
+
     function draw() {
         // Clear the canvas
         ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -1554,5 +1578,24 @@ let gameLoopRunning = false;
         drawCat();
         
         // Draw other game elements if needed
+    }
+
+    function handleTrick() {
+        if (isGameRunning && !isGameOver) {
+            const scoreIncrease = performTrick(
+                catY,
+                catHeight,
+                TRICK_THRESHOLD,
+                isGameRunning,
+                isGameOver,
+                score,
+                updateScore
+            );
+            if (scoreIncrease > 0) {
+                score += scoreIncrease;
+                updateScore();
+                console.log("Trick performed! Score increased.");
+            }
+        }
     }
 })();

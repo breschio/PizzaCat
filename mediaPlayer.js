@@ -295,6 +295,10 @@ class MediaPlayer {
         this.catSounds.pizzaCat.currentTime = 0;
         this.catSounds.pizzaCat.play().catch(e => console.error("Error playing pizza-cat sound:", e));
     }
+
+    hideVolumeSlider() {
+        this.volumeSlider.style.display = 'none';
+    }
 }
 
 export const mediaPlayer = new MediaPlayer(); 
