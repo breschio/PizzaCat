@@ -21,6 +21,8 @@ import * as Tricks from './tricks.js';
 import { mediaPlayer } from './mediaPlayer.js';
 import { db, collection, addDoc, getDocs, query, orderBy, limit } from './firebase-config.js';
 
+let gameLoopRunning = false;
+
 (function() {
     // Add these variables at the top of your file, with other global variables
     let isMobile = false;
