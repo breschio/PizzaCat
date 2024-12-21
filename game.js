@@ -45,8 +45,9 @@ let gameLoopRunning = false;
     let catVelocityX = 0;
     let catVelocityY = 0;
     let catMaxSpeed = 12; // Initial max speed, can be modified by power-ups
-    const catAcceleration = 0.9; // Decreased from 1.2 to 0.9
-    const catDeceleration = 0.95; // Decreased from 0.97 to 0.95 for more friction
+    const catAcceleration = 0.5; // Lower acceleration for smoother start
+    const catDeceleration = 0.98; // Higher deceleration for gradual slowing
+    const maxSpeed = 15; // Maximum speed the cat can reach
     let waveSpeed = 100; // Adjust this value to set the base speed of objects
     let isGameRunning = false;
 
@@ -412,7 +413,7 @@ let gameLoopRunning = false;
     let isFlashing = false;
     let isPositiveFlash = false; // Define isPositiveFlash here
     let flashStartTime = 0;
-    const flashDuration = 800; // Increased from 200 to 800 milliseconds
+    const flashDuration = 500; // Reduced from 800 to 500 milliseconds
     let flashColor = 'red'; // Default flash color
     let flashAlpha = 0.3; // Default flash opacity
 
@@ -522,32 +523,44 @@ let gameLoopRunning = false;
     let targetY = 0;
     const RESISTANCE = 0.1; // Adjust this value to change the level of resistance (0.1 = 10% movement towards target per frame)
 
+    // Constants for movement
+    const defaultAcceleration = 0.5; // Default acceleration
+    const defaultMaxSpeed = 15; // Default maximum speed
+    const catnipAcceleration = 0.7; // Increased acceleration for catnip mode
+    const catnipMaxSpeed = 20; // Increased maximum speed for catnip mode
+
     function updateCatPosition() {
+        // Determine current acceleration and speed based on mode
+        const currentAcceleration = isCatnipMode ? catnipAcceleration : defaultAcceleration;
+        const currentMaxSpeed = isCatnipMode ? catnipMaxSpeed : defaultMaxSpeed;
+
+        // Apply acceleration based on key presses
         if (keys['ArrowLeft']) {
-            catVelocityX = Math.max(catVelocityX - catAcceleration, -catMaxSpeed);
-            catFacingRight = false;
+            catVelocityX = Math.max(catVelocityX - currentAcceleration, -currentMaxSpeed);
+            catFacingRight = false; // Update facing direction
         }
         if (keys['ArrowRight']) {
-            catVelocityX = Math.min(catVelocityX + catAcceleration, catMaxSpeed);
-            catFacingRight = true;
+            catVelocityX = Math.min(catVelocityX + currentAcceleration, currentMaxSpeed);
+            catFacingRight = true; // Update facing direction
         }
         if (keys['ArrowUp']) {
-            catVelocityY = Math.max(catVelocityY - catAcceleration, -catMaxSpeed);
+            catVelocityY = Math.max(catVelocityY - currentAcceleration, -currentMaxSpeed);
         }
         if (keys['ArrowDown']) {
-            catVelocityY = Math.min(catVelocityY + catAcceleration, catMaxSpeed);
+            catVelocityY = Math.min(catVelocityY + currentAcceleration, currentMaxSpeed);
         }
 
+        // Update cat position based on velocity
         catX += catVelocityX;
         catY += catVelocityY;
 
-        // Apply deceleration
+        // Apply deceleration to simulate inertia
         catVelocityX *= catDeceleration;
         catVelocityY *= catDeceleration;
 
         // Ensure the cat stays within the canvas boundaries
-        catX = Math.max(0, Math.min(canvas.width - catImage.naturalWidth * 0.7, catX));
-        catY = Math.max(0, Math.min(canvas.height - catImage.naturalHeight * 0.7, catY));
+        catX = Math.max(0, Math.min(canvas.width - catImage.naturalWidth * catScaleFactor, catX));
+        catY = Math.max(0, Math.min(canvas.height - catImage.naturalHeight * catScaleFactor, catY));
     }
 
     function startSurfMove() {
@@ -601,36 +614,44 @@ let gameLoopRunning = false;
         imageLoaded();
     };
 
+    // Add these variables to manage scaling
+    let catScaleFactor = 0.665; // Reduced from 0.7 to 0.665 for a 5% decrease
+    const CATNIP_SCALE_FACTOR = 1.1025; // Reduced from 1.225 to 1.1025 for a 10% decrease
+
     // Modify the drawCat function
     function drawCat() {
         if (!isCatImageReady) {
             console.warn('Cannot draw cat - image not ready');
             return; // Exit early if the image is not ready
         }
-        
-        const scaleFactor = 0.7; // Adjust this value to make the cat slightly larger
-        
+
+        // Calculate the target scale factor based on the mode
+        const targetScaleFactor = isCatnipMode ? CATNIP_SCALE_FACTOR : 0.665;
+
+        // Smoothly transition the scale factor
+        catScaleFactor += (targetScaleFactor - catScaleFactor) * 0.1; // Adjust the 0.1 for faster/slower transition
+
         ctx.save();
-        ctx.translate(catX + (catImage.naturalWidth * scaleFactor) / 2, catY + (catImage.naturalHeight * scaleFactor) / 2);
-        
+        ctx.translate(catX + (catImage.naturalWidth * catScaleFactor) / 2, catY + (catImage.naturalHeight * catScaleFactor) / 2);
+
         // Apply trick rotation if any
         const rotation = Tricks.getTrickRotation();
         if (rotation > 0) {
             ctx.rotate(rotation);
         }
-        
+
         if (!catFacingRight) {
             ctx.scale(-1, 1);
         }
-        
+
         try {
             // Scale the cat image
-            ctx.scale(scaleFactor, scaleFactor);
+            ctx.scale(catScaleFactor, catScaleFactor);
             ctx.drawImage(catImage, -catImage.naturalWidth / 2, -catImage.naturalHeight / 2);
         } catch (error) {
             console.error('Error drawing cat:', error);
         }
-        
+
         ctx.restore();
     }
 
@@ -722,8 +743,8 @@ let gameLoopRunning = false;
                 continue;
             }
 
-            const catCenterX = catX + catWidth / 2;
-            const catCenterY = catY + catHeight / 2;
+            const catCenterX = catX + (catWidth * catScaleFactor) / 2;
+            const catCenterY = catY + (catHeight * catScaleFactor) / 2;
             const objCenterX = obj.x + obj.width / 2;
             const objCenterY = obj.y + obj.height / 2;
 
@@ -733,8 +754,8 @@ let gameLoopRunning = false;
             // Adjust the collision boundary by increasing the margin
             const collisionMargin = 0.7; // Reduced from 0.8 to 0.7 for a smaller collision boundary
 
-            if (distanceX < (catWidth + obj.width) / 2 * collisionMargin &&
-                distanceY < (catHeight + obj.height) / 2 * collisionMargin) {
+            if (distanceX < (catWidth * catScaleFactor + obj.width) / 2 * collisionMargin &&
+                distanceY < (catHeight * catScaleFactor + obj.height) / 2 * collisionMargin) {
                 
                 gameObjects.splice(i, 1);
                 
@@ -1252,17 +1273,22 @@ let gameLoopRunning = false;
 
     function drawFlashOverlay() {
         if (isFlashing) {
+            const elapsedTime = Date.now() - flashStartTime;
+            const progress = Math.min(elapsedTime / flashDuration, 1); // Calculate progress
+
             ctx.save();
-            // Determine the overlay style based on the collision type
-            if (isPositiveFlash) {
-                // Light blue overlay for fish
-                ctx.fillStyle = 'rgba(173, 216, 230, 0.2)'; // Light blue with 20% opacity
-            } else {
-                // Red overlay for ninja cat
-                ctx.fillStyle = 'rgba(255, 0, 0, 0.3)'; // Red with 30% opacity
+            if (!isPositiveFlash) {
+                // Apply an ease-out transition to the opacity
+                const easeOutOpacity = flashAlpha * (1 - progress * progress);
+                ctx.fillStyle = `rgba(255, 0, 0, ${easeOutOpacity})`; // Red with dynamic opacity
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
             }
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
             ctx.restore();
+
+            // Stop flashing when the duration is over
+            if (progress >= 1) {
+                isFlashing = false;
+            }
         }
     }
 
