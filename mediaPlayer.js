@@ -5,7 +5,7 @@ class MediaPlayer {
         this.songs = songs;
         this.currentAudio = null;
         this.currentSongIndex = 0;
-        this.isMuted = false; // Start unmuted
+        this.isMuted = true; // Start muted
         
         // Setup volume controls
         this.volumeSlider = document.getElementById('volume-slider');
@@ -13,7 +13,7 @@ class MediaPlayer {
         this.volumeControl = document.getElementById('volume-control');
         
         // Set initial state
-        this.volumeSlider.value = 25; // Start at 25% volume
+        this.volumeSlider.value = 0; // Start at 0% volume
         this.volumeSlider.style.display = 'block'; // Show slider initially
         this.updateSpeakerIcon();
         
@@ -44,6 +44,7 @@ class MediaPlayer {
         // Initialize all game sounds
         this.waveSound = new Audio('./assets/surf-sound-1.MP3');
         this.waveSound.loop = true;
+        this.waveSound.muted = true; // Start muted
 
         this.catSounds = {
             meow1: new Audio('./assets/cat-meow-1.MP3'),
@@ -57,6 +58,11 @@ class MediaPlayer {
             mewoabunga: new Audio('./assets/meowabunga.MP3'),
             pizzaCat: new Audio('./assets/pizza-cat.MP3')
         };
+
+        // Mute all cat sounds initially
+        for (let sound in this.catSounds) {
+            this.catSounds[sound].muted = true;
+        }
 
         this.currentCatnipSoundIndex = 0;
         this.catnipSounds = [
@@ -73,9 +79,11 @@ class MediaPlayer {
         // Load music files
         this.catnipMusic = new Audio('./assets/music/wave-bumper.mp3');
         this.catnipMusic.loop = true;
+        this.catnipMusic.muted = true; // Start muted
 
         this.normalMusic = new Audio('./assets/music/pawed-up.mp3');
         this.normalMusic.loop = true;
+        this.normalMusic.muted = true; // Start muted
 
         // Set initial volumes
         this.setInitialVolumes();
@@ -112,52 +120,84 @@ class MediaPlayer {
     }
 
     toggleMute() {
-        if (this.isMuted) {
-            this.isMuted = false;
-            this.volumeSlider.value = 25;
-            this.showVolumeSlider();
-            this.startSliderTimeout();
+        this.isMuted = !this.isMuted;
+
+        // Set volume to 45% when unmuted
+        if (!this.isMuted) {
+            const volume = 0.45;
+            this.volumeSlider.value = volume * 100; // Update slider to 45%
+            this.updateVolume(volume);
+
+            // Unmute all sounds
+            this.normalMusic.muted = false;
+            this.waveSound.muted = false;
+            this.catnipMusic.muted = false;
+            for (let sound in this.catSounds) {
+                this.catSounds[sound].muted = false;
+            }
+
+            this.startNormalMusic();
         } else {
-            this.isMuted = true;
-            this.volumeSlider.value = 0;
-            this.hideVolumeSlider();
+            if (this.currentAudio) {
+                this.currentAudio.pause();
+            }
         }
-        
-        this.updateSpeakerIcon();
-        this.updateVolume();
+
+        this.updateSpeakerIcon(); // Ensure icon updates immediately
+        this.showVolumeSlider();
+        this.startSliderTimeout();
+    }
+
+    playAudio(audio) {
+        if (audio) {
+            audio.play().then(() => {
+                console.log("Audio is playing successfully.");
+            }).catch(error => {
+                console.error("Error playing audio:", error);
+                // Additional error handling logic can be added here
+            });
+        } else {
+            console.warn("No audio file is available to play.");
+        }
     }
 
     updateSpeakerIcon() {
-        if (this.isMuted || this.volumeSlider.value == 0) {
-            this.speakerIcon.innerHTML = '🔇';
+        console.log("Updating speaker icon. Muted:", this.isMuted, "Volume:", this.volumeSlider.value);
+        if (this.isMuted) {
+            this.speakerIcon.innerHTML = '🔇'; // Muted icon
             this.speakerIcon.title = 'Unmute';
-        } else if (this.volumeSlider.value < 50) {
-            this.speakerIcon.innerHTML = '🔈';
-            this.speakerIcon.title = 'Mute';
         } else {
-            this.speakerIcon.innerHTML = '🔊';
+            const volume = this.volumeSlider.value;
+            if (volume == 0) {
+                this.speakerIcon.innerHTML = '🔇'; // Muted icon
+            } else {
+                this.speakerIcon.innerHTML = '🔉'; // Sound on icon
+            }
             this.speakerIcon.title = 'Mute';
         }
     }
 
     setInitialVolumes() {
-        this.catnipMusic.volume = 0.25;
-        this.normalMusic.volume = 0.25;
-        this.waveSound.volume = 0.25;
-        this.catSounds.meow1.volume = 0.25;
-        this.catSounds.meow2.volume = 0.25;
-        this.catSounds.bite.volume = 0.25;
+        const initialVolume = 0.25;
+
+        this.catnipMusic.volume = initialVolume;
+        this.normalMusic.volume = initialVolume;
+        this.waveSound.volume = initialVolume;
+
+        for (let sound in this.catSounds) {
+            this.catSounds[sound].volume = initialVolume;
+        }
     }
 
-    updateVolume() {
-        const volume = this.volumeSlider.value / 100;
+    updateVolume(volume = this.volumeSlider.value / 100) {
         if (this.currentAudio) {
             this.currentAudio.volume = volume;
         }
         this.waveSound.volume = volume;
-        this.catSounds.meow1.volume = volume;
-        this.catSounds.meow2.volume = volume;
-        this.catSounds.bite.volume = volume;
+
+        for (let sound in this.catSounds) {
+            this.catSounds[sound].volume = volume;
+        }
     }
 
     startNormalMusic() {
@@ -167,7 +207,7 @@ class MediaPlayer {
 
         this.currentAudio = this.normalMusic;
         this.currentAudio.currentTime = 0;
-        this.currentAudio.play().catch(error => console.error("Error playing normal music:", error));
+        this.playAudio(this.currentAudio);
     }
 
     startCatnipMusic() {
@@ -296,8 +336,26 @@ class MediaPlayer {
         this.catSounds.pizzaCat.play().catch(e => console.error("Error playing pizza-cat sound:", e));
     }
 
+    showVolumeSlider() {
+        this.volumeSlider.style.display = 'block';
+    }
+
     hideVolumeSlider() {
         this.volumeSlider.style.display = 'none';
+    }
+
+    startSliderTimeout() {
+        this.clearSliderTimeout();
+        this.volumeSliderTimeout = setTimeout(() => {
+            this.hideVolumeSlider();
+        }, this.SLIDER_HIDE_DELAY);
+    }
+
+    clearSliderTimeout() {
+        if (this.volumeSliderTimeout) {
+            clearTimeout(this.volumeSliderTimeout);
+            this.volumeSliderTimeout = null;
+        }
     }
 }
 
