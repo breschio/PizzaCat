@@ -1630,4 +1630,27 @@ let gameLoopRunning = false;
             }
         }
     }
+
+    document.getElementById('start-screen-button').addEventListener('click', () => {
+        // Start the game logic here
+
+        // Move the speaker icon up
+        const volumeControl = document.getElementById('volume-control');
+        volumeControl.style.bottom = '70px'; // Adjust to align with the pause button
+    });
+
+    const startButton = document.getElementById('start-button');
+    const stopButton = document.getElementById('stop-button');
+
+    startButton.addEventListener('click', () => {
+        // Start the game logic here
+        startButton.style.display = 'none';
+        stopButton.style.display = 'block';
+    });
+
+    stopButton.addEventListener('click', () => {
+        // Pause the game logic here
+        stopButton.style.display = 'none';
+        startButton.style.display = 'block';
+    });
 })();

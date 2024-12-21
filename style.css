@@ -65,17 +65,17 @@ body {
 
 #score {
     position: absolute;
-    top: 20px;
-    right: 20px;
+    bottom: 20px;
+    left: 20px;
     z-index: 2;
 }
 
 #start-button, #stop-button {
     position: absolute;
-    bottom: 25px;
+    bottom: 20px;
     right: 20px;
     z-index: 3;
-    font-size: 20px;
+    font-size: 28px;
     font-weight: bold;
     color: white;
     background: none;
@@ -87,7 +87,7 @@ body {
     min-width: fit-content;
     display: flex;
     align-items: center;
-    justify-content: flex-end;
+    justify-content: center;
 }
 
 #start-button:hover, #stop-button:hover {
@@ -278,9 +278,20 @@ button {
     padding: 10px;
 }
 
+@keyframes slideInFromLeft {
+    from {
+        transform: translateX(-20%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
 .toast-notification {
     position: fixed;
-    bottom: 20px;
+    bottom: 60px;
     left: 20px;
     background-color: rgba(0, 0, 0, 0.8);
     color: white;
@@ -288,7 +299,7 @@ button {
     border-radius: 8px;
     font-family: 'Press Start 2P', 'Courier New', Courier, monospace;
     z-index: 1000;
-    animation: slideInFromBottom 0.5s ease-out, fadeOut 0.5s ease-in 1.5s forwards;
+    animation: slideInFromLeft 0.5s ease-out, fadeOut 0.5s ease-in 1.5s forwards;
     margin-bottom: 10px;
     min-width: 200px;
     max-width: 90%;
@@ -303,15 +314,15 @@ button {
 
 @media screen and (max-width: 768px) {
     .toast-notification {
-        bottom: 20px;
+        bottom: 60px;
     }
 
     .toast-notification:nth-child(2) {
-        bottom: 80px;
+        bottom: 120px;
     }
 
     .toast-notification:nth-child(3) {
-        bottom: 140px;
+        bottom: 180px;
     }
 }
 
@@ -332,17 +343,6 @@ button {
     font-size: 20px;
 }
 
-@keyframes slideInFromBottom {
-    from {
-        transform: translateY(100%);
-        opacity: 0;
-    }
-    to {
-        transform: translateY(0);
-        opacity: 1;
-    }
-}
-
 @keyframes fadeOut {
     from {
         opacity: 1;
@@ -353,16 +353,16 @@ button {
 }
 
 #volume-control {
-    position: fixed;
-    bottom: 20px;
-    left: 20px;
+    position: absolute;
+    bottom: 70px;
+    right: 20px;
     padding: 0;
     border-radius: 4px;
     z-index: 1000;
     display: flex;
     align-items: center;
-    gap: 8px;
-    transition: all 0.3s ease;
+    gap: 16px;
+    transition: bottom 0.3s ease;
     image-rendering: pixelated;
     box-shadow: none;
     -webkit-user-select: none;
@@ -375,13 +375,13 @@ button {
         transform: translate(0, 0); 
     }
     25% { 
-        transform: translate(-2px, -2px); 
+        transform: translate(-1px, -1px); /* Reduced movement */
     }
     50% { 
-        transform: translate(2px, 2px); 
+        transform: translate(1px, 1px); /* Reduced movement */
     }
     75% { 
-        transform: translate(-1px, 1px); 
+        transform: translate(-0.5px, 0.5px); /* Reduced movement */
     }
     100% { 
         transform: translate(0, 0); 
@@ -390,7 +390,7 @@ button {
 
 #speaker-icon {
     color: white;
-    font-size: 24px;
+    font-size: 32px;
     cursor: pointer;
     user-select: none;
     transition: transform 0.2s ease;
@@ -424,20 +424,11 @@ button {
 }
 
 #volume-slider {
-    width: 80px;
-    height: 8px;
-    appearance: none;
-    -webkit-appearance: none;
-    background: rgba(255, 140, 66, 0.2);
-    border-radius: 2px;
-    cursor: pointer;
-    transition: opacity 0.3s ease, width 0.3s ease;
-    opacity: 1;
-    border: 2px solid rgba(255, 140, 66, 0.5);
-    image-rendering: pixelated;
-    padding: 0;
-    position: relative;
-    overflow: hidden;
+    display: none !important; /* Forcefully hide the slider */
+}
+
+#volume-control:hover #volume-slider {
+    display: none;
 }
 
 #volume-slider::-webkit-slider-runnable-track {
@@ -522,8 +513,7 @@ button {
 #health-bar-container {
     position: absolute;
     top: 10px;
-    left: 50%;
-    transform: translateX(-50%);
+    right: 20px;
     z-index: 999;
     width: 400px;
     display: flex;
@@ -659,13 +649,13 @@ button {
     }
 
     /* Update animation for mobile to match desktop */
-    @keyframes slideInFromBottom {
+    @keyframes slideInFromLeft {
         from {
-            transform: translateY(100%);
+            transform: translateX(-20%);
             opacity: 0;
         }
         to {
-            transform: translateY(0);
+            transform: translateX(0);
             opacity: 1;
         }
     }
@@ -1100,9 +1090,53 @@ button {
     left: 50%;
     transform: translate(-50%, -50%);
     z-index: 1000;
+    text-align: center; /* Center content */
 }
 
 #start-cat {
     width: 300px; /* Adjust size as needed */
     height: auto;
+}
+
+#start-button {
+    margin-top: 20px; /* Space between image and button */
+    font-size: 28px;
+    color: white;
+    background: none;
+    border: none;
+    cursor: pointer;
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+    transition: transform 0.1s ease-in-out;
+    padding: 5px 10px;
+    min-width: fit-content;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+#volume-slider:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    background: rgba(255, 140, 66, 0.1);
+    border: 2px solid rgba(255, 140, 66, 0.3);
+}
+
+#stop-button {
+    position: absolute;
+    bottom: 20px;
+    right: 20px;
+    z-index: 3;
+    font-size: 28px;
+    font-weight: bold;
+    color: white;
+    background: none;
+    border: none;
+    cursor: pointer;
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+    transition: transform 0.1s ease-in-out;
+    padding: 5px 10px;
+    min-width: fit-content;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }

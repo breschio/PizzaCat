@@ -21,25 +21,26 @@ class MediaPlayer {
         this.SLIDER_HIDE_DELAY = 5000; // 5 seconds in milliseconds
         
         // Add event listeners
-        this.volumeSlider.addEventListener('input', () => {
-            this.updateVolume();
-            this.resetSliderTimeout();
-        });
+        // this.volumeSlider.addEventListener('input', () => {
+        //     this.updateVolume();
+        //     this.resetSliderTimeout();
+        // });
 
         this.speakerIcon.addEventListener('click', () => this.toggleMute());
 
-        this.volumeControl.addEventListener('mouseenter', () => {
-            this.clearSliderTimeout();
-            if (!this.isMuted) {
-                this.showVolumeSlider();
-            }
-        });
+        // Comment out the hover event listeners
+        // this.volumeControl.addEventListener('mouseenter', () => {
+        //     this.clearSliderTimeout();
+        //     if (!this.isMuted) {
+        //         this.showVolumeSlider();
+        //     }
+        // });
 
-        this.volumeControl.addEventListener('mouseleave', () => {
-            if (!this.isMuted) {
-                this.startSliderTimeout();
-            }
-        });
+        // this.volumeControl.addEventListener('mouseleave', () => {
+        //     if (!this.isMuted) {
+        //         this.startSliderTimeout();
+        //     }
+        // });
         
         // Initialize all game sounds
         this.waveSound = new Audio('./assets/surf-sound-1.MP3');
