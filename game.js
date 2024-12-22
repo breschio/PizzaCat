@@ -44,10 +44,10 @@ let gameLoopRunning = false;
     let catY = 0;
     let catVelocityX = 0;
     let catVelocityY = 0;
-    let catMaxSpeed = 12; // Initial max speed, can be modified by power-ups
-    const catAcceleration = 0.5; // Lower acceleration for smoother start
-    const catDeceleration = 0.98; // Higher deceleration for gradual slowing
-    const maxSpeed = 15; // Maximum speed the cat can reach
+    let catMaxSpeed = 35; // Further increased for higher top speed
+    const catAcceleration = 1.5; // Further increased for quicker response
+    const catDeceleration = 0.9; // Further decreased for less inertia
+    const maxSpeed = 25; // Further increased for higher top speed
     let waveSpeed = 100; // Adjust this value to set the base speed of objects
     let isGameRunning = false;
 
@@ -70,10 +70,10 @@ let gameLoopRunning = false;
 
     // Add these constants for collectible properties
     const COLLECTIBLES = [
-        { type: 'tuna', points: 25, health: 25, image: tunaImage, width: 100, height: 100 },
-        { type: 'buffalo-fish', points: 10, health: 10, image: buffaloFishImage, width: 70, height: 40 },
-        { type: 'salmon', points: 20, health: 20, image: salmonImage, width: 120, height: 120 },
-        { type: 'catnip', points: 100, health: 100, image: catnipImage, width: 40, height: 40 }
+        { type: 'catnip', points: 100, health: 100, image: catnipImage, width: 40, height: 40 },
+        { type: 'salmon', points: 25, health: 5, image: salmonImage, width: 120, height: 120 },
+        { type: 'tuna', points: 20, health: 4, image: tunaImage, width: 100, height: 100 },
+        { type: 'buffalo-fish', points: 15, health: 3, image: buffaloFishImage, width: 70, height: 40 }
     ];
 
     // Modify the imageLoaded function
@@ -524,10 +524,10 @@ let gameLoopRunning = false;
     const RESISTANCE = 0.1; // Adjust this value to change the level of resistance (0.1 = 10% movement towards target per frame)
 
     // Constants for movement
-    const defaultAcceleration = 0.5; // Default acceleration
-    const defaultMaxSpeed = 15; // Default maximum speed
-    const catnipAcceleration = 0.7; // Increased acceleration for catnip mode
-    const catnipMaxSpeed = 20; // Increased maximum speed for catnip mode
+    const defaultAcceleration = 1.5; // Further increased for quicker response
+    const defaultMaxSpeed = 35; // Further increased for higher top speed
+    const catnipAcceleration = 1.8; // Further increased for even faster response in catnip mode
+    const catnipMaxSpeed = 40; // Further increased for higher top speed in catnip mode
 
     function updateCatPosition() {
         // Determine current acceleration and speed based on mode
@@ -1031,8 +1031,8 @@ let gameLoopRunning = false;
     });
 
     // Adjust these values to fine-tune touch sensitivity
-    const touchSensitivity = 0.15; // Increase this to make touch more sensitive
-    const touchMaxSpeed = 15; // Maximum speed from touch input
+    const touchSensitivity = 0.35; // Further increased for more sensitive touch
+    const touchMaxSpeed = 35; // Further increased for higher speed from touch input
 
     let touchStartX = 0;
     let touchStartY = 0;
@@ -1377,7 +1377,7 @@ let gameLoopRunning = false;
     const MOUSE_WIDTH = 120;  // Increased from 80 to 120
     const MOUSE_HEIGHT = 120; // Increased from 80 to 120
     const MOUSE_SPEED = 200;  // Keep the same speed
-    const MOUSE_DAMAGE = 15;
+    const MOUSE_DAMAGE = 34; // Increased damage value
     const MOUSE_SPAWN_INTERVAL = 5000; // Spawn a mouse every 5 seconds
     let lastMouseSpawnTime = 0;
 
