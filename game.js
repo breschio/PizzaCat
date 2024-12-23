@@ -1,389 +1,535 @@
+import { DEBUG_MODE } from './debug.js';
 import { 
     performTrick,
-    startSurfMove,
-    updateSurfMove,
-    endSurfMove,
-    drawTrickName,
-    calculateTrickThreshold,
-    TRICK_DURATION,
-    TRICK_COOLDOWN,
-    TRICK_NAME_DISPLAY_DURATION,
-    TRICK_THRESHOLD,
+    applyTrickAnimation,
+    drawTrickEffect,
+    updateTrickZone,
+    activateTrickZone,
     showTrickToast,
-    updateTrickButton,
-    drawTrickZone,
-    updateTrickZoneState,
-    updateTrickZoneBar,
-    isTrickZoneActive,
-    trickZoneTimeLeft
+    isInTrickZone,
+    TRICK_COOLDOWN,
+    isPerformingTrick,
+    currentTrickName,
+    trickStartTime
 } from './tricks.js';
-import * as Tricks from './tricks.js';
-import { mediaPlayer } from './mediaPlayer.js';
-import { db, collection, addDoc, getDocs, query, orderBy, limit } from './firebase-config.js';
-
-let gameLoopRunning = false;
 
 (function() {
-    // Add these variables at the top of your file, with other global variables
-    let isMobile = false;
-    const mobileBreakpoint = 768; // typical tablet breakpoint
-
+    // 1. Game Setup & Configuration
+    // ---------------------------
+    const mobileBreakpoint = 768;
     const canvas = document.getElementById("gameCanvas");
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
-
-    window.addEventListener('resize', () => {
-        canvas.width = window.innerWidth;
-        canvas.height = window.innerHeight;
-    });
-
     const ctx = canvas.getContext("2d");
+    
+    // 2. Game State Variables
+    // ---------------------------
+    let gameLoopRunning = false;
+    let lastTime = 0;
+    let isMobile = false;
+    let isGameRunning = false;
+    let isGameOver = false;
+    let isPaused = false;
+    let lastGameState = null;
+    
+    // Score & Health
     let score = 0;
     let isFirstScoreUpdate = true;
+    let catHealth = 100;
+    const maxCatHealth = 100;
+    
+    // Cat Properties
     let catX = 0;
     let catY = 0;
     let catVelocityX = 0;
     let catVelocityY = 0;
-    let catMaxSpeed = 35; // Further increased for higher top speed
-    const catAcceleration = 1.5; // Further increased for quicker response
-    const catDeceleration = 0.9; // Further decreased for less inertia
-    const maxSpeed = 25; // Further increased for higher top speed
-    let waveSpeed = 100; // Adjust this value to set the base speed of objects
-    let isGameRunning = false;
-
-    // Load images
+    let catWidth = 300;
+    let catHeight = 300;
+    let catFacingRight = true;
+    let catScaleFactor = 0.6;
+    
+    // Trick State
+    let lastTrickTime = 0;
+    let isPerformingTrick = false;
+    const TRICK_COOLDOWN = 1000; // 1 second cooldown between tricks
+    
+    // Resize canvas to match window size
+    function resizeCanvas() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        // Adjust cat position when canvas is resized
+        if (catX + catWidth * catScaleFactor > canvas.width) {
+            catX = canvas.width - catWidth * catScaleFactor;
+        }
+        if (catY + catHeight * catScaleFactor > canvas.height) {
+            catY = canvas.height - catHeight * catScaleFactor;
+        }
+    }
+    
+    // Initial resize
+    resizeCanvas();
+    
+    // Add resize listener
+    window.addEventListener('resize', resizeCanvas);
+    
+    // Input State
+    const keys = {}; // Single declaration for keyboard state
+    let leftPressed = false;
+    let rightPressed = false;
+    let upPressed = false;
+    let downPressed = false;
+    
+    // Game Objects
+    let gameObjects = [];
+    let imagesLoaded = 0;
+    
+    // Trick Zone State
+    let inTrickZone = false;
+    let trickZoneIntensity = 0;
+    let currentTrick = null;
+    
+    // Collision State
+    let currentCollision = null;
+    
+    // Visual Effects
+    let isFlashing = false;
+    let isPositiveFlash = false;
+    let flashStartTime = 0;
+    let flashColor = 'red';
+    let flashAlpha = 0.3;
+    
+    // Catnip Mode
+    let isCatnipMode = false;
+    
+    // 3. Constants
+    // ---------------------------
+    const INITIAL_MAX_TRASH_ITEMS = 3;
+    const MAX_POSSIBLE_TRASH_ITEMS = 10;
+    const BASE_SPEED = 200;
+    const SPEED_VARIATION = 50;
+    const MOUSE_DAMAGE = 34;
+    const flashDuration = 500;
+    const CATNIP_SCALE_FACTOR = 1.1025;
+    const CAT_WIDTH = 300;
+    const CAT_HEIGHT = 300;
+    
+    // Movement Constants
+    const catMaxSpeed = 8;
+    const catAcceleration = 0.5;
+    const catDeceleration = 0.95;
+    const VERTICAL_SPEED = 8;
+    
+    // Wave & Spawn Rates
+    let waveSpeed = 100;
+    const INITIAL_WAVE_SPEED = 2;
+    const MAX_WAVE_SPEED = 8;
+    const TIME_TO_MAX_SPEED = 300;
+    const INITIAL_FISH_SPAWN_RATE = 0.02;
+    const MAX_FISH_SPAWN_RATE = 0.03;
+    let fishSpawnRate = INITIAL_FISH_SPAWN_RATE;
+    
+    // 4. Asset Loading
+    // ---------------------------
+    // Images
     let fishImage = new Image();
     let catImage = new Image();
-    let catSunnyImage = new Image(); // New sunny image
-    let loadedCollectibleImages = [];
+    let catSunnyImage = new Image();
     let mouseImage = new Image();
     let tunaImage = new Image();
     let buffaloFishImage = new Image();
     let salmonImage = new Image();
     let catnipImage = new Image();
+    const totalImages = 9;
 
-    let imagesLoaded = 0;
-    const totalImages = 9; // 3 original + 3 new collectibles + 3 trash images
-
-    let catHealth = 100; // New variable for cat's health
-    const maxCatHealth = 100; // Maximum cat health
-
-    // Add these constants for collectible properties
-    const COLLECTIBLES = [
-        { type: 'catnip', points: 100, health: 100, image: catnipImage, width: 40, height: 40 },
-        { type: 'salmon', points: 25, health: 5, image: salmonImage, width: 120, height: 120 },
-        { type: 'tuna', points: 20, health: 4, image: tunaImage, width: 100, height: 100 },
-        { type: 'buffalo-fish', points: 15, health: 3, image: buffaloFishImage, width: 70, height: 40 }
-    ];
-
-    // Modify the imageLoaded function
-    function imageLoaded() {
-        imagesLoaded++;
-        console.log(`Image loaded. Total: ${imagesLoaded}/${totalImages}`);
-        if (imagesLoaded === totalImages) {
-            console.log('All images loaded. Initializing game.');
-            initializeGame();
+    // Add this after the asset declarations
+    // 4. Asset Loading System
+    // ---------------------------
+    const ASSETS = {
+        images: {
+            fish: './assets/buffalo-fish.png',
+            cat: './assets/pizza-cat.png',
+            catSunny: './assets/pizza-cat-sunny.png',
+            mouse: './assets/mouse.png',
+            tuna: './assets/tuna.png',
+            buffaloFish: './assets/buffalo-fish.png',
+            salmon: './assets/salmon.png',
+            catnip: './assets/catnip.png'
+        },
+        sounds: {
+            // Define sound assets here if needed
         }
-    }
+    };
 
-    // Ensure all images have onload handlers
-    catImage.onload = imageLoaded;
-    catSunnyImage.onload = imageLoaded;
-    fishImage.onload = imageLoaded;
-    mouseImage.onload = imageLoaded;
-    tunaImage.onload = imageLoaded;
-    buffaloFishImage.onload = imageLoaded;
-    salmonImage.onload = imageLoaded;
-    catnipImage.onload = imageLoaded;
+    // Asset loading tracking
+    let assetsLoaded = 0;
+    const totalAssets = Object.keys(ASSETS.images).length;
 
-    // Set image sources
-    catImage.src = './assets/pizza-cat.png';
-    catSunnyImage.src = './assets/pizza-cat-sunny.png';
-    fishImage.src = './assets/buffalo-fish.png';
-    mouseImage.src = './assets/mouse.png';
-    tunaImage.src = './assets/tuna.png';
-    buffaloFishImage.src = './assets/buffalo-fish.png';
-    salmonImage.src = './assets/salmon.png';
-    catnipImage.src = './assets/catnip.png';
+    // Asset loading system
+    function loadAssets() {
+        return new Promise((resolve, reject) => {
+            // Remove existing preload link if it exists
+            const existingPreload = document.querySelector('link[rel="preload"][as="image"][href*="mouse.png"]');
+            if (existingPreload) {
+                existingPreload.remove();
+            }
 
-    let catFacingRight = true; // New variable to track cat's facing direction
-
-    // Define an array of bright, Hawaiian-inspired colors
-    const hawaiianColors = [
-        '#FF6B6B', // Bright Coral
-        '#4ECDC4', // Turquoise
-        '#45B7D1', // Ocean Blue
-        '#F7FFF7', // White (for contrast)
-        '#FFD93D', // Sunny Yellow
-        '#FF8C42', // Mango Orange
-        '#98D9C2', // Mint Green
-        '#E84855', // Hibiscus Red
-        '#F9DC5C', // Pineapple Yellow
-        '#3185FC', // Tropical Sky Blue
-        '#E56399', // Orchid Pink
-        '#7AE7C7', // Seafoam Green
-        '#FFA69E', // Soft Coral
-        '#9B5DE5', // Lavender
-        '#00BBF9', // Bright Sky Blue
-    ];
-
-    function getRandomHawaiianColor() {
-        return hawaiianColors[Math.floor(Math.random() * hawaiianColors.length)];
-    }
-
-    // Add this near the top of your script with other initializations
-    const waveBackgroundSound = document.getElementById('waveBackgroundSound');
-
-    // Function to start playing the background wave sound
-    function startBackgroundWaveSound() {
-        waveBackgroundSound.play().catch(e => console.error("Error playing background sound:", e));
-    }
-
-    // Function to stop the background wave sound
-    function stopBackgroundWaveSound() {
-        waveBackgroundSound.pause();
-        waveBackgroundSound.currentTime = 0;
-    }
-
-    // Adjust these constants near the top of your file
-    const INITIAL_MAX_TRASH_ITEMS = 3;
-    const MAX_POSSIBLE_TRASH_ITEMS = 10;
-    const INITIAL_TRASH_SPAWN_RATE = 0.01;
-    const MAX_TRASH_SPAWN_RATE = 0.025;
-    const TRASH_SPEED_VARIATION = 0.7;
-
-    // Increase the initial fish spawn rate
-    const INITIAL_FISH_SPAWN_RATE = 0.02; // Increased from 0.007
-    const MAX_FISH_SPAWN_RATE = 0.03; // Increased from 0.02
-
-    // Time (in seconds) to reach maximum difficulty
-    const TIME_TO_MAX_DIFFICULTY = 180; // 3 minutes
-
-    // Add these variables to track game progression
-    let gameTime = 0;
-    let maxTrashItems = INITIAL_MAX_TRASH_ITEMS;
-    let trashSpawnRate = INITIAL_TRASH_SPAWN_RATE;
-    let fishSpawnRate = INITIAL_FISH_SPAWN_RATE;
-
-    // Add these constants near the top of your file
-    const INITIAL_WAVE_SPEED = 2; // Starting speed
-    const MAX_WAVE_SPEED = 8; // Maximum speed
-    const TIME_TO_MAX_SPEED = 300; // Time (in seconds) to reach max speed (5 minutes)
-
-    // Add this variable to track game progression
-    waveSpeed = INITIAL_WAVE_SPEED;
-
-    // Add this variable to track game state
-    let isGameOver = false;
-
-    // Define these variables globally if they're not already defined
-    let catWidth = 200;  // Set initial values instead of declaring without values
-    let catHeight = 200;
-    let leftPressed = false;
-    let rightPressed = false;
-    let upPressed = false;
-    let downPressed = false;
-
-    // Adjust these values to make the cat slightly smaller
-    const CAT_WIDTH = 300;  // Increased from 200 to 300
-    const CAT_HEIGHT = 300; // Increased from 200 to 300
-
-    function initializeCat() {
-        catX = canvas.width / 2 - (catImage.naturalWidth * 0.7) / 2;
-        catY = canvas.height / 2 - (catImage.naturalHeight * 0.7) / 2;
-        catVelocityX = 0;
-        catVelocityY = 0;
-    }
-
-    let currentInstructionIndex = 0;
-    const instructions = [
-        {
-            text: "Get all the fish 🐟",
-            videoSrc: "./assets/video/tut-fish-web.mp4"
-            /*images: ["./assets/tuna.png", "./assets/buffalo-fish.png", "./assets/salmon.png"]*/
-        },
-        {
-            text: "Move with your finger ☝️",
-            videoSrc: "./assets/video/tut-finger-web.mp4"
-        },
-        {
-            text: "Or use arrow keys ⬆️⬇️⬅️➡️",
-            videoSrc: "./assets/video/tut-arrows-web.mp4"
-        },
-        {
-            text: "Dodge Ninja Rat 🥷",
-            videoSrc: "./assets/video/tut-rat-web.mp4"
-            /*images: ["./assets/mouse.png"]*/
-        },
-        {
-            text: "Do a trick over the wave! [Spacebar] on desktop",
-            videoSrc: "./assets/video/tut-trick-web.mp4"
-            /*images: []*/
-        },
-        {
-            text: "Chill out in Catnip mode 🌿",
-            videoSrc: "./assets/video/tut-catnip-web.mp4"
-            /*images: []*/
-        }
-    ];
-
-    function showStartMode() {
-        // Clear the canvas
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-        // Hide the start button
-        const startButton = document.getElementById('start-button');
-        if (startButton) {
-            startButton.style.display = 'none';
-        }
-
-        // Draw the Pizza Cat at 2x size
-        const catStartWidth = CAT_WIDTH * 2;
-        const catStartHeight = CAT_HEIGHT * 2;
-        const catStartX = (canvas.width - catStartWidth) / 2;
-        const catStartY = (canvas.height - catStartHeight) / 2 - 100; // Adjust Y to leave space for instructions
-
-        ctx.drawImage(catImage, catStartX, catStartY, catStartWidth, catStartHeight);
-
-        // Show instructions
-        const instructionsContainer = document.getElementById('instructions-container');
-        instructionsContainer.style.display = 'block';
-        setTimeout(() => {
-            instructionsContainer.classList.add('show');
-        }, 10); // Slight delay to trigger transition
-
-        updateInstruction();
-
-        // Add event listener to the existing button
-        const startScreenButton = document.getElementById('start-screen-button');
-        startScreenButton.addEventListener('click', () => {
-            startGame();
-            removeStartScreen();
+            // Load all images
+            Object.entries(ASSETS.images).forEach(([key, path]) => {
+                const img = new Image();
+                img.onload = () => {
+                    assetsLoaded++;
+                    console.log(`Loaded ${key} (${assetsLoaded}/${totalAssets})`);
+                    if (assetsLoaded === totalAssets) {
+                        resolve();
+                    }
+                };
+                img.onerror = (err) => {
+                    console.error(`Failed to load ${key}:`, err);
+                    reject(err);
+                };
+                img.src = path;
+                
+                // Assign to the corresponding image variable
+                switch(key) {
+                    case 'fish': fishImage = img; break;
+                    case 'cat': catImage = img; break;
+                    case 'catSunny': catSunnyImage = img; break;
+                    case 'mouse': mouseImage = img; break;
+                    case 'tuna': tunaImage = img; break;
+                    case 'buffaloFish': buffaloFishImage = img; break;
+                    case 'salmon': salmonImage = img; break;
+                    case 'catnip': catnipImage = img; break;
+                }
+            });
         });
     }
 
-    function updateInstruction() {
-        const instruction = instructions[currentInstructionIndex];
-        const instructionText = document.getElementById('instruction-text');
-        const instructionVideo = document.getElementById('instruction-video');
-        const carouselDots = document.getElementById('carousel-dots');
-
-        if (instructionText) {
-            instructionText.textContent = instruction.text;
-        }
-
-        // Update video source if applicable
-        if (instruction.videoSrc) {
-            instructionVideo.src = instruction.videoSrc;
-            instructionVideo.style.display = 'block';
-            instructionVideo.autoplay = true;
-            instructionVideo.loop = true;
-            instructionVideo.controls = false;
-            instructionVideo.muted = true; // Mute the video
-        } else {
-            instructionVideo.style.display = 'none';
-        }
-
-        // Update carousel dots
-        if (carouselDots) {
-            carouselDots.innerHTML = ''; // Clear existing dots
-            instructions.forEach((_, index) => {
-                const dot = document.createElement('div');
-                dot.className = 'carousel-dot';
-                if (index === currentInstructionIndex) {
-                    dot.classList.add('active');
-                }
-                dot.addEventListener('click', () => {
-                    currentInstructionIndex = index;
-                    updateInstruction();
-                });
-                carouselDots.appendChild(dot);
-            });
-        }
-    }
-
-    document.getElementById('next-instruction-button').addEventListener('click', () => {
-        currentInstructionIndex = (currentInstructionIndex + 1) % instructions.length;
-        updateInstruction();
-    });
-
-    function removeStartScreen() {
-        const startButton = document.getElementById('start-screen-button');
-        const nextButton = document.getElementById('next-button');
-        const instructionText = document.getElementById('instruction-text');
-        const instructionImages = document.getElementById('instruction-images');
-
-        if (startButton) startButton.remove();
-        if (nextButton) nextButton.remove();
-        if (instructionText) instructionText.remove();
-        if (instructionImages) instructionImages.remove();
-
-        // Hide instructions
-        document.getElementById('instructions-container').style.display = 'none';
-    }
-
-    // Modify the initializeGame function to show the start mode first
-    function initializeGame() {
+    // 5. Function Declarations
+    // ---------------------------
+    function initializeGameState() {
         // Set initial cat dimensions and position
         catWidth = CAT_WIDTH;
         catHeight = CAT_HEIGHT;
-        catX = canvas.width / 3;
-        catY = canvas.height / 2 - catHeight / 2;
         
-        // Initialize game state
+        // Center the cat horizontally and place it at 60% of screen height
+        catX = canvas.width / 2 - (catWidth * catScaleFactor) / 2;
+        catY = canvas.height * 0.6 - (catHeight * catScaleFactor) / 2;
+        
+        catVelocityX = 0;
+        catVelocityY = 0;
+        catFacingRight = true;
+        
+        // Reset game state
         isGameRunning = false;
+        isGameOver = false;
+        isPaused = false;
         score = 0;
         catHealth = maxCatHealth;
         isFirstScoreUpdate = true;
+        gameObjects = [];
+        
+        // Reset trick state
+        inTrickZone = false;
+        currentTrick = null;
+        
+        // Reset effects
+        isCatnipMode = false;
+        isFlashing = false;
+        
+        // Reset spawn rates
+        fishSpawnRate = INITIAL_FISH_SPAWN_RATE;
+        waveSpeed = INITIAL_WAVE_SPEED;
+        
+        // Update UI
         updateScore();
         updateHealthBar();
         
-        // Show start button initially
+        // Show/hide appropriate buttons
         document.getElementById('start-button').style.display = 'inline-block';
         document.getElementById('stop-button').style.display = 'none';
+        
+        // Initialize debug panel
+        if (DEBUG_MODE) {
+            updateDebugPanel(catX, catY, catVelocityX, catVelocityY, inTrickZone, currentCollision, currentTrick);
+        }
+        
+        // Reset trick-related state
+        lastTrickTime = 0;
+        isPerformingTrick = false;
+        inTrickZone = false;
+        currentTrick = null;
+        
+        // Clean up any existing toasts
+        const existingToasts = document.querySelectorAll('.trick-toast');
+        existingToasts.forEach(toast => toast.remove());
+    }
+
+    function startGameLoop() {
+        if (!gameLoopRunning) {
+            gameLoopRunning = true;
+            lastTime = performance.now();
+            requestAnimationFrame(gameLoop);
+        }
+    }
+
+    function showStartMode() {
+        // Show start screen elements
+        const startScreen = document.getElementById('start-screen');
+        const startScreenButton = document.getElementById('start-screen-button');
+        const howToPlayButton = document.getElementById('how-to-play-button');
+        const gameTitle = document.getElementById('game-title');
+        
+        if (startScreen) startScreen.style.display = 'block';
+        if (startScreenButton) startScreenButton.style.display = 'block';
+        if (howToPlayButton) howToPlayButton.style.display = 'block';
+        if (gameTitle) gameTitle.style.display = 'block';
+        
+        // Hide game elements
+        const healthBarContainer = document.getElementById('health-bar-container');
+        const scoreElement = document.getElementById('score');
+        const stopButton = document.getElementById('stop-button');
+        
+        if (healthBarContainer) healthBarContainer.style.display = 'none';
+        if (scoreElement) scoreElement.style.display = 'none';
+        if (stopButton) stopButton.style.display = 'none';
+        
+        // Reset game state
+        isGameRunning = false;
+        isGameOver = false;
+        score = 0;
+        updateScore();
+    }
+
+    function drawTrickZoneBoundary(canvas) {
+        if (!DEBUG_MODE) return;
+
+        // Remove any existing boundary line
+        const existingBoundary = document.querySelector('.trick-zone-boundary');
+        if (existingBoundary) {
+            existingBoundary.remove();
+        }
+
+        // Create new boundary line
+        const boundary = document.createElement('div');
+        boundary.className = 'trick-zone-boundary';
+        boundary.style.top = `${canvas.height * (1/3)}px`;
+        boundary.style.width = '100%';
+        document.getElementById('game-container').appendChild(boundary);
+    }
+
+    async function initGame() {
+        try {
+            console.log('Starting game initialization...');
+            
+            // Load assets first
+            console.log('Loading assets...');
+            await loadAssets();
+            console.log('Assets loaded successfully');
+            
+            // Initialize game state
+            console.log('Initializing game state...');
+            initializeGameState();
+            console.log('Game state initialized');
+            
+            // Show start screen
+            console.log('Showing start screen...');
+            showStartMode();
+            drawTrickZoneBoundary(canvas);
+            
+            console.log('Game initialization complete!');
+        } catch (error) {
+            console.error('Failed to initialize game:', error);
+            // Show error to user in a more friendly way
+            const errorMessage = document.createElement('div');
+            errorMessage.className = 'error-message';
+            errorMessage.innerHTML = `
+                <h2>Oops! Something went wrong</h2>
+                <p>Failed to start the game. Please refresh the page and try again.</p>
+                <p>Error: ${error.message}</p>
+            `;
+            document.body.appendChild(errorMessage);
+        }
+    }
+
+    function startGame() {
+        console.log('Starting game...');
+        
+        // Hide start screen elements
+        const startScreen = document.getElementById('start-screen');
+        const startScreenButton = document.getElementById('start-screen-button');
+        const howToPlayButton = document.getElementById('how-to-play-button');
+        if (startScreen) startScreen.style.display = 'none';
+        if (startScreenButton) startScreenButton.style.display = 'none';
+        if (howToPlayButton) howToPlayButton.style.display = 'none';
+
+        // Show game elements
+        const healthBarContainer = document.getElementById('health-bar-container');
+        const scoreElement = document.getElementById('score');
+        if (healthBarContainer) healthBarContainer.style.display = 'block';
+        if (scoreElement) scoreElement.style.display = 'block';
+        if (stopButton) stopButton.style.display = 'block';
+        if (startButton) startButton.style.display = 'none';
+
+        // Initialize game state
+        initializeGameState();
 
         // Start the game loop
+        isGameRunning = true;
         gameLoopRunning = true;
         lastTime = performance.now();
         requestAnimationFrame(gameLoop);
-
-        // Reset game variables
-        gameTime = 0;
-        maxTrashItems = INITIAL_MAX_TRASH_ITEMS;
-        trashSpawnRate = INITIAL_TRASH_SPAWN_RATE;
-        fishSpawnRate = INITIAL_FISH_SPAWN_RATE;
-        waveSpeed = INITIAL_WAVE_SPEED;
-        setupTrickButton();
-
-        // Show the start mode initially
-        showStartMode();
+        
+        console.log('Game started!');
     }
 
-    function drawInitialState() {
-        // Clear the canvas
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
+    // Add event listeners for start buttons
+    const startButton = document.getElementById('start-button');
+    const startScreenButton = document.getElementById('start-screen-button');
+    const stopButton = document.getElementById('stop-button');
 
-        // Draw the cat at its starting position
-        drawCat();
-
-        // Update the health bar (using CSS version)
-        updateHealthBar();
-
-        // Any other initial game elements you want to draw
+    if (startButton) {
+        startButton.addEventListener('click', startGame);
     }
 
-    let lastTime = 0;
+    if (startScreenButton) {
+        startScreenButton.addEventListener('click', startGame);
+    }
+
+    if (stopButton) {
+        stopButton.addEventListener('click', () => {
+            isPaused = !isPaused;
+            if (isPaused) {
+                stopButton.textContent = '▶️';
+            } else {
+                stopButton.textContent = '⏸️';
+                lastTime = performance.now();
+                requestAnimationFrame(gameLoop);
+            }
+        });
+    }
+
+    function handleTrick() {
+        if (!isGameRunning || isGameOver || isPaused) return;
+
+        const currentTime = performance.now();
+        
+        // Clear any lingering trick states if enough time has passed
+        if (currentTime - lastTrickTime > TRICK_COOLDOWN * 2) {
+            isPerformingTrick = false;
+            currentTrick = null;
+        }
+
+        // Check cooldown and trick state
+        if (currentTime - lastTrickTime < TRICK_COOLDOWN || isPerformingTrick) {
+            console.log('Trick on cooldown or already performing:', {
+                timeSinceLastTrick: currentTime - lastTrickTime,
+                isPerformingTrick
+            });
+            return;
+        }
+
+        try {
+            const scaledHeight = catHeight * catScaleFactor;
+            
+            if (!inTrickZone) {
+                console.log('Not in trick zone, ignoring trick attempt');
+                return;
+            }
+
+            const existingToasts = document.querySelectorAll('.trick-toast');
+            existingToasts.forEach(toast => toast.remove());
+
+            const result = performTrick(
+                catY,
+                scaledHeight,
+                canvas.height * (1/3),
+                isGameRunning,
+                isGameOver,
+                score,
+                updateScore
+            );
+
+            if (result.score > 0) {
+                currentTrick = result.trickName;
+                lastTrickTime = currentTime;
+                
+                // Update the score
+                score += result.score;
+                updateScore();
+                
+                setTimeout(() => {
+                    isPerformingTrick = false;
+                    currentTrick = null;
+                }, TRICK_COOLDOWN);
+            }
+        } catch (error) {
+            console.error('Error in handleTrick:', error);
+            currentTrick = null;
+            inTrickZone = false;
+        }
+    }
+
+    function updateScore() {
+        const scoreElement = document.getElementById('score-number');
+        if (scoreElement) {
+            scoreElement.textContent = score;
+        }
+    }
+
+    function updateHealthBar() {
+        const healthBarFill = document.getElementById('health-bar-fill');
+        const healthText = document.getElementById('health-text');
+        if (healthBarFill && healthText) {
+            const healthPercentage = (catHealth / maxCatHealth) * 100;
+            healthBarFill.style.width = `${healthPercentage}%`;
+            healthText.textContent = `${Math.round(catHealth)}`;
+        }
+    }
+
+    function updateDebugPanel(catX, catY, catVelocityX, catVelocityY, inTrickZone, currentCollision, currentTrick) {
+        if (!DEBUG_MODE) return;
+
+        try {
+            document.getElementById('debug-position').textContent = `(${Math.round(catX)}, ${Math.round(catY)})`;
+            document.getElementById('debug-velocity').textContent = `(${catVelocityX.toFixed(2)}, ${catVelocityY.toFixed(2)})`;
+            document.getElementById('debug-trick-zone').textContent = `${inTrickZone} (Y: ${Math.round(catY)} < ${Math.round(canvas.height/3)})`;
+            document.getElementById('debug-collision').textContent = currentCollision || 'none';
+            document.getElementById('debug-trick').textContent = currentTrick || 'none';
+
+            const debugPanel = document.getElementById('debug-panel');
+            if (debugPanel) {
+                debugPanel.classList.toggle('active', DEBUG_MODE);
+            }
+            document.body.classList.toggle('debug-active', DEBUG_MODE);
+        } catch (error) {
+            console.error('Error in updateDebugPanel:', error);
+        }
+    }
+
+    // 6. Event Listeners
+    // ---------------------------
+    // Now we can add event listeners since the functions they use are defined
+    window.addEventListener('keydown', (e) => {
+        keys[e.key] = true;
+        if (e.key === ' ') {
+            e.preventDefault();
+            handleTrick();
+        }
+    });
+
+    window.addEventListener('keyup', (e) => {
+        keys[e.key] = false;
+    });
+
+    // 7. Game Loop Functions
+    // ---------------------------
     function gameLoop(timestamp) {
         if (!gameLoopRunning) return;
 
-        // Calculate proper deltaTime in seconds
         const deltaTime = (timestamp - lastTime) / 1000;
         lastTime = timestamp;
 
-        // Only update if deltaTime is reasonable (prevents huge jumps)
         if (deltaTime < 0.1 && !isPaused) {
             update(deltaTime);
-            draw(); // Make sure we're calling draw every frame
+            draw();
         }
         
         if (isGameRunning || isGameOver || isPaused) {
@@ -393,1264 +539,196 @@ let gameLoopRunning = false;
         }
     }
 
-    // Add near the top with other state variables
-    let isPaused = false;
-    let lastGameState = null;
-    let inTrickZone = false;
-    let trickZoneIntensity = 0;
-    const TRICK_INTENSITY_MAX = 100;
-    const TRICK_INTENSITY_RATE = 4;
-    let trickCountdown = null;
-    let currentTrickIndex = 0;
-    const TRICK_NAMES = [
-        'Wisker Flip',
-        'Tail Spin', 
-        'Paw Plant', 
-        'Pizza Roll'
-    ];
-
-    // Add these variables for flash effects
-    let isFlashing = false;
-    let isPositiveFlash = false; // Define isPositiveFlash here
-    let flashStartTime = 0;
-    const flashDuration = 500; // Reduced from 800 to 500 milliseconds
-    let flashColor = 'red'; // Default flash color
-    let flashAlpha = 0.3; // Default flash opacity
-
-    // Create trick zone elements
-    const trickZone = document.createElement('div');
-    trickZone.className = 'trick-zone';
-    document.getElementById('game-container').appendChild(trickZone);
-
-    const trickZoneBar = document.createElement('div');
-    trickZoneBar.className = 'trick-zone-bar';
-
-    const trickZoneLabel = document.createElement('div');
-    trickZoneLabel.className = 'trick-zone-label';
-    trickZoneLabel.textContent = 'TRICK ZONE';
-
-    const trickZoneBarBg = document.createElement('div');
-    trickZoneBarBg.className = 'trick-zone-bar-background';
-
-    const trickZoneBarFill = document.createElement('div');
-    trickZoneBarFill.className = 'trick-zone-bar-fill';
-
-    const trickInstruction = document.createElement('div');
-    trickInstruction.className = 'trick-instruction';
-
-    // Assemble the elements
-    trickZoneBarBg.appendChild(trickZoneBarFill);
-    trickZoneBar.appendChild(trickZoneLabel);
-    trickZoneBar.appendChild(trickZoneBarBg);
-    document.getElementById('game-container').appendChild(trickZoneBar);
-    document.getElementById('game-container').appendChild(trickInstruction);
-
     function update(deltaTime) {
-        if (isGameOver || !isGameRunning) return;
+        if (isGameOver || !isGameRunning || isPaused) return;
 
-        // Update trick zone state
-        inTrickZone = Tricks.updateTrickZoneState(
-            catY,
-            catHeight,
-            TRICK_THRESHOLD,
-            deltaTime
-        );
-
-        // Log trick zone state
-        console.log(`In Trick Zone: ${inTrickZone}`);
-
-        // Update the trick zone bar if in trick zone
-        if (inTrickZone) {
-            Tricks.updateTrickZoneBar(deltaTime);
+        const scaledHeight = catHeight * catScaleFactor;
+        
+        // Check if we should update trick zone state
+        const currentTime = performance.now();
+        if (!isPerformingTrick || (currentTime - lastTrickTime > TRICK_COOLDOWN)) {
+            inTrickZone = catY + scaledHeight < canvas.height * (1/3);
+            if (inTrickZone) {
+                activateTrickZone();
+            }
         }
-
-        // Update cat position
+        
+        updateTrickZone(catY, scaledHeight, deltaTime, canvas);
         updateCatPosition();
         
-        // Update game objects
         if (!isGameOver) {
             updateGameObjects(deltaTime);
             updateHealthBar();
             drawSurfMoveEffect();
         }
-
-        // Rest of update function...
     }
 
-    const surfMoves = [
-        { name: 'Aerial', scale: 1.2, rotation: Math.PI * 2 },
-        { name: 'Cutback', scale: 1.1, rotation: Math.PI },
-        { name: 'Barrel', scale: 0.9, rotation: 0 },
-        { name: 'Floater', scale: 1.15, rotation: Math.PI / 2 },
-    ];
+    function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        
+        if (isGameRunning) {
+            drawCat();
+            drawGameObjects();
+            drawSurfMoveEffect();
+        }
 
-    let currentSurfMove = null;
-    let surfMoveStartTime = 0;
-    let surfMoveProgress = 0;
+        if (isCatnipMode) {
+            drawCatnipOverlay();
+        }
+        if (isFlashing) {
+            drawFlashOverlay();
+        }
 
-    // Add these variables at the top of your file
-    let isTouching = false;
-    let touchX = 0;
-    let touchY = 0;
+        updateDebugPanel(
+            catX, 
+            catY, 
+            catVelocityX, 
+            catVelocityY, 
+            inTrickZone, 
+            currentCollision, 
+            currentTrick
+        );
+    }
 
-    // Modify the touch event listeners
-    canvas.addEventListener('touchstart', handleTouch, { passive: false });
-    canvas.addEventListener('touchmove', handleTouch, { passive: false });
-    canvas.addEventListener('touchend', () => { isTouching = false; }, { passive: true });
-
-    let lastTapTime = 0;
-
-    function handleTouch(event) {
-        event.preventDefault();
-        const rect = canvas.getBoundingClientRect();
-        const touch = event.touches[0];
-        touchX = (touch.clientX - rect.left) * (canvas.width / rect.width);
-        touchY = (touch.clientY - rect.top) * (canvas.height / rect.height);
-
-        const dx = touchX - (catX + catImage.naturalWidth / 2);
-        const dy = touchY - (catY + catImage.naturalHeight / 2);
-
-        catVelocityX += dx * RESISTANCE;
-        catVelocityY += dy * RESISTANCE;
-
-        if (Math.abs(dx) > Math.abs(dy)) {
-            catFacingRight = dx > 0;
+    // 8. Initialization Functions
+    // ---------------------------
+    function startGameLoop() {
+        if (!gameLoopRunning) {
+            gameLoopRunning = true;
+            lastTime = performance.now();
+            requestAnimationFrame(gameLoop);
         }
     }
 
-    // Add these variables at the top of your file
-    let targetX = 0;
-    let targetY = 0;
-    const RESISTANCE = 0.1; // Adjust this value to change the level of resistance (0.1 = 10% movement towards target per frame)
-
-    // Constants for movement
-    const defaultAcceleration = 1.5; // Further increased for quicker response
-    const defaultMaxSpeed = 35; // Further increased for higher top speed
-    const catnipAcceleration = 1.8; // Further increased for even faster response in catnip mode
-    const catnipMaxSpeed = 40; // Further increased for higher top speed in catnip mode
-
+    // Add these before the game loop functions
     function updateCatPosition() {
-        // Determine current acceleration and speed based on mode
-        const currentAcceleration = isCatnipMode ? catnipAcceleration : defaultAcceleration;
-        const currentMaxSpeed = isCatnipMode ? catnipMaxSpeed : defaultMaxSpeed;
+        // Handle keyboard input for horizontal movement
+        if (keys['ArrowLeft'] || keys['a']) {
+            catVelocityX = Math.max(catVelocityX - catAcceleration, -catMaxSpeed);
+            catFacingRight = false;
+        }
+        if (keys['ArrowRight'] || keys['d']) {
+            catVelocityX = Math.min(catVelocityX + catAcceleration, catMaxSpeed);
+            catFacingRight = true;
+        }
 
-        // Apply acceleration based on key presses
-        if (keys['ArrowLeft']) {
-            catVelocityX = Math.max(catVelocityX - currentAcceleration, -currentMaxSpeed);
-            catFacingRight = false; // Update facing direction
+        // Handle keyboard input for vertical movement
+        if (keys['ArrowUp'] || keys['w']) {
+            catVelocityY = -VERTICAL_SPEED;  // Move up
+        } else if (keys['ArrowDown'] || keys['s']) {
+            catVelocityY = VERTICAL_SPEED;   // Move down
+        } else {
+            catVelocityY *= catDeceleration; // Slow down vertical movement when no keys pressed
         }
-        if (keys['ArrowRight']) {
-            catVelocityX = Math.min(catVelocityX + currentAcceleration, currentMaxSpeed);
-            catFacingRight = true; // Update facing direction
+
+        // Apply deceleration when no horizontal movement keys are pressed
+        if (!keys['ArrowLeft'] && !keys['ArrowRight'] && !keys['a'] && !keys['d']) {
+            catVelocityX *= catDeceleration;
         }
-        if (keys['ArrowUp']) {
-            catVelocityY = Math.max(catVelocityY - currentAcceleration, -currentMaxSpeed);
-        }
-        if (keys['ArrowDown']) {
-            catVelocityY = Math.min(catVelocityY + currentAcceleration, currentMaxSpeed);
-        }
+
+        // Apply minimum velocity threshold to prevent sliding
+        if (Math.abs(catVelocityX) < 0.1) catVelocityX = 0;
+        if (Math.abs(catVelocityY) < 0.1) catVelocityY = 0;
 
         // Update cat position based on velocity
         catX += catVelocityX;
         catY += catVelocityY;
 
-        // Apply deceleration to simulate inertia
-        catVelocityX *= catDeceleration;
-        catVelocityY *= catDeceleration;
-
-        // Ensure the cat stays within the canvas boundaries
-        catX = Math.max(0, Math.min(canvas.width - catImage.naturalWidth * catScaleFactor, catX));
-        catY = Math.max(0, Math.min(canvas.height - catImage.naturalHeight * catScaleFactor, catY));
+        // Keep cat within canvas bounds
+        if (catX < 0) {
+            catX = 0;
+            catVelocityX = 0;
+        }
+        if (catX + catWidth * catScaleFactor > canvas.width) {
+            catX = canvas.width - catWidth * catScaleFactor;
+            catVelocityX = 0;
+        }
+        if (catY < 0) {
+            catY = 0;
+            catVelocityY = 0;
+        }
+        if (catY + catHeight * catScaleFactor > canvas.height) {
+            catY = canvas.height - catHeight * catScaleFactor;
+            catVelocityY = 0;
+        }
     }
 
-    function startSurfMove() {
-        currentSurfMove = surfMoves[Math.floor(Math.random() * surfMoves.length)];
-        surfMoveStartTime = Date.now();
-        surfMoveProgress = 0;
-        console.log(`Starting surf move: ${currentSurfMove.name}`);
-    }
-
-    function updateSurfMove() {
-        const elapsedTime = Date.now() - surfMoveStartTime;
-        surfMoveProgress = Math.min(elapsedTime / 1000, 1); // Max 1 second for full animation
-    }
-
-    function endSurfMove() {
-        const endDuration = 500; // 0.5 seconds to return to normal
-        const endStartTime = Date.now();
-
-        function animateEnd() {
-            const elapsedTime = Date.now() - endStartTime;
-            const endProgress = Math.min(elapsedTime / endDuration, 1);
-            surfMoveProgress = 1 - endProgress;
-
-            if (endProgress < 1) {
-                requestAnimationFrame(animateEnd);
-            } else {
-                currentSurfMove = null;
-                surfMoveProgress = 0;
+    function updateGameObjects(deltaTime) {
+        // Update game objects (fish, obstacles, etc.)
+        gameObjects.forEach((obj, index) => {
+            obj.update(deltaTime);
+            if (obj.shouldRemove) {
+                gameObjects.splice(index, 1);
             }
-        }
-
-        animateEnd();
+        });
     }
 
-    // Function to check if the device is mobile
-    function checkMobile() {
-        isMobile = window.innerWidth <= mobileBreakpoint;
-    }
-
-    // Call this function initially and on window resize
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-
-    const DEBUG_MODE = false; // Set this to false to hide debug info
-
-    let isCatImageReady = false;
-
-    // Modify the imageLoaded function for the cat image
-    catImage.onload = function() {
-        isCatImageReady = true;
-        imageLoaded();
-    };
-
-    // Add these variables to manage scaling
-    let catScaleFactor = 0.665; // Reduced from 0.7 to 0.665 for a 5% decrease
-    const CATNIP_SCALE_FACTOR = 1.1025; // Reduced from 1.225 to 1.1025 for a 10% decrease
-
-    // Modify the drawCat function
     function drawCat() {
-        if (!isCatImageReady) {
-            console.warn('Cannot draw cat - image not ready');
-            return; // Exit early if the image is not ready
-        }
-
-        // Calculate the target scale factor based on the mode
-        const targetScaleFactor = isCatnipMode ? CATNIP_SCALE_FACTOR : 0.665;
-
-        // Smoothly transition the scale factor
-        catScaleFactor += (targetScaleFactor - catScaleFactor) * 0.1; // Adjust the 0.1 for faster/slower transition
-
         ctx.save();
-        ctx.translate(catX + (catImage.naturalWidth * catScaleFactor) / 2, catY + (catImage.naturalHeight * catScaleFactor) / 2);
-
-        // Apply trick rotation if any
-        const rotation = Tricks.getTrickRotation();
-        if (rotation > 0) {
-            ctx.rotate(rotation);
-        }
-
+        const scaledWidth = catWidth * catScaleFactor;
+        const scaledHeight = catHeight * catScaleFactor;
+        
+        // Calculate center point for rotation
+        const centerX = catX + scaledWidth / 2;
+        const centerY = catY + scaledHeight / 2;
+        
+        // Apply trick animations if performing a trick
+        const isAnimating = applyTrickAnimation(
+            ctx, 
+            centerX, 
+            centerY, 
+            catX, 
+            catY, 
+            scaledWidth, 
+            scaledHeight, 
+            catFacingRight
+        );
+        
         if (!catFacingRight) {
             ctx.scale(-1, 1);
+            ctx.drawImage(catImage, -catX - scaledWidth, catY, scaledWidth, scaledHeight);
+        } else {
+            ctx.drawImage(catImage, catX, catY, scaledWidth, scaledHeight);
         }
-
-        try {
-            // Scale the cat image
-            ctx.scale(catScaleFactor, catScaleFactor);
-            ctx.drawImage(catImage, -catImage.naturalWidth / 2, -catImage.naturalHeight / 2);
-        } catch (error) {
-            console.error('Error drawing cat:', error);
-        }
-
         ctx.restore();
     }
 
-    // Near the top of the file, update these audio elements
-    const fishCatchSound1 = new Audio('./assets/cat-meow-1.MP3');
-    const fishCatchSound2 = new Audio('./assets/cat-bite-1.MP3');
-    const fishCatchSound3 = new Audio('./assets/cat-meow-2.MP3');
-
-    // Add this near the top of your script with other initializations
-    const fishCatchSounds = [
-        fishCatchSound1,
-        fishCatchSound2,
-        fishCatchSound3
-    ];
-    let currentSoundIndex = 0;
-
-    function playNextFishCatchSound() {
-        const currentSound = fishCatchSounds[currentSoundIndex];
-        
-        // Only play if the current sound is not already playing
-        if (currentSound.paused) {
-            currentSound.play().catch(e => console.error("Error playing sound:", e));
-            
-            // Move to the next sound for the next catch
-            currentSoundIndex = (currentSoundIndex + 1) % fishCatchSounds.length;
-        }
-    }
-
-    // Modify fishArray to include both fish and trash
-    let gameObjects = [];
-
-    // Adjust these constants for better object speeds
-    const BASE_SPEED = 200; // Base speed for all objects
-    const SPEED_VARIATION = 50; // How much random variation to add
-
-    // Function to show a toast notification
-    function showToast(message, points, emoji = '🐟') {
-        const existingToast = document.querySelector('.toast-notification');
-        if (existingToast) {
-            existingToast.remove(); // Remove any existing toast
-        }
-
-        const toast = document.createElement('div');
-        toast.className = 'toast-notification';
-        toast.innerHTML = `
-            <div class="reaction">${emoji}</div>
-            <div class="trick-name">${message}</div>
-            <div class="points">+${points} PTS</div>
-        `;
-
-        document.body.appendChild(toast);
-
-        setTimeout(() => {
-            toast.remove();
-        }, 2000); // Adjust the duration as needed
-    }
-
-    // Modify the updateGameObjects function
-    function updateGameObjects(deltaTime) {
-        const currentTime = Date.now();
-        
-        // Spawn new objects
-        if (Math.random() < fishSpawnRate) { // Only spawn fish and collectibles
-            spawnObject();
-        }
-        
-        for (let i = gameObjects.length - 1; i >= 0; i--) {
-            const obj = gameObjects[i];
-            
-            if (obj.type === 'mouse') {
-                if (!obj.hasMimicked) {
-                    const dx = (catX + catWidth / 2) - (obj.x + obj.width / 2);
-                    const dy = (catY + catHeight / 2) - (obj.y + obj.height / 2);
-                    const distance = Math.sqrt(dx * dx + dy * dy);
-
-                    obj.directionX = dx / distance;
-                    obj.directionY = dy / distance;
-                    obj.hasMimicked = true;
-                }
-
-                obj.x += obj.directionX * obj.speed * deltaTime;
-                obj.y += obj.directionY * obj.speed * deltaTime;
-            } else {
-                obj.x -= obj.speed * deltaTime;
-            }
-
-            if (obj.x + obj.width < 0 || obj.y + obj.height < 0 || obj.y > canvas.height) {
-                gameObjects.splice(i, 1);
-                continue;
-            }
-
-            const catCenterX = catX + (catWidth * catScaleFactor) / 2;
-            const catCenterY = catY + (catHeight * catScaleFactor) / 2;
-            const objCenterX = obj.x + obj.width / 2;
-            const objCenterY = obj.y + obj.height / 2;
-
-            const distanceX = Math.abs(catCenterX - objCenterX);
-            const distanceY = Math.abs(catCenterY - objCenterY);
-
-            // Adjust the collision boundary by increasing the margin
-            const collisionMargin = 0.7; // Reduced from 0.8 to 0.7 for a smaller collision boundary
-
-            if (distanceX < (catWidth * catScaleFactor + obj.width) / 2 * collisionMargin &&
-                distanceY < (catHeight * catScaleFactor + obj.height) / 2 * collisionMargin) {
-                
-                gameObjects.splice(i, 1);
-                
-                switch(obj.type) {
-                    case 'mouse':
-                        catHealth = Math.max(0, catHealth - MOUSE_DAMAGE);
-                        updateHealthBar();
-                        mediaPlayer.playHurtSound();
-                        isFlashing = true;
-                        isPositiveFlash = false;
-                        flashColor = 'red';
-                        flashAlpha = 0.5;
-                        flashStartTime = Date.now();
-                        break;
-                        
-                    case 'tuna':
-                    case 'buffalo-fish':
-                    case 'salmon':
-                        score += obj.points;
-                        catHealth = Math.min(maxCatHealth, catHealth + obj.health);
-                        updateScore();
-                        updateHealthBar();
-                        mediaPlayer.playYumSound();
-                        showToast(obj.type.charAt(0).toUpperCase() + obj.type.slice(1), obj.points);
-                        isFlashing = true;
-                        isPositiveFlash = true;
-                        flashAlpha = 0.2;
-                        flashStartTime = Date.now();
-                        break;
-                        
-                    case 'catnip':
-                        score += obj.points * (isCatnipMode ? 2 : 1);
-                        catHealth = Math.min(maxCatHealth, catHealth + obj.health);
-                        updateScore();
-                        updateHealthBar();
-                        mediaPlayer.playCatnipSound();
-                        showToast('Catnip', obj.points, '🌿');
-                        isFlashing = true;
-                        flashAlpha = 0.2;
-                        flashStartTime = Date.now();
-                        
-                        startCatnipMode();
-                        break;
-                }
-
-                if (catHealth <= 0) {
-                    gameOver();
-                }
-            }
-        }
-
-        if (isFlashing && Date.now() - flashStartTime > flashDuration) {
-            isFlashing = false;
-        }
-
-        if (catHealth <= 0) {
-            gameOver();
-        }
-
-        if (Tricks.trickNameDisplayTime > 0) {
-            Tricks.setTrickNameDisplayTime(Tricks.trickNameDisplayTime - deltaTime);
-        }
-    }
-
-    // Add a separate spawn rate for catnip
-    const CATNIP_SPAWN_RATE = 0.05; // 5x the previous rate of 0.01
-
-    let isCatnipMode = false;
-    let catnipModeStartTime = 0;
-    const CATNIP_MODE_DURATION = 9000; // 9 seconds
-    let originalFishSpawnRate = INITIAL_FISH_SPAWN_RATE; // Store original fish spawn rate
-    let lastCatnipEndTime = 0; // Track the last time catnip mode ended
-    const CATNIP_COOLDOWN = 30000; // 30 seconds cooldown
-
-    function spawnObject() {
-        const currentTime = Date.now();
-        const minY = canvas.height * 0.25;
-        const maxY = canvas.height - 50;
-        const objectY = minY + Math.random() * (maxY - minY);
-        
-        // Log spawning of objects
-        console.log('Spawning object at Y:', objectY);
-        
-        // Prevent ninja rats from spawning during catnip mode
-        if (!isCatnipMode) {
-            const existingRats = gameObjects.filter(obj => obj.type === 'mouse');
-            if (existingRats.length === 0 && currentTime - lastMouseSpawnTime > MOUSE_SPAWN_INTERVAL) {
-                const dx = (catX + catWidth / 2) - (canvas.width + MOUSE_WIDTH / 2);
-                const dy = (catY + catHeight / 2) - objectY;
-                const distance = Math.sqrt(dx * dx + dy * dy);
-
-                const dirX = dx / distance;
-                const dirY = dy / distance;
-                const aggressiveSpeed = BASE_SPEED * 1.5;
-
-                gameObjects.push({
-                    x: canvas.width,
-                    y: objectY,
-                    width: MOUSE_WIDTH,
-                    height: MOUSE_HEIGHT,
-                    type: 'mouse',
-                    speed: aggressiveSpeed,
-                    directionX: dirX,
-                    directionY: dirY,
-                    hasMimicked: false
-                });
-                lastMouseSpawnTime = currentTime;
-                console.log('Spawned mouse at:', objectY);
-                return;
-            }
-        }
-
-        // Determine if catnip should spawn, considering cooldown
-        if (!isCatnipMode && currentTime - lastCatnipEndTime > CATNIP_COOLDOWN && Math.random() < CATNIP_SPAWN_RATE) {
-            const catnip = COLLECTIBLES.find(item => item.type === 'catnip');
-            gameObjects.push({
-                x: canvas.width,
-                y: objectY,
-                width: catnip.width,
-                height: catnip.height,
-                type: catnip.type,
-                points: catnip.points,
-                health: catnip.health,
-                speed: BASE_SPEED + Math.random() * SPEED_VARIATION
-            });
-            console.log('Spawned catnip at:', objectY);
-        } else {
-            // Spawn a random fish
-            const fish = COLLECTIBLES.filter(item => item.type !== 'catnip');
-            const collectible = fish[Math.floor(Math.random() * fish.length)];
-            gameObjects.push({
-                x: canvas.width,
-                y: objectY,
-                width: collectible.width,
-                height: collectible.height,
-                type: collectible.type,
-                points: collectible.points,
-                health: collectible.health,
-                speed: BASE_SPEED + Math.random() * SPEED_VARIATION
-            });
-            console.log('Spawned fish:', collectible.type, 'at:', objectY);
-        }
-    }
-
-    // Modify the drawGameObjects function
     function drawGameObjects() {
-        const time = Date.now() / 1000; // Get the current time in seconds
-
-        for (let obj of gameObjects) {
-            console.log('Drawing object:', obj.type, 'at X:', obj.x, 'Y:', obj.y);
-            if (obj.type === 'mouse' && (!mouseImage || !mouseImage.complete)) {
-                continue;
-            }
-            if (obj.type === 'tuna' && (!tunaImage || !tunaImage.complete)) {
-                continue;
-            }
-            if (obj.type === 'buffalo-fish' && (!buffaloFishImage || !buffaloFishImage.complete)) {
-                continue;
-            }
-            if (obj.type === 'salmon' && (!salmonImage || !salmonImage.complete)) {
-                continue;
-            }
-            if (obj.type === 'catnip' && (!catnipImage || !catnipImage.complete)) {
-                continue;
-            }
-
-            try {
-                if (obj.type === 'catnip' && catnipImage) {
-                    // Draw a glowing radial gradient behind the catnip
-                    const gradient = ctx.createRadialGradient(
-                        obj.x + obj.width / 2, 
-                        obj.y + obj.height / 2, 
-                        0, 
-                        obj.x + obj.width / 2, 
-                        obj.y + obj.height / 2, 
-                        obj.width
-                    );
-                    gradient.addColorStop(0, 'rgba(255, 107, 107, 0.8)'); // Coral
-                    gradient.addColorStop(0.2, 'rgba(255, 217, 61, 0.6)'); // Yellow
-                    gradient.addColorStop(0.4, 'rgba(107, 203, 119, 0.4)'); // Mint
-                    gradient.addColorStop(0.6, 'rgba(77, 150, 255, 0.2)'); // Blue
-                    gradient.addColorStop(0.8, 'rgba(155, 93, 229, 0.1)'); // Purple
-                    gradient.addColorStop(1, 'rgba(255, 107, 107, 0)'); // Coral
-
-                    ctx.save();
-                    ctx.fillStyle = gradient;
-                    ctx.fillRect(obj.x - obj.width / 2, obj.y - obj.height / 2, obj.width * 2, obj.height * 2);
-                    ctx.restore();
-
-                    // Draw the catnip image
-                    ctx.drawImage(catnipImage, obj.x, obj.y, obj.width, obj.height);
-                } else if (obj.type === 'tuna' && tunaImage) {
-                    ctx.save();
-                    const waveOffset = Math.sin(time * 1.5 + obj.x / 50) * 10; // Frequency 1.5, Amplitude 10
-                    ctx.drawImage(tunaImage, obj.x, obj.y + waveOffset, obj.width, obj.height);
-                    ctx.restore();
-                } else if (obj.type === 'buffalo-fish' && buffaloFishImage) {
-                    ctx.save();
-                    const waveOffset = Math.sin(time * 1.5 + obj.x / 50) * 10;
-                    ctx.drawImage(buffaloFishImage, obj.x, obj.y + waveOffset, obj.width, obj.height);
-                    ctx.restore();
-                } else if (obj.type === 'salmon' && salmonImage) {
-                    ctx.save();
-                    const waveOffset = Math.sin(time * 1.5 + obj.x / 50) * 10;
-                    ctx.drawImage(salmonImage, obj.x, obj.y + waveOffset, obj.width, obj.height);
-                    ctx.restore();
-                } else if (obj.type === 'mouse' && mouseImage) {
-                    ctx.drawImage(mouseImage, obj.x, obj.y, obj.width, obj.height);
-                }
-            } catch (error) {
-                console.warn(`Failed to draw object of type ${obj.type}:`, error);
-            }
-        }
+        // Draw all game objects
+        gameObjects.forEach(obj => obj.draw(ctx));
     }
-
-    // Add this function to update the health bar
-    function updateHealthBar() {
-        const healthBarFill = document.getElementById('health-bar-fill');
-        const healthText = document.getElementById('health-text');
-        
-        // Update health bar width
-        const healthPercentage = (catHealth / maxCatHealth) * 100;
-        healthBarFill.style.width = `${healthPercentage}%`;
-        
-        // Update health text to show only current health
-        healthText.textContent = `${Math.round(catHealth)}`;
-    }
-
-    // Add this function to update the score display
-    function updateScore() {
-        console.log("Updating score..."); // Debug log
-        const scoreContainer = document.getElementById('score-container');
-        const scoreNumberElement = document.getElementById('score-number');
-        console.log("Score elements:", scoreContainer, scoreNumberElement); // Debug log
-        if (scoreContainer && scoreNumberElement) {
-            scoreNumberElement.textContent = score;
-            
-            if (isFirstScoreUpdate) {
-                scoreNumberElement.style.color = 'white';
-                isFirstScoreUpdate = false;
-            } else {
-                // Get a random Hawaiian-inspired color
-                const randomColor = getRandomHawaiianColor();
-                scoreNumberElement.style.color = randomColor;
-                
-                // Trigger animation
-                scoreContainer.classList.remove('animate');
-                void scoreContainer.offsetWidth; // Trigger reflow
-                scoreContainer.classList.add('animate');
-            }
-            
-            console.log("Score updated: " + score); // Debug log
-        } else {
-            console.error("Score elements not found!"); // Debug log
-            console.log("All elements with class 'game-text':", document.getElementsByClassName('game-text')); // Debug log
-        }
-    }
-
-    function getRandomColor() {
-        const r = Math.floor(Math.random() * 256);
-        const g = Math.floor(Math.random() * 256);
-        const b = Math.floor(Math.random() * 256);
-        return `rgb(${r},${g},${b})`;
-    }
-
-    // Control cat movement
-    const keys = {};
-    window.addEventListener("keydown", (e) => {
-        keys[e.key] = true;
-    });
-    window.addEventListener("keyup", (e) => {
-        keys[e.key] = false;
-    });
-
-    // Adjust these values to fine-tune touch sensitivity
-    const touchSensitivity = 0.35; // Further increased for more sensitive touch
-    const touchMaxSpeed = 35; // Further increased for higher speed from touch input
-
-    let touchStartX = 0;
-    let touchStartY = 0;
-    let lastTouchX = 0;
-    let lastTouchY = 0;
-
-    // Add touch event listeners
-    canvas.addEventListener('touchstart', handleTouchStart, false);
-    canvas.addEventListener('touchmove', handleTouchMove, false);
-    canvas.addEventListener('touchend', handleTouchEnd, false);
-
-    function handleTouchStart(event) {
-        event.preventDefault();
-        const touch = event.touches[0];
-        touchStartX = touch.clientX;
-        touchStartY = touch.clientY;
-        lastTouchX = touch.clientX;
-        lastTouchY = touch.clientY;
-    }
-
-    function handleTouchMove(event) {
-        event.preventDefault();
-        const touch = event.touches[0];
-
-        let dx = touch.clientX - lastTouchX;
-        let dy = touch.clientY - lastTouchY;
-
-        // Apply sensitivity
-        dx *= touchSensitivity;
-        dy *= touchSensitivity;
-
-        // Update cat velocity
-        catVelocityX += dx;
-        catVelocityY += dy;
-
-        // Limit max speed
-        const speed = Math.sqrt(catVelocityX * catVelocityX + catVelocityY * catVelocityY);
-        if (speed > touchMaxSpeed) {
-            const ratio = touchMaxSpeed / speed;
-            catVelocityX *= ratio;
-            catVelocityY *= ratio;
-        }
-
-        // Update cat facing direction
-        if (Math.abs(dx) > Math.abs(dy)) {
-            catFacingRight = dx > 0;
-        }
-
-        // Update last touch position
-        lastTouchX = touch.clientX;
-        lastTouchY = touch.clientY;
-    }
-
-    function handleTouchEnd(event) {
-        event.preventDefault();
-        // Gradually reduce velocity when touch ends
-        catVelocityX *= 0.9;
-        catVelocityY *= 0.9;
-    }
-
-    // Modify the handleInput function to work with both keyboard and touch
-    function handleInput() {
-        if (isGameRunning) {
-            if (keys["ArrowUp"]) catVelocityY -= catAcceleration;
-            if (keys["ArrowDown"]) catVelocityY += catAcceleration;
-            if (keys["ArrowLeft"]) {
-                catVelocityX -= catAcceleration;
-                catFacingRight = false;
-            }
-            if (keys["ArrowRight"]) {
-                catVelocityX += catAcceleration;
-                catFacingRight = true;
-            }
-
-            // Limit max speed
-            const speed = Math.sqrt(catVelocityX * catVelocityX + catVelocityY * catVelocityY);
-            if (speed > catMaxSpeed) {
-                const ratio = catMaxSpeed / speed;
-                catVelocityX *= ratio;
-                catVelocityY *= ratio;
-            }
-        }
-    }
-
-    // Add event listeners for start and stop buttons
-    document.getElementById('start-button').addEventListener('click', startGame);
-    document.getElementById('stop-button').addEventListener('click', stopGame);
-
-    // Add this event listener near the top of your file, or where you have other event listeners
-    document.addEventListener('keydown', handleKeyDown);
-
-    function handleKeyDown(event) {
-        if (event.code === 'Space') {
-            event.preventDefault(); // Prevent scrolling
-            if (!isGameRunning) {
-                startGame();
-            } else if (!isGameOver) {
-                handleTrick(); // Call handleTrick here
-            }
-        }
-        
-        // Keep your existing key handling for game controls here
-        if (isGameRunning && !isGameOver) {
-            switch(event.code) {
-                case 'ArrowLeft':
-                    leftPressed = true;
-                    break;
-                case 'ArrowRight':
-                    rightPressed = true;
-                    break;
-                case 'ArrowUp':
-                    upPressed = true;
-                    break;
-                case 'ArrowDown':
-                    downPressed = true;
-                    break;
-            }
-        }
-    }
-
-    // Make sure your startGame function looks like this:
-    function startGame() {
-        if (!isGameRunning && !isPaused) {
-            isGameRunning = true;
-            isGameOver = false;
-            score = 0;
-            catHealth = maxCatHealth;
-            initializeCat();
-            gameObjects = [];
-            gameTime = 0;
-
-            mediaPlayer.startWaveSound();
-            mediaPlayer.startGameMusic();
-
-            document.getElementById('start-button').style.display = 'none';
-            document.getElementById('stop-button').style.display = 'inline-block';
-            document.getElementById('start-screen-button').style.display = 'none';
-            document.getElementById('start-screen').style.display = 'none'; // Hide start screen
-            document.getElementById('how-to-play-button').style.display = 'none'; // Hide "How to Play"
-
-            if (!gameLoopRunning) {
-                gameLoopRunning = true;
-                lastTime = performance.now();
-                requestAnimationFrame(gameLoop);
-            }
-        } else if (isPaused) {
-            isPaused = false;
-            isGameRunning = true;
-            
-            mediaPlayer.startWaveSound();
-            mediaPlayer.startGameMusic();
-        }
-    }
-
-    // And your stopGame function:
-    function stopGame() {
-        isPaused = true;
-        isGameRunning = false;
-        
-        // Update UI
-        document.getElementById('stop-button').style.display = 'none';
-        document.getElementById('start-button').style.display = 'inline-block';
-        
-        // Pause sounds
-        mediaPlayer.stopWaveSound();
-        mediaPlayer.stopAllSounds();
-
-        // Pause the background music
-        if (mediaPlayer.currentAudio) {
-            mediaPlayer.currentAudio.pause();
-            mediaPlayer.isPlaying = false;
-        }
-        if (mediaPlayer.playPauseBtn) {
-            mediaPlayer.playPauseBtn.textContent = '▶';
-        }
-    }
-
-    // Initialize the game when the DOM is fully loaded
-    document.addEventListener('DOMContentLoaded', () => {
-        initializeGame();
-
-        // Hide instructions initially
-        const instructionsContainer = document.getElementById('instructions-container');
-        instructionsContainer.style.display = 'none';
-
-        // Show instructions when "How to Play" is clicked
-        document.getElementById('how-to-play-button').addEventListener('click', () => {
-            instructionsContainer.style.display = 'block';
-            setTimeout(() => {
-                instructionsContainer.classList.add('show');
-            }, 10);
-        });
-
-        // Close instructions
-        document.getElementById('close-instructions').addEventListener('click', () => {
-            instructionsContainer.classList.remove('show');
-            instructionsContainer.classList.add('hide'); // Add hide class for smooth transition
-            setTimeout(() => {
-                instructionsContainer.style.display = 'none';
-                instructionsContainer.classList.remove('hide'); // Remove hide class after transition
-            }, 500);
-        });
-    });
-
-    // Function to resize canvas and adjust game elements
-    function resizeCanvas() {
-        canvas.width = window.innerWidth;
-        canvas.height = window.innerHeight;
-        checkMobile();
-        
-        // Adjust cat position when resizing
-        if (isMobile) {
-            catY = Math.min(catY, canvas.height - canvas.height * 0.5); // Ensure cat doesn't go off-screen
-        }
-        
-        // You might want to adjust other game element sizes here as well
-    }
-
-    window.addEventListener('resize', resizeCanvas);
-    resizeCanvas(); // Call once to set initial size
 
     function drawSurfMoveEffect() {
-        if (currentSurfMove) {
-            ctx.save();
-            ctx.font = '24px Arial';
-            ctx.fillStyle = 'white';
-            ctx.textAlign = 'center';
-            ctx.fillText(currentSurfMove.name, canvas.width / 2, 50);
-            ctx.restore();
-        }
-    }
-
-    // Add this debug function
-    function debugGameObjects() {
-        console.log('Current game objects:');
-        console.log(gameObjects);
-    }
-
-    function drawFlashOverlay() {
-        if (isFlashing) {
-            const elapsedTime = Date.now() - flashStartTime;
-            const progress = Math.min(elapsedTime / flashDuration, 1); // Calculate progress
-
-            ctx.save();
-            if (!isPositiveFlash) {
-                // Apply an ease-out transition to the opacity
-                const easeOutOpacity = flashAlpha * (1 - progress * progress);
-                ctx.fillStyle = `rgba(255, 0, 0, ${easeOutOpacity})`; // Red with dynamic opacity
-                ctx.fillRect(0, 0, canvas.width, canvas.height);
-            }
-            ctx.restore();
-
-            // Stop flashing when the duration is over
-            if (progress >= 1) {
-                isFlashing = false;
-            }
-        }
-    }
-
-    function restartGame() {
-        // Remove leaderboard screen
-        const leaderboardScreen = document.getElementById('leaderboard-screen');
-        if (leaderboardScreen) {
-            leaderboardScreen.remove();
-        }
-
-        // Reset game state
-        isGameOver = false;
-        isGameRunning = true;
-        catHealth = maxCatHealth;
-        score = 0;
-        updateScore();
-        updateHealthBar();
-
-        // Reset other game variables
-        gameObjects = [];
+        if (!isPerformingTrick || !currentTrickName) return;
         
-        // Restart the game loop if it's not running
-        if (!gameLoopRunning) {
-            gameLoopRunning = true;
-            requestAnimationFrame(gameLoop);
-        }
-    }
-
-    function drawInitialState() {
-        // Clear the canvas
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-        // Draw the cat at its starting position
-        drawCat();
-
-        // Update the health bar (using CSS version)
-        updateHealthBar();
-
-        // Any other initial game elements you want to draw
-    }
-
-    function drawBackground() {
-        // Remove the blue background fill
-        // The wave.gif will show through from the CSS background
-    }
-
-    document.fonts.ready.then(() => {
-        // Initialize your game here, or redraw if it's already initialized
-        updateHealthBar();
-    });
-
-    // Add this function to visualize the trick zone (for debugging)
-    function drawTrickZone() {
-        if (!DEBUG_MODE) return; // Exit early if debug mode is off
+        const centerX = catX + (catWidth * catScaleFactor) / 2;
+        const centerY = catY + (catHeight * catScaleFactor) / 2;
         
-        ctx.save();
-        // Draw a semi-transparent zone
-        ctx.fillStyle = 'rgba(255, 255, 0, 0.1)';
-        ctx.fillRect(0, 0, canvas.width, TRICK_THRESHOLD);
-        
-        // Draw a line at the threshold
-        ctx.strokeStyle = 'rgba(255, 255, 0, 0.5)';
-        ctx.setLineDash([5, 5]);
-        ctx.beginPath();
-        ctx.moveTo(0, TRICK_THRESHOLD);
-        ctx.lineTo(canvas.width, TRICK_THRESHOLD);
-        ctx.stroke();
-        
-        // Debug text
-        if (catY + catHeight < TRICK_THRESHOLD) {
-            ctx.fillStyle = 'lime';
-            ctx.font = '20px Silkscreen';
-            ctx.fillText('TRICK ZONE!', 10, TRICK_THRESHOLD - 10);
-        }
-        ctx.restore();
+        drawTrickEffect(ctx, centerX, centerY);
     }
 
-    // Add this with your other event listeners
-    document.addEventListener('keydown', function(event) {
-        if (event.code === 'Space' && isGameRunning && !isGameOver) {
-            handleTrick();
-        }
-    });
-
-    // Add these constants for mouse behavior
-    const MOUSE_WIDTH = 120;  // Increased from 80 to 120
-    const MOUSE_HEIGHT = 120; // Increased from 80 to 120
-    const MOUSE_SPEED = 200;  // Keep the same speed
-    const MOUSE_DAMAGE = 34; // Increased damage value
-    const MOUSE_SPAWN_INTERVAL = 5000; // Spawn a mouse every 5 seconds
-    let lastMouseSpawnTime = 0;
-
-    // Add this with the other image loading code (around line 55)
-    mouseImage.onload = imageLoaded;
-    mouseImage.src = './assets/mouse.png';
-
-    // Add these constants for the Hawaiian spectrum flash
-    const HAWAIIAN_COLORS = [
-        '#FF6B6B', // Coral
-        '#4ECDC4', // Turquoise
-        '#FFD93D', // Yellow
-        '#FF8C42', // Orange
-        '#98D9C2', // Mint
-        '#E84855', // Red
-        '#7AE7C7'  // Seafoam
-    ];
-    let colorIndex = 0;
-
-    // Add this helper function for color interpolation
-    function lerpColors(color1, color2, amount) {
-        const r1 = parseInt(color1.substring(1, 3), 16);
-        const g1 = parseInt(color1.substring(3, 5), 16);
-        const b1 = parseInt(color1.substring(5, 7), 16);
-        
-        const r2 = parseInt(color2.substring(1, 3), 16);
-        const g2 = parseInt(color2.substring(3, 5), 16);
-        const b2 = parseInt(color2.substring(5, 7), 16);
-        
-        const r = Math.round(r1 + (r2 - r1) * amount);
-        const g = Math.round(g1 + (g2 - g1) * amount);
-        const b = Math.round(b1 + (b2 - b1) * amount);
-        
-        return `#${(r << 16 | g << 8 | b).toString(16).padStart(6, '0')}`;
-    }
-
-    // Add this constant for collectible spawn rate
-    const COLLECTIBLE_SPAWN_RATE = 0.02; // Increased from 0.015
-
-    // Update the image loading section
-    tunaImage.onload = imageLoaded;
-    tunaImage.src = './assets/tuna.png';
-
-    buffaloFishImage.onload = imageLoaded;
-    buffaloFishImage.src = './assets/buffalo-fish.png';
-
-    salmonImage.onload = imageLoaded;
-    salmonImage.src = './assets/salmon.png';
-
-    catnipImage.onload = imageLoaded;
-    catnipImage.src = './assets/catnip.png';
-
-    // Add error handlers for the new images
-    tunaImage.onerror = function() {
-        console.error('Failed to load tuna image');
-        imageLoaded(); // Still call imageLoaded to avoid blocking the game
-    };
-
-    buffaloFishImage.onerror = function() {
-        console.error('Failed to load buffalo fish image');
-        imageLoaded();
-    };
-
-    salmonImage.onerror = function() {
-        console.error('Failed to load salmon image');
-        imageLoaded();
-    };
-
-    catnipImage.onerror = function() {
-        console.error('Failed to load catnip image');
-        imageLoaded();
-    };
-
-    // Add this near your other event listeners
-    function setupTrickButton() {
-        document.body.addEventListener('click', (e) => {
-            if (e.target.classList.contains('trick-button')) {
-                console.log('Trick button clicked!'); // Debug log
-                handleTrick();
-            }
-        });
-    }
-
-    // Function to start catnip mode
-    function startCatnipMode() {
-        isCatnipMode = true;
-        catnipModeStartTime = Date.now();
-        catMaxSpeed *= 2; // Increase speed by 2x
-
-        // Increase fish spawn rate by 10x
-        originalFishSpawnRate = fishSpawnRate;
-        fishSpawnRate *= 10;
-
-        // Switch to sunny cat image
-        catImage = catSunnyImage;
-
-        // Start catnip music
-        mediaPlayer.startCatnipMusic();
-
-        // Set a timeout to end catnip mode after 9 seconds
-        setTimeout(endCatnipMode, CATNIP_MODE_DURATION);
-    }
-
-    // Function to end catnip mode
-    function endCatnipMode() {
-        isCatnipMode = false;
-        catMaxSpeed /= 2; // Reset speed to normal
-
-        // Revert fish spawn rate to original
-        fishSpawnRate = originalFishSpawnRate;
-
-        // Revert to default cat image
-        catImage = new Image();
-        catImage.src = './assets/pizza-cat.png';
-
-        // Stop catnip music and resume normal music
-        mediaPlayer.stopCatnipMusic();
-
-        // Record the time catnip mode ended
-        lastCatnipEndTime = Date.now();
-    }
-
-    // Function to draw a spinning halo around the cat
-    function drawCatnipHalo() {
-        ctx.save();
-        ctx.translate(catX + catWidth / 2, catY + catHeight / 2);
-        ctx.rotate((Date.now() - catnipModeStartTime) / 1000); // Rotate over time
-        ctx.strokeStyle = 'rgba(255, 255, 0, 0.8)'; // Yellow halo
-        ctx.lineWidth = 5;
-        ctx.beginPath();
-        ctx.arc(0, 0, catWidth / 2 + 10, 0, Math.PI * 2);
-        ctx.stroke();
-        ctx.restore();
-    }
-
-    // Function to draw a multi-color overlay
     function drawCatnipOverlay() {
         ctx.save();
-        ctx.globalAlpha = 0.3; // Adjust opacity
-        const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
-        gradient.addColorStop(0, '#FF6B6B');
-        gradient.addColorStop(0.2, '#FFD93D');
-        gradient.addColorStop(0.4, '#6BCB77');
-        gradient.addColorStop(0.6, '#4D96FF');
-        gradient.addColorStop(0.8, '#9B5DE5');
-        gradient.addColorStop(1, '#FF6B6B');
-        ctx.fillStyle = gradient;
+        ctx.fillStyle = 'rgba(0, 255, 0, 0.2)';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
         ctx.restore();
     }
 
-    document.getElementById('close-instructions').addEventListener('click', () => {
-        const instructionsContainer = document.getElementById('instructions-container');
-        instructionsContainer.classList.remove('show');
-        instructionsContainer.classList.add('hide'); // Add hide class for smooth transition
-        setTimeout(() => {
-            instructionsContainer.style.display = 'none';
-            instructionsContainer.classList.remove('hide'); // Remove hide class after transition
-        }, 500);
-    });
-
-    document.getElementById('how-to-play-button').addEventListener('click', () => {
-        const instructionsContainer = document.getElementById('instructions-container');
-        instructionsContainer.style.display = 'block';
-        setTimeout(() => {
-            instructionsContainer.classList.add('show');
-        }, 10); // Slight delay to trigger transition
-    });
-
-    function showInstructions() {
-        const instructionsContainer = document.getElementById('instructions-container');
-        const gameContainer = document.getElementById('game-container');
-
-        gameContainer.classList.add('blur'); // Add blur effect
-        instructionsContainer.style.display = 'block';
-        setTimeout(() => {
-            instructionsContainer.classList.add('show');
-        }, 10);
-    }
-
-    function hideInstructions() {
-        const instructionsContainer = document.getElementById('instructions-container');
-        const gameContainer = document.getElementById('game-container');
-
-        instructionsContainer.classList.remove('show');
-        instructionsContainer.classList.add('hide'); // Add hide class for smooth transition
-        setTimeout(() => {
-            instructionsContainer.style.display = 'none';
-            instructionsContainer.classList.remove('hide'); // Remove hide class after transition
-            gameContainer.classList.remove('blur'); // Remove blur effect
-        }, 500);
-    }
-
-    document.getElementById('how-to-play-button').addEventListener('click', showInstructions);
-    document.getElementById('close-instructions').addEventListener('click', hideInstructions);
-
-    catImage.onerror = function() {
-        console.error('Failed to load cat image.'); // Error log
-    };
-
-    catSunnyImage.onerror = function() {
-        console.error('Failed to load sunny cat image.');
-    };
-
-    fishImage.onerror = function() {
-        console.error('Failed to load fish image.');
-    };
-
-    function draw() {
-        // Clear the canvas
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
+    function drawFlashOverlay() {
+        const currentTime = performance.now();
+        const flashProgress = (currentTime - flashStartTime) / flashDuration;
         
-        // Draw the cat only if the game is running
-        if (isGameRunning) {
-            drawCat();
-        }
-        
-        // Draw other game elements if needed
-        drawGameObjects();
-        drawSurfMoveEffect();
-        drawTrickZone();
-
-        // Draw catnip overlay if in catnip mode
-        if (isCatnipMode) {
-            drawCatnipOverlay();
-        }
-
-        // Draw flash overlay if flashing
-        drawFlashOverlay();
-    }
-
-    function handleTrick() {
-        if (isGameRunning && !isGameOver) {
-            console.log("Attempting trick...");
-            const scoreIncrease = performTrick(
-                catY,
-                catHeight,
-                TRICK_THRESHOLD,
-                isGameRunning,
-                isGameOver,
-                score,
-                updateScore
-            );
-            if (scoreIncrease > 0) {
-                score += scoreIncrease;
-                updateScore();
-                console.log("Trick performed! Score increased.");
-            } else {
-                console.log("Trick not performed.");
-            }
+        if (flashProgress >= 1) {
+            isFlashing = false;
+        } else {
+            ctx.save();
+            ctx.fillStyle = `${flashColor}`;
+            ctx.globalAlpha = flashAlpha * (1 - flashProgress);
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.restore();
         }
     }
 
-    document.getElementById('start-screen-button').addEventListener('click', () => {
-        // Start the game logic here
-
-        // Move the speaker icon up
-        const volumeControl = document.getElementById('volume-control');
-        volumeControl.style.bottom = '70px'; // Adjust to align with the pause button
-    });
-
-    const startButton = document.getElementById('start-button');
-    const stopButton = document.getElementById('stop-button');
-
-    startButton.addEventListener('click', () => {
-        // Start the game logic here
-        startButton.style.display = 'none';
-        stopButton.style.display = 'block';
-    });
-
-    stopButton.addEventListener('click', () => {
-        // Pause the game logic here
-        stopButton.style.display = 'none';
-        startButton.style.display = 'block';
-    });
+    // Start the game initialization
+    initGame();
 })();

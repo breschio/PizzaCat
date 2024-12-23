@@ -9,7 +9,6 @@
   <link rel="stylesheet" href="style.css">
   <link rel="icon" type="image/x-icon" href="favicon.ico">
   <title>PIZZA CAT</title>
-  <link rel="preload" href="./assets/mouse.png" as="image" type="image/png">
   <script type="module" src="firebase-config.js"></script>
 </head>
 <body>
@@ -18,6 +17,9 @@
       <div id="game-title" class="game-text">PIZZA CAT</div>
     </div>
     <canvas id="gameCanvas"></canvas>
+    <div id="trick-zone" class="trick-zone">
+        <span class="trick-zone-label">TRICK ZONE</span>
+    </div>
     <div id="health-bar-container">
       <div class="health-label">HEALTH</div>
       <div id="health-bar-background">
@@ -58,6 +60,31 @@
     <button id="how-to-play-button" class="game-text link-button">How to Play</button>
     <div id="start-screen">
         <img id="start-cat" src="./assets/pizza-cat.png" alt="Start Cat" />
+    </div>
+  </div>
+  <div id="debug-panel" class="debug-panel">
+    <div class="debug-header">DEBUG INFO</div>
+    <div class="debug-content">
+        <div class="debug-row">
+            <span class="debug-label">Cat Position:</span>
+            <span id="debug-position" class="debug-value">(0, 0)</span>
+        </div>
+        <div class="debug-row">
+            <span class="debug-label">Velocity:</span>
+            <span id="debug-velocity" class="debug-value">(0, 0)</span>
+        </div>
+        <div class="debug-row">
+            <span class="debug-label">In Trick Zone:</span>
+            <span id="debug-trick-zone" class="debug-value">false</span>
+        </div>
+        <div class="debug-row">
+            <span class="debug-label">Current Collision:</span>
+            <span id="debug-collision" class="debug-value">none</span>
+        </div>
+        <div class="debug-row">
+            <span class="debug-label">Current Trick:</span>
+            <span id="debug-trick" class="debug-value">none</span>
+        </div>
     </div>
   </div>
   <script src="game.js" type="module"></script>
