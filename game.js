@@ -12,6 +12,8 @@ import {
     currentTrickName,
     trickStartTime
 } from './tricks.js';
+import { spawnGameObject, updateSpawnRates, Fish, Mouse } from './gameObjects.js';
+import { mediaPlayer } from './mediaPlayer.js';
 
 (function() {
     // 1. Game Setup & Configuration
@@ -99,6 +101,9 @@ import {
     // Catnip Mode
     let isCatnipMode = false;
     
+    // Media Player - use the imported instance
+    const mediaPlayerInstance = mediaPlayer;
+    
     // 3. Constants
     // ---------------------------
     const INITIAL_MAX_TRASH_ITEMS = 3;
@@ -122,8 +127,8 @@ import {
     const INITIAL_WAVE_SPEED = 2;
     const MAX_WAVE_SPEED = 8;
     const TIME_TO_MAX_SPEED = 300;
-    const INITIAL_FISH_SPAWN_RATE = 0.02;
-    const MAX_FISH_SPAWN_RATE = 0.03;
+    const INITIAL_FISH_SPAWN_RATE = 0.5;
+    const MAX_FISH_SPAWN_RATE = 0.7;
     let fishSpawnRate = INITIAL_FISH_SPAWN_RATE;
     
     // 4. Asset Loading
@@ -165,6 +170,7 @@ import {
     // Asset loading system
     function loadAssets() {
         return new Promise((resolve, reject) => {
+            console.log('Starting asset loading...');
             // Remove existing preload link if it exists
             const existingPreload = document.querySelector('link[rel="preload"][as="image"][href*="mouse.png"]');
             if (existingPreload) {
@@ -178,14 +184,16 @@ import {
                     assetsLoaded++;
                     console.log(`Loaded ${key} (${assetsLoaded}/${totalAssets})`);
                     if (assetsLoaded === totalAssets) {
+                        console.log('All assets loaded successfully');
                         resolve();
                     }
                 };
                 img.onerror = (err) => {
-                    console.error(`Failed to load ${key}:`, err);
+                    console.error(`Failed to load ${key} from path ${path}:`, err);
                     reject(err);
                 };
                 img.src = path;
+                console.log(`Loading ${key} from ${path}`);
                 
                 // Assign to the corresponding image variable
                 switch(key) {
@@ -349,6 +357,10 @@ import {
         }
     }
 
+    // Add game start time tracking
+    let gameStartTime = 0;
+    let lastSpawnTime = 0;
+
     function startGame() {
         console.log('Starting game...');
         
@@ -375,6 +387,8 @@ import {
         isGameRunning = true;
         gameLoopRunning = true;
         lastTime = performance.now();
+        gameStartTime = lastTime;
+        lastSpawnTime = lastTime;
         requestAnimationFrame(gameLoop);
         
         console.log('Game started!');
@@ -542,15 +556,59 @@ import {
     function update(deltaTime) {
         if (isGameOver || !isGameRunning || isPaused) return;
 
+        const currentTime = performance.now();
         const scaledHeight = catHeight * catScaleFactor;
         
         // Check if we should update trick zone state
-        const currentTime = performance.now();
         if (!isPerformingTrick || (currentTime - lastTrickTime > TRICK_COOLDOWN)) {
             inTrickZone = catY + scaledHeight < canvas.height * (1/3);
             if (inTrickZone) {
                 activateTrickZone();
             }
+        }
+        
+        // Update spawn rates based on time
+        const { fishSpawnRate: newFishSpawnRate } = updateSpawnRates(
+            currentTime,
+            gameStartTime,
+            INITIAL_FISH_SPAWN_RATE,
+            MAX_FISH_SPAWN_RATE,
+            TIME_TO_MAX_SPEED
+        );
+        fishSpawnRate = newFishSpawnRate;
+
+        // Spawn new objects
+        if (currentTime - lastSpawnTime > 1000) { // Check every second
+            console.log('Checking spawn conditions:', {
+                fishSpawnRate,
+                randomValue: Math.random(),
+                gameObjects: gameObjects.length
+            });
+            
+            if (Math.random() < fishSpawnRate) {
+                const fish = spawnGameObject(canvas, {
+                    tuna: tunaImage,
+                    buffaloFish: buffaloFishImage,
+                    salmon: salmonImage
+                }, 'fish');
+                gameObjects.push(fish);
+                console.log('Spawned fish:', {
+                    type: fish.type,
+                    x: fish.x,
+                    y: fish.y,
+                    imageLoaded: !!fish.image
+                });
+            }
+            if (Math.random() < fishSpawnRate * 0.5) { // Mice spawn less frequently
+                const mouse = spawnGameObject(canvas, { mouse: mouseImage }, 'mouse');
+                gameObjects.push(mouse);
+                console.log('Spawned mouse:', {
+                    x: mouse.x,
+                    y: mouse.y,
+                    imageLoaded: !!mouse.image
+                });
+            }
+            lastSpawnTime = currentTime;
         }
         
         updateTrickZone(catY, scaledHeight, deltaTime, canvas);
@@ -655,8 +713,38 @@ import {
 
     function updateGameObjects(deltaTime) {
         // Update game objects (fish, obstacles, etc.)
+        const scaledWidth = catWidth * catScaleFactor;
+        const scaledHeight = catHeight * catScaleFactor;
+
         gameObjects.forEach((obj, index) => {
             obj.update(deltaTime);
+
+            // Check for collisions
+            if (obj.checkCollision(catX, catY, scaledWidth, scaledHeight)) {
+                if (obj instanceof Fish) {
+                    // Caught a fish - increase score based on fish type
+                    score += obj.points;
+                    updateScore();
+                    mediaPlayerInstance.playNextFishCatchSound();
+                    obj.shouldRemove = true;
+                    
+                    // Show score popup
+                    showScorePopup(obj.points, obj.type);
+                } else if (obj instanceof Mouse) {
+                    // Hit by a mouse - take damage
+                    catHealth = Math.max(0, catHealth - MOUSE_DAMAGE);
+                    updateHealthBar();
+                    mediaPlayerInstance.playHurtSound();
+                    obj.shouldRemove = true;
+
+                    // Game over if health reaches 0
+                    if (catHealth <= 0) {
+                        isGameOver = true;
+                        // Add any game over logic here
+                    }
+                }
+            }
+
             if (obj.shouldRemove) {
                 gameObjects.splice(index, 1);
             }
@@ -695,7 +783,16 @@ import {
 
     function drawGameObjects() {
         // Draw all game objects
-        gameObjects.forEach(obj => obj.draw(ctx));
+        console.log('Drawing game objects:', gameObjects.length);
+        gameObjects.forEach(obj => {
+            console.log('Drawing object:', {
+                type: obj instanceof Fish ? 'Fish' : 'Mouse',
+                x: obj.x,
+                y: obj.y,
+                imageLoaded: !!obj.image
+            });
+            obj.draw(ctx);
+        });
     }
 
     function drawSurfMoveEffect() {
@@ -727,6 +824,28 @@ import {
             ctx.fillRect(0, 0, canvas.width, canvas.height);
             ctx.restore();
         }
+    }
+
+    function showScorePopup(points, fishType) {
+        // Create a score popup element
+        const popup = document.createElement('div');
+        popup.className = 'score-popup';
+        popup.textContent = `+${points}`;
+        
+        // Add fish type specific class for different colors
+        popup.classList.add(`fish-${fishType}`);
+        
+        // Position it at the cat's location
+        popup.style.left = `${catX + (catWidth * catScaleFactor) / 2}px`;
+        popup.style.top = `${catY}px`;
+        
+        // Add it to the game container
+        document.getElementById('game-container').appendChild(popup);
+        
+        // Remove it after animation
+        setTimeout(() => {
+            popup.remove();
+        }, 1000);
     }
 
     // Start the game initialization

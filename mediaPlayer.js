@@ -20,28 +20,6 @@ class MediaPlayer {
         this.volumeSliderTimeout = null;
         this.SLIDER_HIDE_DELAY = 5000; // 5 seconds in milliseconds
         
-        // Add event listeners
-        // this.volumeSlider.addEventListener('input', () => {
-        //     this.updateVolume();
-        //     this.resetSliderTimeout();
-        // });
-
-        this.speakerIcon.addEventListener('click', () => this.toggleMute());
-
-        // Comment out the hover event listeners
-        // this.volumeControl.addEventListener('mouseenter', () => {
-        //     this.clearSliderTimeout();
-        //     if (!this.isMuted) {
-        //         this.showVolumeSlider();
-        //     }
-        // });
-
-        // this.volumeControl.addEventListener('mouseleave', () => {
-        //     if (!this.isMuted) {
-        //         this.startSliderTimeout();
-        //     }
-        // });
-        
         // Initialize all game sounds
         this.waveSound = new Audio('./assets/surf-sound-1.MP3');
         this.waveSound.loop = true;
@@ -65,16 +43,26 @@ class MediaPlayer {
             this.catSounds[sound].muted = true;
         }
 
+        // Initialize sound indices
         this.currentCatnipSoundIndex = 0;
+        this.currentYumSoundIndex = 0;
+        this.currentFishSoundIndex = 0;
+
+        // Initialize sound arrays
         this.catnipSounds = [
             this.catSounds.catnip1,
             this.catSounds.catnip2
         ];
 
-        this.currentYumSoundIndex = 0;
         this.yumSounds = [
             this.catSounds.yum1,
             this.catSounds.yum2
+        ];
+
+        this.fishCatchSounds = [
+            this.catSounds.meow1,
+            this.catSounds.bite,
+            this.catSounds.meow2
         ];
 
         // Load music files
@@ -89,6 +77,7 @@ class MediaPlayer {
         // Set initial volumes
         this.setInitialVolumes();
 
+        // Add event listeners
         document.addEventListener('click', (event) => {
             const isClickInside = this.volumeControl.contains(event.target);
             if (!isClickInside && !this.isMuted) {
@@ -100,24 +89,7 @@ class MediaPlayer {
             event.stopPropagation();
         });
 
-        this.fishCatchSounds = [
-            this.catSounds.meow1,
-            this.catSounds.bite,
-            this.catSounds.meow2
-        ];
-
-        console.log("Cat sounds:", {
-            meow1: this.catSounds.meow1.src,
-            meow2: this.catSounds.meow2.src,
-            bite: this.catSounds.bite.src,
-            hurt: this.catSounds.hurt.src,
-            yum1: this.catSounds.yum1.src,
-            yum2: this.catSounds.yum2.src,
-            catnip1: this.catSounds.catnip1.src,
-            catnip2: this.catSounds.catnip2.src,
-            mewoabunga: this.catSounds.mewoabunga.src,
-            pizzaCat: this.catSounds.pizzaCat.src
-        });
+        this.speakerIcon.addEventListener('click', () => this.toggleMute());
     }
 
     toggleMute() {
@@ -272,11 +244,25 @@ class MediaPlayer {
     }
 
     playNextFishCatchSound() {
-        const currentSound = this.fishCatchSounds[this.currentFishSoundIndex];
-        if (currentSound.paused) {
-            currentSound.currentTime = 0;
-            currentSound.play().catch(e => console.error("Error playing fish catch sound:", e));
-            this.currentFishSoundIndex = (this.currentFishSoundIndex + 1) % this.fishCatchSounds.length;
+        try {
+            if (!this.fishCatchSounds || this.fishCatchSounds.length === 0) {
+                console.warn('No fish catch sounds available');
+                return;
+            }
+
+            const currentSound = this.fishCatchSounds[this.currentFishSoundIndex];
+            if (!currentSound) {
+                console.warn('Invalid fish catch sound index');
+                return;
+            }
+
+            if (currentSound.paused) {
+                currentSound.currentTime = 0;
+                currentSound.play().catch(e => console.error("Error playing fish catch sound:", e));
+                this.currentFishSoundIndex = (this.currentFishSoundIndex + 1) % this.fishCatchSounds.length;
+            }
+        } catch (error) {
+            console.error('Error in playNextFishCatchSound:', error);
         }
     }
 
