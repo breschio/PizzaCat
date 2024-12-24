@@ -86,23 +86,77 @@ function getFishPoints(type) {
 export class Mouse extends GameObject {
     constructor(x, y, image) {
         super(x, y, 128, 128, image, 250 + Math.random() * 50);
+        this.rotation = 0;
+        this.isSpinning = false;
+        this.spinSpeed = 0;
+        this.upwardVelocity = 0;
+    }
+
+    update(deltaTime) {
+        if (this.isSpinning) {
+            // Spin and move upward when hit during catnip mode
+            this.rotation += this.spinSpeed * deltaTime;
+            this.y -= this.upwardVelocity * deltaTime;
+            this.x += this.speed * 2 * deltaTime; // Move faster to the right
+            this.upwardVelocity -= 500 * deltaTime; // Add gravity effect
+            
+            // Mark for removal if off screen
+            if (this.x > window.innerWidth || this.y > window.innerHeight) {
+                this.shouldRemove = true;
+            }
+        } else {
+            // Normal movement from right to left
+            this.x -= this.speed * deltaTime;
+            
+            // Mark for removal if off screen to the left
+            if (this.x + this.width < 0) {
+                this.shouldRemove = true;
+            }
+        }
+    }
+
+    draw(ctx) {
+        ctx.save();
+        
+        // If spinning, rotate around center
+        if (this.isSpinning) {
+            const centerX = this.x + this.width / 2;
+            const centerY = this.y + this.height / 2;
+            ctx.translate(centerX, centerY);
+            ctx.rotate(this.rotation);
+            ctx.translate(-centerX, -centerY);
+        }
+        
+        ctx.drawImage(this.image, this.x, this.y, this.width, this.height);
+        ctx.restore();
+    }
+
+    startSpinning() {
+        this.isSpinning = true;
+        this.spinSpeed = 10 + Math.random() * 5; // Random spin speed
+        this.upwardVelocity = 300 + Math.random() * 200; // Random upward velocity
+        this.speed = -this.speed; // Reverse horizontal direction
+    }
+}
+
+export class Catnip extends GameObject {
+    constructor(x, y, image) {
+        super(x, y, 80, 80, image, 150 + Math.random() * 50); // Smaller size than fish, medium speed
+        this.duration = 10000; // Catnip effect lasts 10 seconds
     }
 }
 
 export function spawnGameObject(canvas, images, type) {
     // Calculate spawn area: between 1/3 and 0.9 of screen height
-    // Using 0.9 instead of 1.0 to keep objects from spawning too close to bottom
-    const minY = canvas.height * (1/3); // Start below trick zone
-    const maxY = canvas.height * 0.9;  // Keep slightly above bottom
-    const y = minY + Math.random() * (maxY - minY); // Random position in valid range
-    const x = canvas.width; // Start from the right edge
+    const minY = canvas.height * (1/3);
+    const maxY = canvas.height * 0.9;
+    const y = minY + Math.random() * (maxY - minY);
+    const x = canvas.width;
     
     if (type === 'fish') {
-        // Randomly select fish type
         const fishTypes = ['tuna', 'buffalo', 'salmon'];
         const selectedType = fishTypes[Math.floor(Math.random() * fishTypes.length)];
         
-        // Get corresponding image based on fish type
         let fishImage;
         switch(selectedType) {
             case 'tuna':
@@ -119,6 +173,8 @@ export function spawnGameObject(canvas, images, type) {
         }
         
         return new Fish(x, y, fishImage, selectedType);
+    } else if (type === 'catnip') {
+        return new Catnip(x, y, images.catnip);
     } else {
         return new Mouse(x, y, images.mouse);
     }

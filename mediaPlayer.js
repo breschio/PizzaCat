@@ -188,6 +188,14 @@ class MediaPlayer {
             this.currentAudio.pause();
         }
 
+        // Play rotating catnip sound effect
+        const currentSound = this.catnipSounds[this.currentCatnipSoundIndex];
+        if (currentSound.paused) {
+            currentSound.currentTime = 0;
+            currentSound.play().catch(error => console.error("Error playing catnip sound:", error));
+            this.currentCatnipSoundIndex = (this.currentCatnipSoundIndex + 1) % this.catnipSounds.length;
+        }
+
         this.currentAudio = this.catnipMusic;
         this.currentAudio.currentTime = 0;
         this.currentAudio.play().catch(error => console.error("Error playing catnip music:", error));

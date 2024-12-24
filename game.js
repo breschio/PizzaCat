@@ -12,7 +12,7 @@ import {
     currentTrickName,
     trickStartTime
 } from './tricks.js';
-import { spawnGameObject, updateSpawnRates, Fish, Mouse } from './gameObjects.js';
+import { spawnGameObject, updateSpawnRates, Fish, Mouse, Catnip } from './gameObjects.js';
 import { mediaPlayer } from './mediaPlayer.js';
 
 (function() {
@@ -112,7 +112,7 @@ import { mediaPlayer } from './mediaPlayer.js';
     const SPEED_VARIATION = 50;
     const MOUSE_DAMAGE = 34;
     const flashDuration = 500;
-    const CATNIP_SCALE_FACTOR = 1.1025;
+    const CATNIP_SCALE_FACTOR = 0.85;
     const CAT_WIDTH = 300;
     const CAT_HEIGHT = 300;
     
@@ -130,6 +130,14 @@ import { mediaPlayer } from './mediaPlayer.js';
     const INITIAL_FISH_SPAWN_RATE = 0.5;
     const MAX_FISH_SPAWN_RATE = 0.7;
     let fishSpawnRate = INITIAL_FISH_SPAWN_RATE;
+    
+    // Add these constants near the other game constants
+    const CATNIP_SPAWN_RATE = 0.1; // 10% chance every spawn check
+    const CATNIP_DURATION = 10000; // 10 seconds
+    let catnipEndTime = 0;
+    
+    // Add this constant with the other effect-related constants
+    const CATNIP_FLASH_COLOR = 'rgba(0, 255, 0, 0.4)';
     
     // 4. Asset Loading
     // ---------------------------
@@ -559,6 +567,13 @@ import { mediaPlayer } from './mediaPlayer.js';
         const currentTime = performance.now();
         const scaledHeight = catHeight * catScaleFactor;
         
+        // Check if catnip mode should end
+        if (isCatnipMode && currentTime > catnipEndTime) {
+            isCatnipMode = false;
+            catScaleFactor = 0.6; // Reset to normal size
+            mediaPlayerInstance.stopCatnipMusic();
+        }
+        
         // Check if we should update trick zone state
         if (!isPerformingTrick || (currentTime - lastTrickTime > TRICK_COOLDOWN)) {
             inTrickZone = catY + scaledHeight < canvas.height * (1/3);
@@ -578,35 +593,42 @@ import { mediaPlayer } from './mediaPlayer.js';
         fishSpawnRate = newFishSpawnRate;
 
         // Spawn new objects
-        if (currentTime - lastSpawnTime > 1000) { // Check every second
+        const spawnCheckInterval = isCatnipMode ? 100 : 1000; // Check every 0.1 seconds in catnip mode
+        if (currentTime - lastSpawnTime > spawnCheckInterval) {
             console.log('Checking spawn conditions:', {
                 fishSpawnRate,
                 randomValue: Math.random(),
-                gameObjects: gameObjects.length
+                gameObjects: gameObjects.length,
+                isCatnipMode
             });
             
-            if (Math.random() < fishSpawnRate) {
-                const fish = spawnGameObject(canvas, {
-                    tuna: tunaImage,
-                    buffaloFish: buffaloFishImage,
-                    salmon: salmonImage
-                }, 'fish');
-                gameObjects.push(fish);
-                console.log('Spawned fish:', {
-                    type: fish.type,
-                    x: fish.x,
-                    y: fish.y,
-                    imageLoaded: !!fish.image
-                });
+            // Increase fish spawn rate during catnip mode
+            const adjustedFishSpawnRate = isCatnipMode ? Math.min(fishSpawnRate * 2, 1) : fishSpawnRate;
+            
+            // During catnip mode, spawn multiple fish at once
+            const spawnCount = isCatnipMode ? 3 : 1;
+            
+            for (let i = 0; i < spawnCount; i++) {
+                if (Math.random() < adjustedFishSpawnRate) {
+                    const fish = spawnGameObject(canvas, {
+                        tuna: tunaImage,
+                        buffaloFish: buffaloFishImage,
+                        salmon: salmonImage
+                    }, 'fish');
+                    gameObjects.push(fish);
+                }
             }
-            if (Math.random() < fishSpawnRate * 0.5) { // Mice spawn less frequently
-                const mouse = spawnGameObject(canvas, { mouse: mouseImage }, 'mouse');
-                gameObjects.push(mouse);
-                console.log('Spawned mouse:', {
-                    x: mouse.x,
-                    y: mouse.y,
-                    imageLoaded: !!mouse.image
-                });
+
+            // Only spawn mice and catnip when NOT in catnip mode
+            if (!isCatnipMode) {
+                if (Math.random() < fishSpawnRate * 0.5) {
+                    const mouse = spawnGameObject(canvas, { mouse: mouseImage }, 'mouse');
+                    gameObjects.push(mouse);
+                }
+                if (Math.random() < CATNIP_SPAWN_RATE) {
+                    const catnip = spawnGameObject(canvas, { catnip: catnipImage }, 'catnip');
+                    gameObjects.push(catnip);
+                }
             }
             lastSpawnTime = currentTime;
         }
@@ -731,17 +753,41 @@ import { mediaPlayer } from './mediaPlayer.js';
                     // Show score popup
                     showScorePopup(obj.points, obj.type);
                 } else if (obj instanceof Mouse) {
-                    // Hit by a mouse - take damage
-                    catHealth = Math.max(0, catHealth - MOUSE_DAMAGE);
-                    updateHealthBar();
-                    mediaPlayerInstance.playHurtSound();
-                    obj.shouldRemove = true;
+                    if (isCatnipMode) {
+                        // During catnip mode, make mouse spin away
+                        obj.startSpinning();
+                        mediaPlayerInstance.playNextFishCatchSound(); // Reuse fish catch sound for fun effect
+                    } else {
+                        // Normal mode - take damage
+                        catHealth = Math.max(0, catHealth - MOUSE_DAMAGE);
+                        updateHealthBar();
+                        mediaPlayerInstance.playHurtSound();
+                        obj.shouldRemove = true;
 
-                    // Game over if health reaches 0
-                    if (catHealth <= 0) {
-                        isGameOver = true;
-                        // Add any game over logic here
+                        // Game over if health reaches 0
+                        if (catHealth <= 0) {
+                            isGameOver = true;
+                        }
                     }
+                } else if (obj instanceof Catnip) {
+                    // Activate catnip mode
+                    isCatnipMode = true;
+                    catnipEndTime = performance.now() + CATNIP_DURATION;
+                    catScaleFactor = CATNIP_SCALE_FACTOR;
+                    
+                    // Reuse the flash effect system
+                    isFlashing = true;
+                    flashStartTime = performance.now();
+                    flashColor = CATNIP_FLASH_COLOR;
+                    flashAlpha = 0.6;
+                    
+                    // Reuse the score popup system with catnip class
+                    showScorePopup('CATNIP!', 'catnip');
+                    
+                    // Audio effects
+                    mediaPlayerInstance.startCatnipMusic();
+                    
+                    obj.shouldRemove = true;
                 }
             }
 
@@ -772,11 +818,14 @@ import { mediaPlayer } from './mediaPlayer.js';
             catFacingRight
         );
         
+        // Use sunny cat image during catnip mode
+        const currentCatImage = isCatnipMode ? catSunnyImage : catImage;
+        
         if (!catFacingRight) {
             ctx.scale(-1, 1);
-            ctx.drawImage(catImage, -catX - scaledWidth, catY, scaledWidth, scaledHeight);
+            ctx.drawImage(currentCatImage, -catX - scaledWidth, catY, scaledWidth, scaledHeight);
         } else {
-            ctx.drawImage(catImage, catX, catY, scaledWidth, scaledHeight);
+            ctx.drawImage(currentCatImage, catX, catY, scaledWidth, scaledHeight);
         }
         ctx.restore();
     }
@@ -806,8 +855,23 @@ import { mediaPlayer } from './mediaPlayer.js';
 
     function drawCatnipOverlay() {
         ctx.save();
-        ctx.fillStyle = 'rgba(0, 255, 0, 0.2)';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        // Create a rainbow gradient using our game's color scheme
+        const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+        gradient.addColorStop(0, 'rgba(255, 107, 107, 0.2)');  // Coral red (#FF6B6B)
+        gradient.addColorStop(0.33, 'rgba(78, 205, 196, 0.2)'); // Turquoise (#4ECDC4)
+        gradient.addColorStop(0.66, 'rgba(255, 217, 61, 0.2)');  // Golden yellow (#FFD93D)
+        gradient.addColorStop(1, 'rgba(255, 107, 107, 0.2)');    // Back to coral red for seamless loop
+        
+        // Animate the gradient by shifting the transform
+        const currentTime = performance.now() / 1000; // Convert to seconds
+        const translateX = Math.sin(currentTime) * 50; // Shift by 50 pixels
+        const translateY = Math.cos(currentTime) * 50;
+        ctx.translate(translateX, translateY);
+        
+        ctx.fillStyle = gradient;
+        ctx.fillRect(-50, -50, canvas.width + 100, canvas.height + 100); // Slightly larger to account for translation
+        
         ctx.restore();
     }
 
@@ -846,6 +910,24 @@ import { mediaPlayer } from './mediaPlayer.js';
         setTimeout(() => {
             popup.remove();
         }, 1000);
+    }
+
+    function showPowerupPopup(text) {
+        const popup = document.createElement('div');
+        popup.className = 'powerup-popup';
+        popup.textContent = text;
+        
+        // Position it at the cat's location
+        popup.style.left = `${catX + (catWidth * catScaleFactor) / 2}px`;
+        popup.style.top = `${catY}px`;
+        
+        // Add it to the game container
+        document.getElementById('game-container').appendChild(popup);
+        
+        // Remove it after animation
+        setTimeout(() => {
+            popup.remove();
+        }, 1500);
     }
 
     // Start the game initialization
