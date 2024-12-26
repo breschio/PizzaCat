@@ -139,6 +139,9 @@ import { gameOverManager } from './src/gameOver.js';
         // Reset fish counts for the new level
         resetFishCounts();
         
+        // Reset catnip count for new level
+        catnipsSpawnedThisLevel = 0;
+        
         // Update difficulty
         updateGameDifficulty();
         
@@ -257,6 +260,8 @@ import { gameOverManager } from './src/gameOver.js';
     
     // Add these with other game state variables
     let currentLevel = 1;
+    let catnipsSpawnedThisLevel = 0;
+    const MAX_CATNIPS_PER_LEVEL = 3;
     const POINTS_PER_LEVEL = 2000;
     let lastLevelPoints = 0;
     
@@ -474,6 +479,7 @@ import { gameOverManager } from './src/gameOver.js';
         currentLevel = 1;
         lastLevelPoints = 0;
         updateLevel();
+        catnipsSpawnedThisLevel = 0;
     }
 
     function startGameLoop() {
@@ -817,13 +823,6 @@ import { gameOverManager } from './src/gameOver.js';
         // Spawn new objects
         const spawnCheckInterval = isCatnipMode ? 100 : 1000; // Check every 0.1 seconds in catnip mode
         if (currentTime - lastSpawnTime > spawnCheckInterval) {
-            console.log('Checking spawn conditions:', {
-                fishSpawnRate,
-                randomValue: Math.random(),
-                gameObjects: gameObjects.length,
-                isCatnipMode
-            });
-            
             // Increase fish spawn rate during catnip mode
             const adjustedFishSpawnRate = isCatnipMode ? Math.min(fishSpawnRate * 2, 1) : fishSpawnRate;
             
@@ -841,15 +840,24 @@ import { gameOverManager } from './src/gameOver.js';
                 }
             }
 
-            // Only spawn mice and catnip when NOT in catnip mode
-            if (!isCatnipMode) {
-                if (Math.random() < fishSpawnRate * 0.5) {
-                    const mouse = spawnGameObject(canvas, { mouse: mouseImage }, 'mouse');
-                    gameObjects.push(mouse);
-                }
-                if (Math.random() < CATNIP_SPAWN_RATE) {
+            // Spawn mice with increased rate during catnip mode
+            const mouseSpawnRate = isCatnipMode ? fishSpawnRate : fishSpawnRate * 0.5;
+            if (Math.random() < mouseSpawnRate) {
+                const mouse = spawnGameObject(canvas, { mouse: mouseImage }, 'mouse');
+                gameObjects.push(mouse);
+            }
+
+            // Only check for catnip spawning during normal gameplay intervals
+            if (!isCatnipMode && currentTime - lastSpawnTime > 1000) {
+                // Check if there's already a catnip on screen
+                const existingCatnip = gameObjects.some(obj => obj instanceof Catnip);
+                
+                if (!existingCatnip && catnipsSpawnedThisLevel < MAX_CATNIPS_PER_LEVEL && Math.random() < CATNIP_SPAWN_RATE) {
                     const catnip = spawnGameObject(canvas, { catnip: catnipImage }, 'catnip');
-                    gameObjects.push(catnip);
+                    if (catnip) {
+                        gameObjects.push(catnip);
+                        catnipsSpawnedThisLevel++;
+                    }
                 }
             }
             lastSpawnTime = currentTime;
@@ -972,26 +980,33 @@ import { gameOverManager } from './src/gameOver.js';
                     mediaPlayerInstance.playNextFishCatchSound();
                     showScorePopup(obj.points, obj.type);
                     return false; // Remove the object
-                } else if (obj instanceof Mouse && !isCatnipMode && !isInvincible) {
-                    // Take damage from mouse collision only if not invincible
-                    catHealth = Math.max(0, catHealth - MOUSE_DAMAGE);
-                    updateHealthBar();
-                    mediaPlayerInstance.playHurtSound();
-                    
-                    // Set invincibility
-                    isInvincible = true;
-                    invincibilityTimer = INVINCIBILITY_DURATION;
+                } else if (obj instanceof Mouse) {
+                    if (isCatnipMode) {
+                        // During catnip mode, make the mouse spin away
+                        obj.startSpinning();
+                        mediaPlayerInstance.playNextFishCatchSound();
+                        return true; // Keep the object alive for the animation
+                    } else if (!isInvincible) {
+                        // Take damage from mouse collision only if not invincible
+                        catHealth = Math.max(0, catHealth - MOUSE_DAMAGE);
+                        updateHealthBar();
+                        mediaPlayerInstance.playHurtSound();
+                        
+                        // Set invincibility
+                        isInvincible = true;
+                        invincibilityTimer = INVINCIBILITY_DURATION;
 
-                    // Add red flash effect
-                    isFlashing = true;
-                    flashStartTime = performance.now();
-                    flashColor = 'rgba(255, 0, 0, 0.5)';  // Semi-transparent red
-                    flashAlpha = 0.5;  // Stronger flash for damage
+                        // Add red flash effect
+                        isFlashing = true;
+                        flashStartTime = performance.now();
+                        flashColor = 'rgba(255, 0, 0, 0.5)';  // Semi-transparent red
+                        flashAlpha = 0.5;  // Stronger flash for damage
 
-                    // Game over if health reaches 0
-                    if (catHealth <= 0) {
-                        handleGameOver();
-                        return false; // Remove the object
+                        // Game over if health reaches 0
+                        if (catHealth <= 0) {
+                            handleGameOver();
+                            return false; // Remove the object
+                        }
                     }
                 } else if (obj instanceof Catnip) {
                     // Activate catnip mode

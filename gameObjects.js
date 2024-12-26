@@ -114,13 +114,18 @@ export class Mouse extends GameObject {
         this.isSpinning = false;
         this.spinSpeed = 0;
         this.upwardVelocity = 0;
+        this.horizontalVelocity = 0;
     }
 
     startSpinning() {
         if (!this.isSpinning) {
             this.isSpinning = true;
-            this.spinSpeed = Math.PI * 4; // Two full rotations per second
-            this.upwardVelocity = 500; // Initial upward velocity
+            this.spinSpeed = Math.PI * (6 + Math.random() * 4); // Random spin speed between 6π and 10π
+            this.upwardVelocity = 600 + Math.random() * 400; // Random upward velocity between 600 and 1000
+            
+            // Random horizontal direction and speed
+            const directionMultiplier = Math.random() < 0.5 ? -1 : 1; // Randomly go left or right
+            this.horizontalVelocity = (300 + Math.random() * 400) * directionMultiplier;
         }
     }
 
@@ -128,12 +133,16 @@ export class Mouse extends GameObject {
         if (this.isSpinning) {
             this.rotation += this.spinSpeed * deltaTime;
             this.y -= this.upwardVelocity * deltaTime;
-            this.x += this.speed * 2 * deltaTime;
-            this.upwardVelocity -= 500 * deltaTime;
+            this.x += this.horizontalVelocity * deltaTime;
+            this.upwardVelocity -= 1200 * deltaTime; // Gravity effect
             
             this.updateBounds();
             
-            if (this.bounds.left > window.innerWidth || this.bounds.bottom > window.innerHeight) {
+            // Remove when off screen in any direction
+            if (this.bounds.left > window.innerWidth || 
+                this.bounds.right < 0 || 
+                this.bounds.bottom > window.innerHeight || 
+                this.bounds.top < 0) {
                 this.shouldRemove = true;
             }
         } else {
