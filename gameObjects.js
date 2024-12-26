@@ -8,27 +8,51 @@ export class GameObject {
         this.image = image;
         this.speed = speed;
         this.shouldRemove = false;
+        this.bounds = {
+            left: 0,
+            right: 0,
+            top: 0,
+            bottom: 0
+        };
+        this.updateBounds();
+    }
+
+    updateBounds() {
+        this.bounds.left = this.x;
+        this.bounds.right = this.x + this.width;
+        this.bounds.top = this.y;
+        this.bounds.bottom = this.y + this.height;
     }
 
     update(deltaTime) {
         // Move from right to left
         this.x -= this.speed * deltaTime;
+        this.updateBounds();
         
         // Mark for removal if off screen
-        if (this.x + this.width < 0) {
+        if (this.bounds.right < 0) {
             this.shouldRemove = true;
         }
     }
 
     draw(ctx) {
-        ctx.drawImage(this.image, this.x, this.y, this.width, this.height);
+        if (this.image && this.image.complete) {
+            ctx.drawImage(this.image, this.x, this.y, this.width, this.height);
+        }
     }
 
     checkCollision(catX, catY, catWidth, catHeight) {
-        return !(this.x > catX + catWidth ||
-                this.x + this.width < catX ||
-                this.y > catY + catHeight ||
-                this.y + this.height < catY);
+        const catBounds = {
+            left: catX,
+            right: catX + catWidth,
+            top: catY,
+            bottom: catY + catHeight
+        };
+
+        return !(this.bounds.left > catBounds.right ||
+                this.bounds.right < catBounds.left ||
+                this.bounds.top > catBounds.bottom ||
+                this.bounds.bottom < catBounds.top);
     }
 }
 
@@ -85,40 +109,41 @@ function getFishPoints(type) {
 
 export class Mouse extends GameObject {
     constructor(x, y, image) {
-        super(x, y, 128, 128, image, 250 + Math.random() * 50);
+        super(x, y, 80, 80, image, 250 + Math.random() * 50); // Reduced size for better collision
         this.rotation = 0;
         this.isSpinning = false;
         this.spinSpeed = 0;
         this.upwardVelocity = 0;
     }
 
+    startSpinning() {
+        if (!this.isSpinning) {
+            this.isSpinning = true;
+            this.spinSpeed = Math.PI * 4; // Two full rotations per second
+            this.upwardVelocity = 500; // Initial upward velocity
+        }
+    }
+
     update(deltaTime) {
         if (this.isSpinning) {
-            // Spin and move upward when hit during catnip mode
             this.rotation += this.spinSpeed * deltaTime;
             this.y -= this.upwardVelocity * deltaTime;
-            this.x += this.speed * 2 * deltaTime; // Move faster to the right
-            this.upwardVelocity -= 500 * deltaTime; // Add gravity effect
+            this.x += this.speed * 2 * deltaTime;
+            this.upwardVelocity -= 500 * deltaTime;
             
-            // Mark for removal if off screen
-            if (this.x > window.innerWidth || this.y > window.innerHeight) {
+            this.updateBounds();
+            
+            if (this.bounds.left > window.innerWidth || this.bounds.bottom > window.innerHeight) {
                 this.shouldRemove = true;
             }
         } else {
-            // Normal movement from right to left
-            this.x -= this.speed * deltaTime;
-            
-            // Mark for removal if off screen to the left
-            if (this.x + this.width < 0) {
-                this.shouldRemove = true;
-            }
+            super.update(deltaTime);
         }
     }
 
     draw(ctx) {
         ctx.save();
         
-        // If spinning, rotate around center
         if (this.isSpinning) {
             const centerX = this.x + this.width / 2;
             const centerY = this.y + this.height / 2;
@@ -127,15 +152,8 @@ export class Mouse extends GameObject {
             ctx.translate(-centerX, -centerY);
         }
         
-        ctx.drawImage(this.image, this.x, this.y, this.width, this.height);
+        super.draw(ctx);
         ctx.restore();
-    }
-
-    startSpinning() {
-        this.isSpinning = true;
-        this.spinSpeed = 10 + Math.random() * 5; // Random spin speed
-        this.upwardVelocity = 300 + Math.random() * 200; // Random upward velocity
-        this.speed = -this.speed; // Reverse horizontal direction
     }
 }
 
@@ -147,36 +165,45 @@ export class Catnip extends GameObject {
 }
 
 export function spawnGameObject(canvas, images, type) {
-    // Calculate spawn area: between 1/3 and 0.9 of screen height
     const minY = canvas.height * (1/3);
     const maxY = canvas.height * 0.9;
     const y = minY + Math.random() * (maxY - minY);
     const x = canvas.width;
     
-    if (type === 'fish') {
-        const fishTypes = ['tuna', 'buffalo', 'salmon'];
-        const selectedType = fishTypes[Math.floor(Math.random() * fishTypes.length)];
-        
-        let fishImage;
-        switch(selectedType) {
-            case 'tuna':
-                fishImage = images.tuna;
-                break;
-            case 'buffalo':
-                fishImage = images.buffaloFish;
-                break;
-            case 'salmon':
-                fishImage = images.salmon;
-                break;
-            default:
-                fishImage = images.buffaloFish;
+    // Ensure images are loaded before creating objects
+    if (type === 'fish' && (!images.tuna?.complete || !images.buffaloFish?.complete || !images.salmon?.complete)) {
+        console.warn('Fish images not fully loaded');
+        return null;
+    }
+    if (type === 'mouse' && !images.mouse?.complete) {
+        console.warn('Mouse image not loaded');
+        return null;
+    }
+    if (type === 'catnip' && !images.catnip?.complete) {
+        console.warn('Catnip image not loaded');
+        return null;
+    }
+    
+    try {
+        if (type === 'fish') {
+            const fishTypes = ['tuna', 'buffalo', 'salmon'];
+            const selectedType = fishTypes[Math.floor(Math.random() * fishTypes.length)];
+            
+            const fishImage = {
+                'tuna': images.tuna,
+                'buffalo': images.buffaloFish,
+                'salmon': images.salmon
+            }[selectedType];
+            
+            return new Fish(x, y, fishImage, selectedType);
+        } else if (type === 'catnip') {
+            return new Catnip(x, y, images.catnip);
+        } else {
+            return new Mouse(x, y, images.mouse);
         }
-        
-        return new Fish(x, y, fishImage, selectedType);
-    } else if (type === 'catnip') {
-        return new Catnip(x, y, images.catnip);
-    } else {
-        return new Mouse(x, y, images.mouse);
+    } catch (error) {
+        console.error('Error spawning game object:', error);
+        return null;
     }
 }
 

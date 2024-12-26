@@ -331,6 +331,12 @@ class MediaPlayer {
         this.catSounds.pizzaCat.play().catch(e => console.error("Error playing pizza-cat sound:", e));
     }
 
+    playLevelUpSound() {
+        // Play mewoabunga sound for level completion
+        this.catSounds.mewoabunga.currentTime = 0;
+        this.catSounds.mewoabunga.play().catch(e => console.error("Error playing level up sound:", e));
+    }
+
     showVolumeSlider() {
         this.volumeSlider.style.display = 'block';
     }

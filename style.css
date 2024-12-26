@@ -68,6 +68,72 @@ body {
     bottom: 20px;
     left: 20px;
     z-index: 2;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+}
+
+#score-container, #level-container {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+#level-container {
+    color: #4ECDC4; /* Turquoise color for level */
+}
+
+#level-container.level-up {
+    animation: levelUpPulse 0.5s ease-in-out;
+}
+
+@keyframes levelUpPulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.3); }
+    100% { transform: scale(1); }
+}
+
+/* Level up notification */
+.level-up-notification {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(0);
+    background: rgba(78, 205, 196, 0.9);
+    color: white;
+    padding: 20px 40px;
+    border-radius: 10px;
+    font-family: 'Press Start 2P', cursive;
+    font-size: 36px;
+    z-index: 1000;
+    text-align: center;
+    animation: levelUpNotification 1.5s ease-in-out forwards;
+    box-shadow: 0 0 20px rgba(78, 205, 196, 0.5);
+    min-width: 200px;
+}
+
+@keyframes levelUpNotification {
+    0% { transform: translate(-50%, -50%) scale(0); opacity: 0; }
+    20% { transform: translate(-50%, -50%) scale(1.2); opacity: 1; }
+    80% { transform: translate(-50%, -50%) scale(1.2); opacity: 1; }
+    100% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+}
+
+/* Mobile adjustments */
+@media screen and (max-width: 768px) {
+    #score {
+        gap: 10px;
+    }
+    
+    #level-container {
+        font-size: 16px;
+    }
+    
+    .level-up-notification {
+        font-size: 24px;
+        padding: 15px 30px;
+        min-width: 150px;
+    }
 }
 
 #start-button, #stop-button {
@@ -142,6 +208,15 @@ body {
 #game-over-screen h2 {
     font-size: 36px;
     margin-bottom: 20px;
+    color: #FF6B6B;
+    text-shadow: 2px 2px 0 rgba(0, 0, 0, 0.5);
+}
+
+.level-display, .score-display {
+    font-size: 24px;
+    margin: 15px 0;
+    color: #4ECDC4;
+    text-shadow: 2px 2px 0 rgba(0, 0, 0, 0.5);
 }
 
 #game-over-screen input {
@@ -158,22 +233,30 @@ body {
     z-index: 10000;
 }
 
-#game-over-screen button {
+#game-over-screen button,
+#leaderboard-screen button {
     background-color: #FF8C42;
     color: white;
     border: none;
     padding: 10px 20px;
     font-size: 18px;
     cursor: pointer;
-    transition: background-color 0.3s;
+    transition: background-color 0.3s, transform 0.2s;
     border-radius: 5px;
     width: 100%;
     font-family: 'Press Start 2P', cursive;
     z-index: 10000;
 }
 
-#game-over-screen button:hover {
+#game-over-screen button:hover,
+#leaderboard-screen button:hover {
     background-color: #FF6B6B;
+    transform: scale(1.05);
+}
+
+#game-over-screen button:active,
+#leaderboard-screen button:active {
+    transform: scale(0.95);
 }
 
 #leaderboard-screen {
@@ -194,6 +277,8 @@ body {
 #leaderboard-screen h2 {
     font-size: 36px;
     margin-bottom: 20px;
+    color: #FF6B6B;
+    text-shadow: 2px 2px 0 rgba(0, 0, 0, 0.5);
 }
 
 #leaderboard-list {
@@ -205,28 +290,56 @@ body {
     overflow-y: auto;
 }
 
-#leaderboard-list li {
+.leaderboard-entry {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
     margin: 10px 0;
-    padding: 5px;
-    font-size: 16px;
-    color: #FF8C42;
-    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
-}
-
-#leaderboard-screen button {
-    background-color: #FF8C42;
-    color: white;
-    border: none;
-    padding: 10px 20px;
-    font-size: 18px;
-    cursor: pointer;
-    transition: background-color 0.3s;
+    padding: 8px;
+    background-color: rgba(255, 255, 255, 0.1);
     border-radius: 5px;
-    width: 100%;
+    transition: background-color 0.3s;
 }
 
-#leaderboard-screen button:hover {
-    background-color: #FF6B6B;
+.leaderboard-entry:hover {
+    background-color: rgba(255, 255, 255, 0.2);
+}
+
+.entry-rank {
+    color: #FFD93D;
+    margin-right: 10px;
+}
+
+.entry-name {
+    flex-grow: 1;
+    margin: 0 10px;
+}
+
+.entry-score {
+    color: #4ECDC4;
+}
+
+/* Mobile adjustments */
+@media screen and (max-width: 768px) {
+    #game-over-screen,
+    #leaderboard-screen {
+        width: 90%;
+        padding: 20px;
+    }
+
+    #game-over-screen h2,
+    #leaderboard-screen h2 {
+        font-size: 24px;
+    }
+
+    .level-display,
+    .score-display {
+        font-size: 18px;
+    }
+
+    .leaderboard-entry {
+        font-size: 14px;
+    }
 }
 
 /* Apply Silkscreen font to all elements */
@@ -515,27 +628,45 @@ button {
     top: 24px;
     right: 20px;
     z-index: 999;
-    width: 400px;
     display: flex;
-    align-items: center;
-    gap: 10px;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 5px;
     transition: opacity 0.3s ease;
 }
 
+.health-label {
+    color: white;
+    font-size: 16px;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+    white-space: nowrap;
+}
+
+.health-bar-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
 #health-bar-background {
-    background-color: rgba(255, 0, 0, 0.5);
-    height: 20px;
-    border: 2px solid white;
+    background-color: rgba(0, 0, 0, 0.5);
+    height: 16px;
+    border: 2px solid rgba(255, 255, 255, 0.8);
     border-radius: 4px;
     overflow: hidden;
-    flex-grow: 1;
+    width: 200px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
 #health-bar-fill {
-    background-color: rgba(0, 255, 0, 0.7);
+    background: linear-gradient(90deg, 
+        rgba(46, 213, 115, 0.9) 0%,
+        rgba(46, 213, 115, 0.7) 100%
+    );
     height: 100%;
     width: 100%;
     transition: width 0.3s ease;
+    box-shadow: inset 0 0 10px rgba(255, 255, 255, 0.3);
 }
 
 #health-text {
@@ -544,14 +675,29 @@ button {
     font-size: 16px;
     text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
     white-space: nowrap;
+    min-width: 30px;
+    text-align: right;
 }
 
-.health-label {
-    color: white;
-    font-size: 16px;
-    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
-    white-space: nowrap;
-    margin-right: 10px;
+/* Mobile styles for health bar */
+@media screen and (max-width: 768px) {
+    #health-bar-container {
+        top: 55px;
+        right: 20px;
+    }
+    
+    .health-label {
+        font-size: 12px;
+    }
+    
+    #health-bar-background {
+        width: 150px;
+        height: 12px;
+    }
+    
+    #health-text {
+        font-size: 12px;
+    }
 }
 
 /* Add these styles for the play icon */
@@ -596,104 +742,6 @@ button {
 
     #score-number, #pts-text {
         font-size: 16px;
-    }
-}
-
-/* Mobile styles for health bar */
-@media screen and (max-width: 768px) {
-    #health-bar-container {
-        top: 55px;
-        width: 90%;
-        left: 0;
-        right: 0;
-        transform: none;
-        width: auto;
-        margin: 0 20px;
-        box-sizing: border-box;
-    }
-    
-    .health-label {
-        font-size: 12px;
-        flex: 1;
-        margin-right: 8px;
-    }
-    
-    #health-text {
-        font-size: 12px;
-        min-width: 30px;
-    }
-    
-    #health-bar-background {
-        height: 15px;
-        flex: 3;
-    }
-}
-
-/* Add mobile styles for toast */
-@media screen and (max-width: 768px) {
-    .toast-notification {
-        bottom: 20px;
-        left: 20px;
-        transform: none;
-        min-width: 200px;
-        max-width: 90%;
-        text-align: center;
-    }
-
-    .toast-notification:nth-child(2) {
-        bottom: 100px;
-    }
-
-    .toast-notification:nth-child(3) {
-        bottom: 180px;
-    }
-
-    /* Update animation for mobile to match desktop */
-    @keyframes slideInFromLeft {
-        from {
-            transform: translateX(-20%);
-            opacity: 0;
-        }
-        to {
-            transform: translateX(0);
-            opacity: 1;
-        }
-    }
-}
-
-/* Only keep these core styles for trick zone text */
-.trick-zone-text {
-    color: white;
-    font-family: 'Press Start 2P', cursive;
-    font-size: 8px;
-    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
-    white-space: nowrap;
-}
-
-.spacebar-instruction {
-    position: fixed;
-    bottom: 50px;  /* Position below the trick button */
-    left: 50%;
-    transform: translateX(-50%);
-    color: white;
-    font-family: 'Press Start 2P', cursive;
-    font-size: 14px;
-    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
-    z-index: 1000;
-    text-align: center;
-    opacity: 0;
-    transition: opacity 0.3s ease;
-}
-
-.spacebar-instruction.active {
-    opacity: 1;
-}
-
-/* Update mobile styles */
-@media screen and (max-width: 768px) {
-    .spacebar-instruction {
-        bottom: 70px;  /* Adjust position for mobile */
-        font-size: 12px;
     }
 }
 
@@ -1213,5 +1261,139 @@ button {
     100% {
         transform: translateY(-60px) scale(1);
         opacity: 0;
+    }
+}
+
+/* Only keep these core styles for trick zone text */
+.trick-zone-text {
+    color: white;
+    font-family: 'Press Start 2P', cursive;
+    font-size: 8px;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+    white-space: nowrap;
+}
+
+.spacebar-instruction {
+    position: fixed;
+    bottom: 50px;  /* Position below the trick button */
+    left: 50%;
+    transform: translateX(-50%);
+    color: white;
+    font-family: 'Press Start 2P', cursive;
+    font-size: 14px;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+    z-index: 1000;
+    text-align: center;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.spacebar-instruction.active {
+    opacity: 1;
+}
+
+/* Update mobile styles */
+@media screen and (max-width: 768px) {
+    .spacebar-instruction {
+        bottom: 70px;  /* Adjust position for mobile */
+        font-size: 12px;
+    }
+}
+
+.level-timer {
+    font-size: 32px;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+    background: rgba(0, 0, 0, 0.5);
+    padding: 10px 20px;
+    border-radius: 5px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+}
+
+@media screen and (max-width: 768px) {
+    .level-timer {
+        font-size: 24px;
+        padding: 8px 16px;
+    }
+}
+
+#level-summary-screen {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background-color: rgba(0, 0, 0, 0.9);
+    color: #FF8C42;
+    padding: 30px;
+    border-radius: 10px;
+    text-align: center;
+    z-index: 9999;
+    width: 300px;
+    font-family: 'Press Start 2P', cursive;
+    display: none;
+}
+
+#level-summary-screen h2 {
+    font-size: 28px;
+    margin-bottom: 20px;
+    color: #FF6B6B;
+    text-shadow: 2px 2px 0 rgba(0, 0, 0, 0.5);
+}
+
+.fish-summary {
+    margin: 15px 0;
+    text-align: left;
+    padding: 10px;
+    background-color: rgba(255, 255, 255, 0.1);
+    border-radius: 5px;
+}
+
+.fish-summary-item {
+    display: flex;
+    justify-content: space-between;
+    margin: 8px 0;
+    color: #4ECDC4;
+}
+
+.level-summary-score {
+    font-size: 24px;
+    margin: 20px 0;
+    color: #FFD93D;
+    text-shadow: 2px 2px 0 rgba(0, 0, 0, 0.5);
+}
+
+#next-level-button {
+    background-color: #4ECDC4;
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    font-size: 18px;
+    cursor: pointer;
+    transition: background-color 0.3s, transform 0.2s;
+    border-radius: 5px;
+    width: 100%;
+    margin-top: 20px;
+}
+
+#next-level-button:hover {
+    background-color: #3DBCAC;
+    transform: scale(1.05);
+}
+
+#next-level-button:active {
+    transform: scale(0.95);
+}
+
+@media screen and (max-width: 768px) {
+    #level-summary-screen {
+        width: 90%;
+        padding: 20px;
+    }
+
+    #level-summary-screen h2 {
+        font-size: 20px;
+    }
+
+    .level-summary-score {
+        font-size: 18px;
     }
 }

@@ -22,10 +22,12 @@
     </div>
     <div id="health-bar-container">
       <div class="health-label">HEALTH</div>
-      <div id="health-bar-background">
-        <div id="health-bar-fill"></div>
+      <div class="health-bar-row">
+        <div id="health-bar-background">
+          <div id="health-bar-fill"></div>
+        </div>
+        <div id="health-text">100</div>
       </div>
-      <div id="health-text">100</div>
     </div>
     <button id="start-button" class="game-text button-with-icon">
         <span class="button-icon">▶️</span>
@@ -41,6 +43,10 @@
       <div id="score-container">
         <span id="score-number">0</span>
         <span id="pts-text">PTS</span>
+      </div>
+      <div id="level-container">
+        <span>LVL</span>
+        <span id="level-number">1</span>
       </div>
     </div>
     <div id="instructions-container" class="game-text">
@@ -62,6 +68,25 @@
         <img id="start-cat" src="./assets/pizza-cat.png" alt="Start Cat" />
     </div>
   </div>
+
+  <!-- Game Over Screen -->
+  <div id="game-over-screen" style="display: none;">
+    <h2>GAME OVER</h2>
+    <div class="level-display">LEVEL <span id="final-level">1</span></div>
+    <div class="score-display">SCORE: <span id="final-score">0</span></div>
+    <input type="text" id="player-name" placeholder="Enter your name" maxlength="15">
+    <button id="submit-score">SUBMIT SCORE</button>
+  </div>
+
+  <!-- Leaderboard Screen -->
+  <div id="leaderboard-screen" style="display: none;">
+    <h2>TOP CATS</h2>
+    <div id="leaderboard-list">
+      <!-- Scores will be dynamically added here -->
+    </div>
+    <button id="leaderboard-play">START GAME</button>
+  </div>
+
   <div id="debug-panel" class="debug-panel">
     <div class="debug-header">DEBUG INFO</div>
     <div class="debug-content">

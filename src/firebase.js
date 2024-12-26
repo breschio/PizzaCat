@@ -1,12 +1,12 @@
-import { initializeApp } from "firebase/app";
-import { getFirestore, collection, addDoc, getDocs, query, orderBy, limit } from "firebase/firestore";
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+import { getFirestore, collection, addDoc, getDocs, query, orderBy, limit } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
 let db;
 
 // Test function to save a test score
 async function testSaveScore() {
     console.log("Saving test score...");
-    await saveScore('TestUser', 100);
+    await saveScore('TestUser', { score: 100, level: 1 });
     console.log("Test score saved.");
 }
 
@@ -20,7 +20,7 @@ async function testGetTopScores() {
 // Test function to save a new test score with a different username
 async function testSaveNewScore() {
     console.log("Saving new test score...");
-    await saveScore('NewUser', 150);
+    await saveScore('NewUser', { score: 150, level: 1 });
     console.log("New test score saved.");
 }
 
@@ -45,17 +45,19 @@ fetch('http://localhost:3000/api/firebase-config')
     });
 
 // Save score to Firestore
-export async function saveScore(username, score) {
+export async function saveScore(username, { score, level }) {
     try {
         const scoresCollection = collection(db, 'scores');
-        console.log("Saving to Firestore:", { username, score }); // Debug log
+        console.log("Saving to Firestore:", { username, score, level }); // Debug log
         await addDoc(scoresCollection, {
             username,
             score,
+            level,
             timestamp: new Date()
         });
     } catch (error) {
         console.error("Error saving score:", error);
+        throw error;
     }
 }
 
@@ -68,15 +70,16 @@ export async function getTopScores() {
         
         const scores = snapshot.docs.map(doc => ({
             username: doc.data().username || doc.data().name,
-            score: doc.data().score
+            score: doc.data().score,
+            level: doc.data().level || 1
         }));
         console.log("Retrieved from Firestore:", scores); // Debug log
         return scores;
     } catch (error) {
         console.error("Error getting scores:", error);
-        return [];
+        throw error;
     }
 }
 
-// Export the Firestore instance
+// Export the Firestore instance and functions
 export { db, collection, addDoc, getDocs, query, orderBy, limit }; 

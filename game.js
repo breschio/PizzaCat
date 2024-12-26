@@ -14,6 +14,7 @@ import {
 } from './tricks.js';
 import { spawnGameObject, updateSpawnRates, Fish, Mouse, Catnip } from './gameObjects.js';
 import { mediaPlayer } from './mediaPlayer.js';
+import { gameOverManager } from './src/gameOver.js';
 
 (function() {
     // 1. Game Setup & Configuration
@@ -38,6 +39,122 @@ import { mediaPlayer } from './mediaPlayer.js';
     let catHealth = 100;
     const maxCatHealth = 100;
     
+    // Level System
+    const LEVEL_DURATION = 60000; // 60 seconds per level
+    let levelStartTime = 0;
+    let levelTimeRemaining = LEVEL_DURATION;
+    
+    // Add level timer display
+    const levelTimerDisplay = document.createElement('div');
+    levelTimerDisplay.className = 'level-timer game-text';
+    levelTimerDisplay.style.position = 'absolute';
+    levelTimerDisplay.style.top = '20px';
+    levelTimerDisplay.style.left = '50%';
+    levelTimerDisplay.style.transform = 'translateX(-50%)';
+    levelTimerDisplay.style.color = 'white';
+    levelTimerDisplay.style.zIndex = '1000';
+    document.getElementById('game-container').appendChild(levelTimerDisplay);
+
+    function updateLevelTimer() {
+        const currentTime = performance.now();
+        levelTimeRemaining = Math.max(0, LEVEL_DURATION - (currentTime - levelStartTime));
+        
+        // Format time as MM:SS
+        const seconds = Math.ceil(levelTimeRemaining / 1000);
+        const minutes = Math.floor(seconds / 60);
+        const remainingSeconds = seconds % 60;
+        levelTimerDisplay.textContent = `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+        
+        // Check for level completion
+        if (levelTimeRemaining === 0) {
+            showLevelSummary();
+        }
+    }
+
+    function resetLevelState() {
+        // Clear all game objects
+        gameObjects = [];
+        
+        // Reset cat to starting position
+        catX = canvas.width / 2 - (catWidth * catScaleFactor) / 2;
+        catY = canvas.height * 0.6 - (catHeight * catScaleFactor) / 2;
+        catVelocityX = 0;
+        catVelocityY = 0;
+        
+        // Reset power-up states
+        isCatnipMode = false;
+        catnipEndTime = 0;
+        catScaleFactor = 0.6;
+        
+        // Reset trick states
+        lastTrickTime = 0;
+        isPerformingTrick = false;
+        inTrickZone = false;
+        currentTrick = null;
+        
+        // Reset spawn timers
+        lastSpawnTime = performance.now();
+    }
+
+    function showLevelStartAnimation() {
+        const startNotification = document.createElement('div');
+        startNotification.className = 'level-up-notification';
+        startNotification.textContent = `LEVEL ${currentLevel}`;
+        document.getElementById('game-container').appendChild(startNotification);
+        
+        // Add countdown after level number
+        let countdown = 3;
+        const updateCountdown = () => {
+            if (countdown > 0) {
+                setTimeout(() => {
+                    startNotification.textContent = countdown.toString();
+                    countdown--;
+                    updateCountdown();
+                }, 1000);
+            } else {
+                setTimeout(() => {
+                    startNotification.textContent = "SURF'S UP!";
+                    setTimeout(() => {
+                        startNotification.remove();
+                        isPaused = false;
+                    }, 1000);
+                }, 1000);
+            }
+        };
+        
+        // Start countdown after showing level number
+        setTimeout(updateCountdown, 1500);
+    }
+
+    function progressToNextLevel() {
+        currentLevel++;
+        
+        // Reset level timer
+        levelStartTime = performance.now();
+        levelTimeRemaining = LEVEL_DURATION;
+        
+        // Reset game state while preserving score and level
+        resetLevelState();
+        
+        // Reset fish counts for the new level
+        resetFishCounts();
+        
+        // Update difficulty
+        updateGameDifficulty();
+        
+        // Update UI
+        updateLevel();
+        
+        // Keep game paused during transition
+        isPaused = true;
+        
+        // Play transition sound
+        mediaPlayerInstance.playLevelUpSound();
+        
+        // Show level start animation with countdown
+        showLevelStartAnimation();
+    }
+
     // Cat Properties
     let catX = 0;
     let catY = 0;
@@ -88,9 +205,6 @@ import { mediaPlayer } from './mediaPlayer.js';
     let trickZoneIntensity = 0;
     let currentTrick = null;
     
-    // Collision State
-    let currentCollision = null;
-    
     // Visual Effects
     let isFlashing = false;
     let isPositiveFlash = false;
@@ -110,14 +224,16 @@ import { mediaPlayer } from './mediaPlayer.js';
     const MAX_POSSIBLE_TRASH_ITEMS = 10;
     const BASE_SPEED = 200;
     const SPEED_VARIATION = 50;
-    const MOUSE_DAMAGE = 34;
+    const MOUSE_DAMAGE = 25;
     const flashDuration = 500;
     const CATNIP_SCALE_FACTOR = 0.85;
     const CAT_WIDTH = 300;
     const CAT_HEIGHT = 300;
+    const INVINCIBILITY_DURATION = 1000; // 1 second of invincibility after taking damage
     
     // Movement Constants
-    const catMaxSpeed = 8;
+    const BASE_CAT_SPEED = 8; // Base speed for the cat
+    let catMaxSpeed = BASE_CAT_SPEED;
     const catAcceleration = 0.5;
     const catDeceleration = 0.95;
     const VERTICAL_SPEED = 8;
@@ -139,6 +255,82 @@ import { mediaPlayer } from './mediaPlayer.js';
     // Add this constant with the other effect-related constants
     const CATNIP_FLASH_COLOR = 'rgba(0, 255, 0, 0.4)';
     
+    // Add these with other game state variables
+    let currentLevel = 1;
+    const POINTS_PER_LEVEL = 2000;
+    let lastLevelPoints = 0;
+    
+    // Add fish tracking variables
+    let fishCollected = {
+        tuna: 0,
+        salmon: 0,
+        goldfish: 0
+    };
+    
+    // Add level summary screen element
+    const levelSummaryScreen = document.createElement('div');
+    levelSummaryScreen.id = 'level-summary-screen';
+    levelSummaryScreen.innerHTML = `
+        <h2>LEVEL COMPLETE!</h2>
+        <div class="level-summary-score">SCORE: <span id="level-final-score">0</span></div>
+        <div class="fish-summary">
+            <div class="fish-summary-item">
+                <span>Tuna</span>
+                <span id="tuna-count">0</span>
+            </div>
+            <div class="fish-summary-item">
+                <span>Salmon</span>
+                <span id="salmon-count">0</span>
+            </div>
+            <div class="fish-summary-item">
+                <span>Goldfish</span>
+                <span id="goldfish-count">0</span>
+            </div>
+        </div>
+        <button id="next-level-button">NEXT LEVEL</button>
+    `;
+    document.getElementById('game-container').appendChild(levelSummaryScreen);
+    
+    // Add event listener for next level button
+    document.getElementById('next-level-button').addEventListener('click', () => {
+        levelSummaryScreen.style.display = 'none';
+        progressToNextLevel();
+    });
+    
+    // Update the fish collection tracking
+    function updateFishCount(fishType) {
+        if (fishCollected.hasOwnProperty(fishType)) {
+            fishCollected[fishType]++;
+        }
+    }
+    
+    // Show level summary screen
+    function showLevelSummary() {
+        // Pause the game
+        isPaused = true;
+        
+        // Update the summary screen with current stats
+        document.getElementById('level-final-score').textContent = score;
+        document.getElementById('tuna-count').textContent = fishCollected.tuna;
+        document.getElementById('salmon-count').textContent = fishCollected.salmon;
+        document.getElementById('goldfish-count').textContent = fishCollected.goldfish;
+        
+        // Show the summary screen
+        levelSummaryScreen.style.display = 'block';
+        
+        // Play level complete sound
+        mediaPlayerInstance.playLevelUpSound();
+    }
+    
+    // Reset fish counts for new level
+    function resetFishCounts() {
+        fishCollected = {
+            tuna: 0,
+            salmon: 0,
+            goldfish: 0
+        };
+    }
+
     // 4. Asset Loading
     // ---------------------------
     // Images
@@ -232,6 +424,7 @@ import { mediaPlayer } from './mediaPlayer.js';
         catVelocityX = 0;
         catVelocityY = 0;
         catFacingRight = true;
+        catMaxSpeed = BASE_CAT_SPEED;
         
         // Reset game state
         isGameRunning = false;
@@ -264,7 +457,7 @@ import { mediaPlayer } from './mediaPlayer.js';
         
         // Initialize debug panel
         if (DEBUG_MODE) {
-            updateDebugPanel(catX, catY, catVelocityX, catVelocityY, inTrickZone, currentCollision, currentTrick);
+            updateDebugPanel(catX, catY, catVelocityX, catVelocityY, inTrickZone, currentTrick);
         }
         
         // Reset trick-related state
@@ -276,6 +469,11 @@ import { mediaPlayer } from './mediaPlayer.js';
         // Clean up any existing toasts
         const existingToasts = document.querySelectorAll('.trick-toast');
         existingToasts.forEach(toast => toast.remove());
+        
+        // Reset level
+        currentLevel = 1;
+        lastLevelPoints = 0;
+        updateLevel();
     }
 
     function startGameLoop() {
@@ -312,6 +510,9 @@ import { mediaPlayer } from './mediaPlayer.js';
         isGameOver = false;
         score = 0;
         updateScore();
+        
+        // Ensure timer is hidden in start mode
+        levelTimerDisplay.style.display = 'none';
     }
 
     function drawTrickZoneBoundary(canvas) {
@@ -390,7 +591,15 @@ import { mediaPlayer } from './mediaPlayer.js';
 
         // Initialize game state
         initializeGameState();
+        
+        // Initialize level
+        currentLevel = 1;
+        levelStartTime = performance.now();
+        levelTimeRemaining = LEVEL_DURATION;
 
+        // Show timer when game starts
+        levelTimerDisplay.style.display = 'block';
+        
         // Start the game loop
         isGameRunning = true;
         gameLoopRunning = true;
@@ -493,6 +702,7 @@ import { mediaPlayer } from './mediaPlayer.js';
         const scoreElement = document.getElementById('score-number');
         if (scoreElement) {
             scoreElement.textContent = score;
+            checkLevelUp(); // Check for level up after score update
         }
     }
 
@@ -506,14 +716,13 @@ import { mediaPlayer } from './mediaPlayer.js';
         }
     }
 
-    function updateDebugPanel(catX, catY, catVelocityX, catVelocityY, inTrickZone, currentCollision, currentTrick) {
+    function updateDebugPanel(catX, catY, catVelocityX, catVelocityY, inTrickZone, currentTrick) {
         if (!DEBUG_MODE) return;
 
         try {
             document.getElementById('debug-position').textContent = `(${Math.round(catX)}, ${Math.round(catY)})`;
             document.getElementById('debug-velocity').textContent = `(${catVelocityX.toFixed(2)}, ${catVelocityY.toFixed(2)})`;
             document.getElementById('debug-trick-zone').textContent = `${inTrickZone} (Y: ${Math.round(catY)} < ${Math.round(canvas.height/3)})`;
-            document.getElementById('debug-collision').textContent = currentCollision || 'none';
             document.getElementById('debug-trick').textContent = currentTrick || 'none';
 
             const debugPanel = document.getElementById('debug-panel');
@@ -552,6 +761,11 @@ import { mediaPlayer } from './mediaPlayer.js';
         if (deltaTime < 0.1 && !isPaused) {
             update(deltaTime);
             draw();
+            
+            // Update level timer
+            if (!isGameOver) {
+                updateLevelTimer();
+            }
         }
         
         if (isGameRunning || isGameOver || isPaused) {
@@ -567,6 +781,14 @@ import { mediaPlayer } from './mediaPlayer.js';
         const currentTime = performance.now();
         const scaledHeight = catHeight * catScaleFactor;
         
+        // Update invincibility timer
+        if (isInvincible) {
+            invincibilityTimer -= deltaTime * 1000;
+            if (invincibilityTimer <= 0) {
+                isInvincible = false;
+            }
+        }
+
         // Check if catnip mode should end
         if (isCatnipMode && currentTime > catnipEndTime) {
             isCatnipMode = false;
@@ -647,8 +869,8 @@ import { mediaPlayer } from './mediaPlayer.js';
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         
         if (isGameRunning) {
-            drawCat();
-            drawGameObjects();
+            drawGameObjects();   // Draw game objects first (background layer)
+            drawCat();          // Draw cat on top
             drawSurfMoveEffect();
         }
 
@@ -665,7 +887,6 @@ import { mediaPlayer } from './mediaPlayer.js';
             catVelocityX, 
             catVelocityY, 
             inTrickZone, 
-            currentCollision, 
             currentTrick
         );
     }
@@ -734,40 +955,43 @@ import { mediaPlayer } from './mediaPlayer.js';
     }
 
     function updateGameObjects(deltaTime) {
-        // Update game objects (fish, obstacles, etc.)
         const scaledWidth = catWidth * catScaleFactor;
         const scaledHeight = catHeight * catScaleFactor;
 
-        gameObjects.forEach((obj, index) => {
+        // Use filter instead of forEach for safe removal
+        gameObjects = gameObjects.filter(obj => {
             obj.update(deltaTime);
-
+            
             // Check for collisions
             if (obj.checkCollision(catX, catY, scaledWidth, scaledHeight)) {
                 if (obj instanceof Fish) {
                     // Caught a fish - increase score based on fish type
                     score += obj.points;
                     updateScore();
+                    updateFishCount(obj.type);
                     mediaPlayerInstance.playNextFishCatchSound();
-                    obj.shouldRemove = true;
-                    
-                    // Show score popup
                     showScorePopup(obj.points, obj.type);
-                } else if (obj instanceof Mouse) {
-                    if (isCatnipMode) {
-                        // During catnip mode, make mouse spin away
-                        obj.startSpinning();
-                        mediaPlayerInstance.playNextFishCatchSound(); // Reuse fish catch sound for fun effect
-                    } else {
-                        // Normal mode - take damage
-                        catHealth = Math.max(0, catHealth - MOUSE_DAMAGE);
-                        updateHealthBar();
-                        mediaPlayerInstance.playHurtSound();
-                        obj.shouldRemove = true;
+                    return false; // Remove the object
+                } else if (obj instanceof Mouse && !isCatnipMode && !isInvincible) {
+                    // Take damage from mouse collision only if not invincible
+                    catHealth = Math.max(0, catHealth - MOUSE_DAMAGE);
+                    updateHealthBar();
+                    mediaPlayerInstance.playHurtSound();
+                    
+                    // Set invincibility
+                    isInvincible = true;
+                    invincibilityTimer = INVINCIBILITY_DURATION;
 
-                        // Game over if health reaches 0
-                        if (catHealth <= 0) {
-                            isGameOver = true;
-                        }
+                    // Add red flash effect
+                    isFlashing = true;
+                    flashStartTime = performance.now();
+                    flashColor = 'rgba(255, 0, 0, 0.5)';  // Semi-transparent red
+                    flashAlpha = 0.5;  // Stronger flash for damage
+
+                    // Game over if health reaches 0
+                    if (catHealth <= 0) {
+                        handleGameOver();
+                        return false; // Remove the object
                     }
                 } else if (obj instanceof Catnip) {
                     // Activate catnip mode
@@ -775,25 +999,24 @@ import { mediaPlayer } from './mediaPlayer.js';
                     catnipEndTime = performance.now() + CATNIP_DURATION;
                     catScaleFactor = CATNIP_SCALE_FACTOR;
                     
-                    // Reuse the flash effect system
+                    // Restore health to full
+                    catHealth = maxCatHealth;
+                    updateHealthBar();
+                    
+                    // Visual effects
                     isFlashing = true;
                     flashStartTime = performance.now();
                     flashColor = CATNIP_FLASH_COLOR;
                     flashAlpha = 0.6;
                     
-                    // Reuse the score popup system with catnip class
                     showScorePopup('CATNIP!', 'catnip');
-                    
-                    // Audio effects
                     mediaPlayerInstance.startCatnipMusic();
-                    
-                    obj.shouldRemove = true;
+                    return false; // Remove the object
                 }
             }
-
-            if (obj.shouldRemove) {
-                gameObjects.splice(index, 1);
-            }
+            
+            // Keep objects that are still on screen
+            return !obj.shouldRemove;
         });
     }
 
@@ -821,26 +1044,36 @@ import { mediaPlayer } from './mediaPlayer.js';
         // Use sunny cat image during catnip mode
         const currentCatImage = isCatnipMode ? catSunnyImage : catImage;
         
+        // Add flashing effect when invincible
+        if (isInvincible) {
+            ctx.globalAlpha = Math.sin(performance.now() / 50) * 0.3 + 0.7;
+        }
+        
         if (!catFacingRight) {
             ctx.scale(-1, 1);
             ctx.drawImage(currentCatImage, -catX - scaledWidth, catY, scaledWidth, scaledHeight);
         } else {
             ctx.drawImage(currentCatImage, catX, catY, scaledWidth, scaledHeight);
         }
+        
+        // Reset alpha
+        ctx.globalAlpha = 1;
         ctx.restore();
     }
 
     function drawGameObjects() {
-        // Draw all game objects
-        console.log('Drawing game objects:', gameObjects.length);
+        // Draw mice first (background layer)
         gameObjects.forEach(obj => {
-            console.log('Drawing object:', {
-                type: obj instanceof Fish ? 'Fish' : 'Mouse',
-                x: obj.x,
-                y: obj.y,
-                imageLoaded: !!obj.image
-            });
-            obj.draw(ctx);
+            if (obj instanceof Mouse) {
+                obj.draw(ctx);
+            }
+        });
+        
+        // Draw fish and catnip second (middle layer)
+        gameObjects.forEach(obj => {
+            if (obj instanceof Fish || obj instanceof Catnip) {
+                obj.draw(ctx);
+            }
         });
     }
 
@@ -930,6 +1163,115 @@ import { mediaPlayer } from './mediaPlayer.js';
         }, 1500);
     }
 
+    // Add these new functions for level management
+    function updateLevel() {
+        const levelElement = document.getElementById('level-number');
+        if (levelElement) {
+            levelElement.textContent = currentLevel;
+        }
+    }
+
+    function checkLevelUp() {
+        const nextLevelPoints = lastLevelPoints + POINTS_PER_LEVEL;
+        if (score >= nextLevelPoints) {
+            currentLevel++;
+            lastLevelPoints = nextLevelPoints;
+            
+            // Update level display
+            updateLevel();
+            
+            // Add level up animation
+            const levelContainer = document.getElementById('level-container');
+            if (levelContainer) {
+                levelContainer.classList.remove('level-up');
+                void levelContainer.offsetWidth; // Trigger reflow
+                levelContainer.classList.add('level-up');
+            }
+            
+            // Show level up notification
+            showLevelUpNotification();
+            
+            // Play level up sound
+            mediaPlayerInstance.playLevelUpSound();
+            
+            // Increase game difficulty
+            updateGameDifficulty();
+        }
+    }
+
+    function showLevelUpNotification() {
+        const notification = document.createElement('div');
+        notification.className = 'level-up-notification';
+        notification.textContent = `LEVEL ${currentLevel}!`;
+        document.getElementById('game-container').appendChild(notification);
+        
+        // Remove notification after animation
+        setTimeout(() => {
+            notification.remove();
+        }, 1500);
+    }
+
+    function updateGameDifficulty() {
+        // Increase spawn rates and speed based on level
+        fishSpawnRate = Math.min(INITIAL_FISH_SPAWN_RATE * (1 + currentLevel * 0.1), MAX_FISH_SPAWN_RATE);
+        waveSpeed = Math.min(INITIAL_WAVE_SPEED * (1 + currentLevel * 0.1), MAX_WAVE_SPEED);
+        
+        // Add more mice as levels progress
+        const mouseSpawnRate = Math.min(0.1 + (currentLevel - 1) * 0.05, 0.3); // Cap at 30% spawn rate
+        
+        // Increase game speed (but keep it manageable)
+        const speedMultiplier = 1 + (currentLevel - 1) * 0.05; // 5% faster each level
+        catMaxSpeed = Math.min(BASE_CAT_SPEED * speedMultiplier, BASE_CAT_SPEED * 1.5); // Cap at 50% faster than base
+    }
+
+    // Add event listener for starting new game
+    window.addEventListener('startNewGame', () => {
+        initializeGameState();
+        startGame();
+    });
+
     // Start the game initialization
     initGame();
+
+    // Add new function to handle game over state
+    function handleGameOver() {
+        // Clear game states
+        isGameOver = true;
+        isGameRunning = false;
+        isPaused = true;
+        isCatnipMode = false;
+        
+        // Clear any active animations or transitions
+        const notifications = document.querySelectorAll('.level-up-notification, .powerup-popup, .score-popup');
+        notifications.forEach(notification => notification.remove());
+        
+        // Hide level-related UI
+        levelTimerDisplay.style.display = 'none';
+        levelSummaryScreen.style.display = 'none';
+        
+        // Stop all game sounds
+        mediaPlayerInstance.stopAllSounds();
+        
+        // Show game over screen with slight delay to ensure clean state
+        setTimeout(() => {
+            gameOverManager.showGameOver(currentLevel, score);
+            
+            // Force focus on name input after a short delay
+            setTimeout(() => {
+                const nameInput = document.getElementById('player-name');
+                if (nameInput) {
+                    nameInput.focus();
+                }
+            }, 100);
+        }, 100);
+    }
+
+    // Update the game over screen event listener
+    document.getElementById('player-name').addEventListener('keydown', (e) => {
+        e.stopPropagation(); // Prevent game controls from interfering
+    });
+
+    // Add invincibility state
+    let isInvincible = false;
+    let invincibilityTimer = 0;
 })();
