@@ -3,77 +3,67 @@ import { getFirestore, collection, addDoc, getDocs, query, orderBy, limit } from
 
 let db;
 
-// Test function to save a test score
-async function testSaveScore() {
-    console.log("Saving test score...");
-    await saveScore('TestUser', { score: 100, level: 1 });
-    console.log("Test score saved.");
-}
-
-// Test function to retrieve top scores
-async function testGetTopScores() {
-    console.log("Retrieving top scores...");
-    const topScores = await getTopScores();
-    console.log("Top scores:", topScores);
-}
-
-// Test function to save a new test score with a different username
-async function testSaveNewScore() {
-    console.log("Saving new test score...");
-    await saveScore('NewUser', { score: 150, level: 1 });
-    console.log("New test score saved.");
-}
-
-// Run tests after Firebase is initialized
-fetch('http://localhost:3000/api/firebase-config')
-    .then(response => response.json())
-    .then(config => {
-        // Initialize Firebase with the config
+// Initialize Firebase with proper error handling
+async function initializeFirebase() {
+    try {
+        const response = await fetch('/api/firebase-config');
+        if (!response.ok) {
+            throw new Error('Failed to fetch Firebase configuration');
+        }
+        const config = await response.json();
         const app = initializeApp(config);
         db = getFirestore(app);
-        
-        // Run tests
-        (async () => {
-            await testSaveScore();
-            await testGetTopScores();
-            await testSaveNewScore();
-            await testGetTopScores();
-        })();
-    })
-    .catch(error => {
-        console.error('Error fetching Firebase config:', error);
-    });
+        console.log('Firebase initialized successfully');
+    } catch (error) {
+        console.error('Error initializing Firebase:', error);
+        throw error;
+    }
+}
 
-// Save score to Firestore
+// Save score to Firestore with proper validation
 export async function saveScore(username, { score, level }) {
+    if (!db) {
+        await initializeFirebase();
+    }
+    
+    if (!username || typeof score !== 'number' || typeof level !== 'number') {
+        throw new Error('Invalid score data');
+    }
+
     try {
         const scoresCollection = collection(db, 'scores');
-        console.log("Saving to Firestore:", { username, score, level }); // Debug log
         await addDoc(scoresCollection, {
             username,
             score,
             level,
-            timestamp: new Date()
+            timestamp: new Date().toISOString()
         });
+        console.log('Score saved successfully');
     } catch (error) {
         console.error("Error saving score:", error);
         throw error;
     }
 }
 
-// Get top scores from Firestore
+// Get top scores from Firestore with proper error handling
 export async function getTopScores() {
+    if (!db) {
+        await initializeFirebase();
+    }
+
     try {
         const scoresCollection = collection(db, 'scores');
         const scoresQuery = query(scoresCollection, orderBy('score', 'desc'), limit(10));
         const snapshot = await getDocs(scoresQuery);
         
         const scores = snapshot.docs.map(doc => ({
+            id: doc.id,
             username: doc.data().username || doc.data().name,
             score: doc.data().score,
-            level: doc.data().level || 1
+            level: doc.data().level || 1,
+            timestamp: doc.data().timestamp
         }));
-        console.log("Retrieved from Firestore:", scores); // Debug log
+        
         return scores;
     } catch (error) {
         console.error("Error getting scores:", error);
@@ -81,5 +71,7 @@ export async function getTopScores() {
     }
 }
 
-// Export the Firestore instance and functions
-export { db, collection, addDoc, getDocs, query, orderBy, limit }; 
+// Initialize Firebase when the module loads
+initializeFirebase().catch(console.error);
+
+export { db }; 

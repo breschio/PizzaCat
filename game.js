@@ -606,6 +606,20 @@ import { gameOverManager } from './src/gameOver.js';
         // Show timer when game starts
         levelTimerDisplay.style.display = 'block';
         
+        // Unmute and start game audio
+        mediaPlayerInstance.isMuted = false;
+        mediaPlayerInstance.volumeSlider.value = 45; // Set to 45%
+        mediaPlayerInstance.updateVolume(0.45);
+        mediaPlayerInstance.normalMusic.muted = false;
+        mediaPlayerInstance.waveSound.muted = false;
+        mediaPlayerInstance.catnipMusic.muted = false;
+        for (let sound in mediaPlayerInstance.catSounds) {
+            mediaPlayerInstance.catSounds[sound].muted = false;
+        }
+        mediaPlayerInstance.updateSpeakerIcon();
+        mediaPlayerInstance.startGameMusic();
+        mediaPlayerInstance.startWaveSound(); // Start the wave sound
+        
         // Start the game loop
         isGameRunning = true;
         gameLoopRunning = true;
@@ -635,9 +649,11 @@ import { gameOverManager } from './src/gameOver.js';
             isPaused = !isPaused;
             if (isPaused) {
                 stopButton.textContent = '▶️';
+                mediaPlayerInstance.stopWaveSound();
             } else {
                 stopButton.textContent = '⏸️';
                 lastTime = performance.now();
+                mediaPlayerInstance.startWaveSound();
                 requestAnimationFrame(gameLoop);
             }
         });

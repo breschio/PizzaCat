@@ -1,21 +1,47 @@
 {
   "name": "pizzacat",
   "version": "1.0.0",
+  "description": "A surfing cat game where you collect fish and do tricks",
   "type": "module",
-  "main": "firebase.js",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "NODE_ENV=development nodemon server.js",
+    "test": "jest",
+    "lint": "eslint .",
+    "build": "npm run lint && npm run test",
+    "deploy": "NODE_ENV=production node server.js"
+  },
   "dependencies": {
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
     "express-jwt": "^8.5.1",
+    "express-rate-limit": "^7.1.5",
     "firebase": "^11.1.0",
+    "helmet": "^7.1.0",
     "jsonwebtoken": "^9.0.2"
   },
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+  "devDependencies": {
+    "eslint": "^8.57.0",
+    "jest": "^29.7.0",
+    "nodemon": "^3.0.3"
   },
-  "keywords": [],
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "keywords": [
+    "game",
+    "surfing",
+    "cat",
+    "pizza",
+    "html5",
+    "canvas"
+  ],
   "author": "",
   "license": "ISC",
-  "description": ""
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/pizzacat"
+  }
 }

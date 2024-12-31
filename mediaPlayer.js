@@ -60,9 +60,8 @@ class MediaPlayer {
         ];
 
         this.fishCatchSounds = [
-            this.catSounds.meow1,
-            this.catSounds.bite,
-            this.catSounds.meow2
+            this.catSounds.yum1,
+            this.catSounds.yum2
         ];
 
         // Load music files
@@ -90,6 +89,13 @@ class MediaPlayer {
         });
 
         this.speakerIcon.addEventListener('click', () => this.toggleMute());
+
+        // Add sound mixing ratios
+        this.soundMixing = {
+            waveSound: 0.25,  // Wave sound at 25% of master volume
+            music: 0.50,      // Music at 50% of master volume
+            effects: 1.0      // Sound effects at 100% of master volume
+        };
     }
 
     toggleMute() {
@@ -108,12 +114,20 @@ class MediaPlayer {
             for (let sound in this.catSounds) {
                 this.catSounds[sound].muted = false;
             }
+            // Unmute fish catch sounds
+            this.fishCatchSounds.forEach(sound => {
+                sound.muted = false;
+            });
 
             this.startNormalMusic();
         } else {
             if (this.currentAudio) {
                 this.currentAudio.pause();
             }
+            // Mute fish catch sounds
+            this.fishCatchSounds.forEach(sound => {
+                sound.muted = true;
+            });
         }
 
         this.updateSpeakerIcon(); // Ensure icon updates immediately
@@ -160,16 +174,39 @@ class MediaPlayer {
         for (let sound in this.catSounds) {
             this.catSounds[sound].volume = initialVolume;
         }
+
+        // Set initial volume for fish catch sounds
+        this.fishCatchSounds.forEach(sound => {
+            sound.volume = initialVolume;
+        });
     }
 
     updateVolume(volume = this.volumeSlider.value / 100) {
+        // Update master volume for current audio
         if (this.currentAudio) {
             this.currentAudio.volume = volume;
         }
-        this.waveSound.volume = volume;
 
+        // Apply mixing ratios to different sound types
+        this.waveSound.volume = volume * this.soundMixing.waveSound;
+        this.catnipMusic.volume = volume * this.soundMixing.music;
+        this.normalMusic.volume = volume * this.soundMixing.music;
+
+        // Update sound effects volume
         for (let sound in this.catSounds) {
-            this.catSounds[sound].volume = volume;
+            this.catSounds[sound].volume = volume * this.soundMixing.effects;
+        }
+
+        // Update fish catch sounds volume
+        this.fishCatchSounds.forEach(sound => {
+            sound.volume = volume * this.soundMixing.effects;
+        });
+    }
+
+    setMixingRatio(soundType, ratio) {
+        if (this.soundMixing.hasOwnProperty(soundType)) {
+            this.soundMixing[soundType] = Math.max(0, Math.min(1, ratio));
+            this.updateVolume(); // Reapply volumes with new ratio
         }
     }
 
@@ -252,25 +289,13 @@ class MediaPlayer {
     }
 
     playNextFishCatchSound() {
-        try {
-            if (!this.fishCatchSounds || this.fishCatchSounds.length === 0) {
-                console.warn('No fish catch sounds available');
-                return;
-            }
-
-            const currentSound = this.fishCatchSounds[this.currentFishSoundIndex];
-            if (!currentSound) {
-                console.warn('Invalid fish catch sound index');
-                return;
-            }
-
-            if (currentSound.paused) {
-                currentSound.currentTime = 0;
-                currentSound.play().catch(e => console.error("Error playing fish catch sound:", e));
-                this.currentFishSoundIndex = (this.currentFishSoundIndex + 1) % this.fishCatchSounds.length;
-            }
-        } catch (error) {
-            console.error('Error in playNextFishCatchSound:', error);
+        const currentSound = this.fishCatchSounds[this.currentFishSoundIndex];
+        if (currentSound.paused) {
+            currentSound.currentTime = 0;
+            currentSound.volume = this.volumeSlider.value / 100 * this.soundMixing.effects;
+            currentSound.play().catch(error => console.error("Error playing fish catch sound:", error));
+            // Rotate to next sound
+            this.currentFishSoundIndex = (this.currentFishSoundIndex + 1) % this.fishCatchSounds.length;
         }
     }
 
