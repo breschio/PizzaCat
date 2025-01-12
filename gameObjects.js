@@ -62,6 +62,7 @@ export class Fish extends GameObject {
         super(x, y, size.width, size.height, image, getFishSpeed(type));
         this.type = type;
         this.points = getFishPoints(type);
+        this.healthBoost = getFishHealthBoost(type);
     }
 }
 
@@ -97,13 +98,26 @@ function getFishSpeed(type) {
 function getFishPoints(type) {
     switch(type) {
         case 'tuna':
-            return 3; // Worth more points because it's faster
+            return 5; // Increased from 3 - hardest to catch due to speed
         case 'buffalo':
-            return 1;
+            return 2; // Increased from 1 - basic fish
         case 'salmon':
-            return 2;
+            return 3; // Increased from 2 - medium difficulty
         default:
-            return 1;
+            return 2;
+    }
+}
+
+function getFishHealthBoost(type) {
+    switch(type) {
+        case 'tuna':
+            return 15; // Highest health boost for hardest to catch
+        case 'buffalo':
+            return 5;  // Small health boost for basic fish
+        case 'salmon':
+            return 10; // Medium health boost
+        default:
+            return 5;
     }
 }
 

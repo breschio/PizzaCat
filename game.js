@@ -998,6 +998,17 @@ import { gameOverManager } from './src/gameOver.js';
                     score += obj.points;
                     updateScore();
                     updateFishCount(obj.type);
+                    
+                    // Restore health based on fish type
+                    catHealth = Math.min(maxCatHealth, catHealth + obj.healthBoost);
+                    updateHealthBar();
+                    
+                    // Show health boost effect
+                    isFlashing = true;
+                    flashStartTime = performance.now();
+                    flashColor = 'rgba(0, 255, 0, 0.3)';  // Green flash for healing
+                    flashAlpha = 0.3;
+                    
                     mediaPlayerInstance.playNextFishCatchSound();
                     showScorePopup(obj.points, obj.type);
                     return false; // Remove the object
@@ -1165,7 +1176,18 @@ import { gameOverManager } from './src/gameOver.js';
         // Create a score popup element
         const popup = document.createElement('div');
         popup.className = 'score-popup';
-        popup.textContent = `+${points}`;
+        
+        // For fish, show both points and health boost
+        if (fishType === 'tuna' || fishType === 'buffalo' || fishType === 'salmon') {
+            const healthBoost = {
+                'tuna': 15,
+                'buffalo': 5,
+                'salmon': 10
+            }[fishType];
+            popup.innerHTML = `+${points}<br>❤️${healthBoost}`;
+        } else {
+            popup.textContent = `+${points}`;
+        }
         
         // Add fish type specific class for different colors
         popup.classList.add(`fish-${fishType}`);
