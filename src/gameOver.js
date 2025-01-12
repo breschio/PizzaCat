@@ -5,24 +5,29 @@ class GameOverManager {
         this.gameOverScreen = document.getElementById('game-over-screen');
         this.leaderboardScreen = document.getElementById('leaderboard-screen');
         this.submitButton = document.getElementById('submit-score');
-        this.playerNameInput = document.getElementById('player-name');
+        this.initialInputs = document.querySelectorAll('.initial-input');
         this.finalScoreSpan = document.getElementById('final-score');
         this.finalLevelSpan = document.getElementById('final-level');
         
-        // Set maxlength attribute for the input
-        this.playerNameInput.maxLength = 3;
-        
-        // Add input event to force uppercase
-        this.playerNameInput.addEventListener('input', () => {
-            this.playerNameInput.value = this.playerNameInput.value.toUpperCase();
+        // Add input event listeners for each initial input
+        this.initialInputs.forEach((input, index) => {
+            // Force uppercase and move to next input
+            input.addEventListener('input', (e) => {
+                e.target.value = e.target.value.toUpperCase();
+                if (e.target.value && index < this.initialInputs.length - 1) {
+                    this.initialInputs[index + 1].focus();
+                }
+            });
+
+            // Handle backspace to go to previous input
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Backspace' && !e.target.value && index > 0) {
+                    this.initialInputs[index - 1].focus();
+                }
+            });
         });
         
         this.submitButton.addEventListener('click', () => this.handleScoreSubmission());
-        this.playerNameInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                this.handleScoreSubmission();
-            }
-        });
         
         // Store game stats
         this.currentScore = 0;
@@ -43,11 +48,13 @@ class GameOverManager {
         this.submitButton.disabled = false;
         this.submitButton.textContent = 'SUBMIT SCORE';
         
-        // Clear and focus on name input
-        this.playerNameInput.value = '';
-        this.playerNameInput.disabled = false;
+        // Clear and focus on first initial input
+        this.initialInputs.forEach(input => {
+            input.value = '';
+            input.disabled = false;
+        });
         setTimeout(() => {
-            this.playerNameInput.focus();
+            this.initialInputs[0].focus();
         }, 100);
     }
     
@@ -55,24 +62,30 @@ class GameOverManager {
         // Prevent double submission
         if (this.isSubmitting) return;
         
-        const playerName = this.playerNameInput.value.trim().toUpperCase();
-        if (!playerName) {
-            alert('Please enter your name!');
-            this.playerNameInput.focus();
+        // Combine the three initials
+        const initials = Array.from(this.initialInputs)
+            .map(input => input.value.toUpperCase())
+            .join('');
+
+        if (initials.length !== 3) {
+            alert('Please enter your three initials!');
+            // Focus on the first empty input
+            const emptyInput = Array.from(this.initialInputs).find(input => !input.value);
+            if (emptyInput) emptyInput.focus();
             return;
         }
         
         try {
             this.isSubmitting = true;
             this.submitButton.disabled = true;
-            this.playerNameInput.disabled = true;
+            this.initialInputs.forEach(input => input.disabled = true);
             this.submitButton.textContent = 'SAVING...';
             
             // Add small delay to ensure Firebase is initialized
             await new Promise(resolve => setTimeout(resolve, 500));
             
             // Save score and get position
-            const result = await saveScore(playerName, {
+            const result = await saveScore(initials, {
                 score: this.currentScore,
                 level: this.currentLevel
             });
@@ -80,7 +93,7 @@ class GameOverManager {
             // Get scores around player's position
             const { scores } = await getScoresAroundPosition(result.position);
             
-            // Hide game over screen
+            // Hide game over screen but keep the catnip effects
             this.gameOverScreen.style.display = 'none';
             
             // Show and render leaderboard
@@ -89,10 +102,12 @@ class GameOverManager {
             
             // Add play again button listener
             const playAgainButton = document.getElementById('leaderboard-play');
-            playAgainButton.onclick = () => {
-                this.leaderboardScreen.style.display = 'none';
-                window.dispatchEvent(new Event('startNewGame'));
-            };
+            if (playAgainButton) {
+                playAgainButton.onclick = () => {
+                    this.leaderboardScreen.style.display = 'none';
+                    window.dispatchEvent(new Event('startNewGame'));
+                };
+            }
             
         } catch (error) {
             console.error('Error submitting score:', error);
@@ -101,9 +116,9 @@ class GameOverManager {
             // Reset submission state
             this.isSubmitting = false;
             this.submitButton.disabled = false;
-            this.playerNameInput.disabled = false;
+            this.initialInputs.forEach(input => input.disabled = false);
             this.submitButton.textContent = 'SUBMIT SCORE';
-            this.playerNameInput.focus();
+            this.initialInputs[0].focus();
         }
     }
 }

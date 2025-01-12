@@ -2,7 +2,7 @@
 export const DEBUG_MODE = false;
 
 // Function to update debug panel values
-export function updateDebugPanel(catX, catY, catVelocityX, catVelocityY, inTrickZone, currentCollision, currentTrick) {
+export function updateDebugPanel(catX, catY, catVelocityX, catVelocityY, inTrickZone, currentCollision, currentTrick, isGameOver) {
     if (!DEBUG_MODE) return;
 
     // Update debug panel visibility
@@ -31,6 +31,37 @@ export function updateDebugPanel(catX, catY, catVelocityX, catVelocityY, inTrick
     
     document.getElementById('debug-trick').textContent = 
         currentTrick || 'none';
+
+    // Update game over toggle state
+    const gameOverToggle = document.getElementById('debug-game-over-toggle');
+    if (gameOverToggle) {
+        gameOverToggle.checked = isGameOver;
+    }
+}
+
+// Function to create debug controls
+export function createDebugControls(handleGameOver) {
+    if (!DEBUG_MODE) return;
+
+    const debugControls = document.createElement('div');
+    debugControls.className = 'debug-controls';
+    debugControls.innerHTML = `
+        <div class="debug-row">
+            <label class="debug-label">Game Over:</label>
+            <input type="checkbox" id="debug-game-over-toggle" class="debug-toggle">
+        </div>
+    `;
+
+    const debugPanel = document.getElementById('debug-panel');
+    debugPanel.appendChild(debugControls);
+
+    // Add event listener for game over toggle
+    const gameOverToggle = document.getElementById('debug-game-over-toggle');
+    gameOverToggle.addEventListener('change', (e) => {
+        if (e.target.checked) {
+            handleGameOver();
+        }
+    });
 }
 
 // Function to draw trick zone boundary line

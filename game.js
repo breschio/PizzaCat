@@ -1,4 +1,4 @@
-import { DEBUG_MODE } from './debug.js';
+import { DEBUG_MODE, updateDebugPanel, drawTrickZoneBoundary, createDebugControls } from './debug.js';
 import { 
     performTrick,
     applyTrickAnimation,
@@ -460,9 +460,10 @@ import { gameOverManager } from './src/gameOver.js';
         document.getElementById('start-button').style.display = 'inline-block';
         document.getElementById('stop-button').style.display = 'none';
         
-        // Initialize debug panel
+        // Initialize debug panel and controls
         if (DEBUG_MODE) {
-            updateDebugPanel(catX, catY, catVelocityX, catVelocityY, inTrickZone, currentTrick);
+            updateDebugPanel(catX, catY, catVelocityX, catVelocityY, inTrickZone, null, currentTrick, isGameOver);
+            createDebugControls(handleGameOver);
         }
         
         // Reset trick-related state
@@ -898,10 +899,12 @@ import { gameOverManager } from './src/gameOver.js';
             drawSurfMoveEffect();
         }
 
-        if (isCatnipMode) {
+        // Draw catnip overlay if in catnip mode or game over
+        if (isCatnipMode || isGameOver) {
             drawCatnipOverlay();
         }
-        if (isFlashing) {
+        // Only show flash overlay if not game over
+        if (isFlashing && !isGameOver) {
             drawFlashOverlay();
         }
 
@@ -911,7 +914,9 @@ import { gameOverManager } from './src/gameOver.js';
             catVelocityX, 
             catVelocityY, 
             inTrickZone, 
-            currentTrick
+            null,
+            currentTrick,
+            isGameOver
         );
     }
 
@@ -1012,11 +1017,13 @@ import { gameOverManager } from './src/gameOver.js';
                         isInvincible = true;
                         invincibilityTimer = INVINCIBILITY_DURATION;
 
-                        // Add red flash effect
-                        isFlashing = true;
-                        flashStartTime = performance.now();
-                        flashColor = 'rgba(255, 0, 0, 0.5)';  // Semi-transparent red
-                        flashAlpha = 0.5;  // Stronger flash for damage
+                        // Only show red flash if health is not 0 (not game over)
+                        if (catHealth > 0) {
+                            isFlashing = true;
+                            flashStartTime = performance.now();
+                            flashColor = 'rgba(255, 0, 0, 0.5)';  // Semi-transparent red
+                            flashAlpha = 0.5;  // Stronger flash for damage
+                        }
 
                         // Game over if health reaches 0
                         if (catHealth <= 0) {
@@ -1270,7 +1277,6 @@ import { gameOverManager } from './src/gameOver.js';
         isGameOver = true;
         isGameRunning = false;
         isPaused = true;
-        isCatnipMode = false;
         
         // Clear any active animations or transitions
         const notifications = document.querySelectorAll('.level-up-notification, .powerup-popup, .score-popup');
@@ -1295,6 +1301,12 @@ import { gameOverManager } from './src/gameOver.js';
                 }
             }, 100);
         }, 100);
+        
+        // Enable catnip mode for game over
+        isCatnipMode = true;
+        
+        // Play Catnip music
+        mediaPlayer.startCatnipMusic();
     }
 
     // Update the game over screen event listener

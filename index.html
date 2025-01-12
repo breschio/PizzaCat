@@ -62,7 +62,7 @@
       <div id="carousel-dots"></div>
       <button id="next-instruction-button">Next</button>
     </div>
-    <button id="start-screen-button" class="game-text">Start Game</button>
+    <button id="start-screen-button" class="ui-button">Start Game</button>
     <button id="how-to-play-button" class="game-text link-button">How to Play</button>
     <div id="start-screen">
         <img id="start-cat" src="./assets/pizza-cat.png" alt="Start Cat" />
@@ -74,8 +74,13 @@
     <h2>GAME OVER</h2>
     <div class="level-display">LEVEL <span id="final-level">1</span></div>
     <div class="score-display">SCORE: <span id="final-score">0</span></div>
-    <input type="text" id="player-name" placeholder="Enter your name" maxlength="15">
-    <button id="submit-score">SUBMIT SCORE</button>
+    <div class="initials">YOUR INITIALS</div>
+    <div id="player-name">
+      <input type="text" class="initial-input" maxlength="1" placeholder="_">
+      <input type="text" class="initial-input" maxlength="1" placeholder="_">
+      <input type="text" class="initial-input" maxlength="1" placeholder="_">
+    </div>
+    <button id="submit-score" class="ui-button">SUBMIT</button>
   </div>
 
   <!-- Leaderboard Screen -->
@@ -84,7 +89,7 @@
     <div id="leaderboard-list">
       <!-- Scores will be dynamically added here -->
     </div>
-    <button id="leaderboard-play">START GAME</button>
+    <button id="leaderboard-play">NEW GAME</button>
   </div>
 
   <div id="debug-panel" class="debug-panel">
