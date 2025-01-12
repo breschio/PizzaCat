@@ -6,7 +6,7 @@ let db;
 // Initialize Firebase with proper error handling
 async function initializeFirebase() {
     try {
-        const response = await fetch('/api/firebase-config');
+        const response = await fetch('http://localhost:3000/api/firebase-config');
         if (!response.ok) {
             throw new Error('Failed to fetch Firebase configuration');
         }
