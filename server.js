@@ -30,31 +30,25 @@ app.use(helmet({
             defaultSrc: ["'self'"],
             connectSrc: [
                 "'self'",
-                "https://*.firebaseio.com",
-                "https://*.firebaseapp.com",
-                "https://pizzacat-d0c89.firebaseapp.com",
-                "https://*.googleapis.com",
-                "https://firestore.googleapis.com"
+                process.env.SUPABASE_URL,
+                "wss://*.supabase.co"
             ],
             scriptSrc: [
                 "'self'",
                 "'unsafe-inline'",
-                "https://*.firebaseio.com",
-                "https://*.gstatic.com",
-                "https://*.googleapis.com"
+                "https://esm.sh"
             ],
             styleSrc: ["'self'", "'unsafe-inline'"],
             imgSrc: ["'self'", "data:", "https:"],
-            fontSrc: ["'self'", "https:", "data:"],
-            frameSrc: ["'self'", "https://*.firebaseapp.com"]
+            fontSrc: ["'self'", "https:", "data:"]
         }
     },
     crossOriginEmbedderPolicy: false
 }));
 app.use(express.json());
 
-// Rate limiting for Firebase config endpoint
-const firebaseConfigLimiter = rateLimit({
+// Rate limiting for configuration endpoint
+const configLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
     max: 10 // limit each IP to 10 requests per windowMs for this endpoint
 });
@@ -88,23 +82,23 @@ app.use((err, req, res, next) => {
     });
 });
 
-// Firebase configuration endpoint with additional security
-app.get('/api/firebase-config', firebaseConfigLimiter, (req, res) => {
+// Supabase configuration endpoint with additional security
+app.get('/api/supabase-config', configLimiter, (req, res) => {
     try {
         // Log access attempts in development
         if (NODE_ENV === 'development') {
-            console.log(`Firebase config requested from: ${req.ip}`);
+            console.log(`Supabase config requested from: ${req.ip}`);
         }
 
         // Validate required environment variables
-        const requiredVars = ['API_KEY', 'AUTH_DOMAIN', 'PROJECT_ID'];
+        const requiredVars = ['SUPABASE_URL', 'SUPABASE_ANON_KEY'];
         const missingVars = requiredVars.filter(varName => !process.env[varName]);
         
         if (missingVars.length > 0) {
             console.error('Missing required environment variables:', missingVars);
             return res.status(500).json({
                 error: 'Server configuration error',
-                message: 'Firebase configuration is incomplete'
+                message: 'Supabase configuration is incomplete'
             });
         }
 
@@ -113,25 +107,20 @@ app.get('/api/firebase-config', firebaseConfigLimiter, (req, res) => {
             'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
             'Pragma': 'no-cache',
             'Expires': '0',
-            'Surrogate-Control': 'no-store'
+            'Surrogate-Control': 'no-store',
+            'X-Content-Type-Options': 'nosniff',
+            'X-Frame-Options': 'DENY',
+            'X-XSS-Protection': '1; mode=block'
         });
 
-        // Return only the necessary Firebase configuration
-        // Note: These values are considered "public" by Firebase design
+        // Return only the necessary Supabase configuration
         res.json({
-            apiKey: process.env.API_KEY,
-            authDomain: process.env.AUTH_DOMAIN,
-            projectId: process.env.PROJECT_ID,
-            storageBucket: process.env.STORAGE_BUCKET,
-            messagingSenderId: process.env.MESSAGING_SENDER_ID,
-            appId: process.env.APP_ID,
-            databaseURL: `https://${process.env.PROJECT_ID}.firebaseio.com`,
-            experimentalForceLongPolling: true, // Add this for better connection stability
-            useFetchStreams: false // Disable experimental fetch streams
+            url: process.env.SUPABASE_URL,
+            anonKey: process.env.SUPABASE_ANON_KEY
         });
     } catch (error) {
-        console.error('Error serving Firebase config:', error);
-        res.status(500).json({ error: 'Could not retrieve Firebase configuration' });
+        console.error('Error serving Supabase config:', error);
+        res.status(500).json({ error: 'Could not retrieve Supabase configuration' });
     }
 });
 
