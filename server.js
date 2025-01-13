@@ -23,83 +23,42 @@ const ALLOWED_ORIGINS = NODE_ENV === 'production'
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-// Serve static files in production
-if (NODE_ENV === 'production') {
-    app.use(express.static(path.join(__dirname)));
-    
-    // Ensure all API routes are prefixed with /api
-    const apiRouter = express.Router();
-    
-    // Move Supabase config endpoint to API router
-    apiRouter.get('/supabase-config', configLimiter, (req, res) => {
-        try {
-            // Log access attempts in development
-            if (process.env.NODE_ENV === 'development') {
-                console.log(`Supabase config requested from: ${req.ip}`);
-                console.log('Origin:', req.get('origin'));
-                console.log('Headers:', req.headers);
-            }
+// Basic middleware (should come first)
+app.use(express.json());
 
-            // Validate required environment variables
-            const requiredVars = ['SUPABASE_URL', 'SUPABASE_ANON_KEY'];
-            const missingVars = requiredVars.filter(varName => !process.env[varName]);
-            
-            if (missingVars.length > 0) {
-                console.error('Missing required environment variables:', missingVars);
-                return res.status(500).json({
-                    error: 'Server configuration error',
-                    message: 'Supabase configuration is incomplete'
-                });
-            }
-
-            // Return Supabase configuration with consistent property names
-            res.json({
-                url: process.env.SUPABASE_URL,
-                anonKey: process.env.SUPABASE_ANON_KEY
-            });
-        } catch (error) {
-            console.error('Error serving Supabase config:', error);
-            res.status(500).json({ 
-                error: 'Could not retrieve Supabase configuration',
-                message: NODE_ENV === 'development' ? error.message : undefined
-            });
+// CORS configuration (should come before routes)
+app.use(cors({
+    origin: function(origin, callback) {
+        // Allow requests with no origin (like mobile apps or curl requests)
+        if (!origin) return callback(null, true);
+        
+        // Check if the origin is allowed
+        if (ALLOWED_ORIGINS.indexOf(origin) === -1) {
+            const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
+            console.error(`CORS error: ${origin} not allowed`);
+            return callback(new Error(msg), false);
         }
-    });
+        return callback(null, true);
+    },
+    credentials: true,
+    methods: ['GET', 'POST', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
+    exposedHeaders: ['Content-Length', 'Content-Type']
+}));
 
-    // Move login endpoint to API router
-    apiRouter.post('/login', (req, res) => {
-        try {
-            const { username } = req.body;
-            
-            if (!username) {
-                return res.status(400).json({ error: 'Username is required' });
-            }
+// Rate limiting (should come before routes)
+const configLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 10 // limit each IP to 10 requests per windowMs for this endpoint
+});
 
-            const token = jwt.sign(
-                { username }, 
-                process.env.JWT_SECRET, 
-                { expiresIn: '24h' }
-            );
+const limiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 100 // limit each IP to 100 requests per windowMs
+});
+app.use(limiter);
 
-            res.json({ token });
-        } catch (error) {
-            console.error('Login error:', error);
-            res.status(500).json({ error: 'Authentication failed' });
-        }
-    });
-
-    // Mount API router
-    app.use('/api', apiRouter);
-
-    // Serve index.html for all other routes in production
-    app.get('*', (req, res) => {
-        if (!req.path.startsWith('/api')) {
-            res.sendFile(path.join(__dirname, 'index.html'));
-        }
-    });
-}
-
-// Security middleware
+// Security middleware (should come before routes but after CORS)
 app.use(helmet({
     contentSecurityPolicy: {
         directives: {
@@ -127,40 +86,6 @@ app.use(helmet({
     },
     crossOriginEmbedderPolicy: false
 }));
-app.use(express.json());
-
-// Rate limiting for configuration endpoint
-const configLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 10 // limit each IP to 10 requests per windowMs for this endpoint
-});
-
-// General rate limiting
-const limiter = rateLimit({
-    windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 100 // limit each IP to 100 requests per windowMs
-});
-app.use(limiter);
-
-// CORS configuration
-app.use(cors({
-    origin: function(origin, callback) {
-        // Allow requests with no origin (like mobile apps or curl requests)
-        if (!origin) return callback(null, true);
-        
-        // Check if the origin is allowed
-        if (ALLOWED_ORIGINS.indexOf(origin) === -1) {
-            const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
-            console.error(`CORS error: ${origin} not allowed`);
-            return callback(new Error(msg), false);
-        }
-        return callback(null, true);
-    },
-    credentials: true,
-    methods: ['GET', 'POST', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
-    exposedHeaders: ['Content-Length', 'Content-Type']
-}));
 
 // JWT authentication middleware
 const authenticate = expressJwt({
@@ -168,20 +93,96 @@ const authenticate = expressJwt({
     algorithms: ['HS256']
 });
 
-// Error handling middleware
-app.use((err, req, res, next) => {
-    console.error(err.stack);
-    res.status(500).json({
-        error: NODE_ENV === 'production' ? 'Internal server error' : err.message
-    });
+// Create API Router
+const apiRouter = express.Router();
+
+// Supabase config endpoint
+apiRouter.get('/supabase-config', configLimiter, (req, res) => {
+    try {
+        // Log access attempts in development
+        if (process.env.NODE_ENV === 'development') {
+            console.log(`Supabase config requested from: ${req.ip}`);
+            console.log('Origin:', req.get('origin'));
+            console.log('Headers:', req.headers);
+        }
+
+        // Validate required environment variables
+        const requiredVars = ['SUPABASE_URL', 'SUPABASE_ANON_KEY'];
+        const missingVars = requiredVars.filter(varName => !process.env[varName]);
+        
+        if (missingVars.length > 0) {
+            console.error('Missing required environment variables:', missingVars);
+            return res.status(500).json({
+                error: 'Server configuration error',
+                message: 'Supabase configuration is incomplete'
+            });
+        }
+
+        // Return Supabase configuration with consistent property names
+        res.json({
+            url: process.env.SUPABASE_URL,
+            anonKey: process.env.SUPABASE_ANON_KEY
+        });
+    } catch (error) {
+        console.error('Error serving Supabase config:', error);
+        res.status(500).json({ 
+            error: 'Could not retrieve Supabase configuration',
+            message: NODE_ENV === 'development' ? error.message : undefined
+        });
+    }
+});
+
+// Login endpoint
+apiRouter.post('/login', (req, res) => {
+    try {
+        const { username } = req.body;
+        
+        if (!username) {
+            return res.status(400).json({ error: 'Username is required' });
+        }
+
+        const token = jwt.sign(
+            { username }, 
+            process.env.JWT_SECRET, 
+            { expiresIn: '24h' }
+        );
+
+        res.json({ token });
+    } catch (error) {
+        console.error('Login error:', error);
+        res.status(500).json({ error: 'Authentication failed' });
+    }
 });
 
 // Health check endpoint
-app.get('/health', (req, res) => {
+apiRouter.get('/health', (req, res) => {
     res.json({ 
         status: 'ok',
         env: NODE_ENV,
         timestamp: new Date().toISOString()
+    });
+});
+
+// Mount API router
+app.use('/api', apiRouter);
+
+// Serve static files in production (should come after API routes)
+if (NODE_ENV === 'production') {
+    app.use(express.static(path.join(__dirname)));
+    
+    // Serve index.html for all other routes in production
+    app.get('*', (req, res) => {
+        if (!req.path.startsWith('/api')) {
+            res.sendFile(path.join(__dirname, 'index.html'));
+        }
+    });
+}
+
+// Error handling middleware (should be last)
+app.use((err, req, res, next) => {
+    console.error(err.stack);
+    res.status(500).json({
+        error: NODE_ENV === 'production' ? 'Internal server error' : err.message
     });
 });
 
