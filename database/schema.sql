@@ -48,12 +48,18 @@ CREATE TRIGGER update_scores_updated_at
 
 -- Scores table policies
 DROP POLICY IF EXISTS "Enable read access for all users" ON scores;
-CREATE POLICY "Enable read access for all users" ON scores
-    FOR SELECT USING (true);
-
+DROP POLICY IF EXISTS "Enable insert for all users" ON scores;
 DROP POLICY IF EXISTS "Enable insert for authenticated users" ON scores;
-CREATE POLICY "Enable insert for authenticated users" ON scores
-    FOR INSERT WITH CHECK (
+
+CREATE POLICY "Enable read access for all users" ON scores
+    FOR SELECT
+    USING (true);
+
+CREATE POLICY "Enable insert for all users" ON scores
+    FOR INSERT
+    WITH CHECK (
+        -- Basic validation
+        username IS NOT NULL AND
         length(username) > 0 AND
         score >= 0 AND
         level > 0
@@ -92,4 +98,24 @@ BEGIN
     ORDER BY s.score DESC
     LIMIT limit_count;
 END;
-$$ LANGUAGE plpgsql; 
+$$ LANGUAGE plpgsql;
+
+-- Verify policies
+SELECT
+    schemaname,
+    tablename,
+    policyname,
+    permissive,
+    roles,
+    cmd,
+    qual,
+    with_check
+FROM pg_policies
+WHERE tablename = 'scores';
+
+-- Verify RLS is enabled
+SELECT
+    relname,
+    relrowsecurity
+FROM pg_class
+WHERE relname = 'scores'; 

@@ -8,7 +8,7 @@ async function initializeSupabase() {
         // Get the base URL for the API based on environment
         const apiBaseUrl = window.location.hostname === 'localhost'
             ? 'http://localhost:3000'
-            : window.location.origin;
+            : 'https://pizzacat.surf';  // Use the production domain directly
         
         console.log('Fetching Supabase config from:', apiBaseUrl);
         
@@ -19,7 +19,7 @@ async function initializeSupabase() {
         for (let attempt = 1; attempt <= maxRetries; attempt++) {
             try {
                 const response = await fetch(`${apiBaseUrl}/api/supabase-config`, {
-                    credentials: window.location.hostname === 'localhost' ? 'include' : 'same-origin',
+                    credentials: 'same-origin',  // Always use same-origin for consistency
                     headers: {
                         'Accept': 'application/json',
                         'Cache-Control': 'no-cache'
@@ -27,20 +27,24 @@ async function initializeSupabase() {
                 });
 
                 if (!response.ok) {
-                    throw new Error(`Failed to fetch Supabase config: ${response.status} ${response.statusText}`);
+                    const errorText = await response.text();
+                    throw new Error(`Failed to fetch Supabase config (${response.status} ${response.statusText}): ${errorText}`);
                 }
 
                 const config = await response.json();
                 console.log('Supabase config fetched successfully');
 
                 if (!config.url || !config.anonKey) {
-                    throw new Error('Invalid Supabase configuration received');
+                    console.error('Invalid config received:', config);
+                    throw new Error('Invalid Supabase configuration received: missing url or anonKey');
                 }
 
                 // Initialize Supabase client with correct property names
                 supabaseInstance = createClient(config.url, config.anonKey, {
                     auth: {
-                        persistSession: false
+                        persistSession: false,
+                        autoRefreshToken: true,
+                        detectSessionInUrl: true
                     },
                     realtime: {
                         params: {
@@ -50,27 +54,19 @@ async function initializeSupabase() {
                 });
 
                 // Test connection
-                const { data, error } = await supabaseInstance
-                    .from('connection_tests')
-                    .insert({
-                        client_id: crypto.randomUUID(),
-                        environment: window.location.hostname === 'localhost' ? 'development' : 'production',
-                        status: 'connected'
-                    });
-
-                if (error) {
-                    throw new Error(`Connection test failed: ${error.message}`);
-                }
-
-                console.log('Supabase initialized successfully');
+                console.log('Testing Supabase connection before initialization...');
+                await testSupabaseConnection(supabaseInstance);
+                
+                console.log('Supabase initialized and tested successfully');
                 return supabaseInstance;
             } catch (error) {
                 console.error(`Attempt ${attempt} failed:`, error);
                 lastError = error;
                 
                 if (attempt < maxRetries) {
-                    // Wait before retrying (exponential backoff)
-                    await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt) * 1000));
+                    const delay = Math.pow(2, attempt) * 1000;
+                    console.log(`Retrying in ${delay/1000} seconds...`);
+                    await new Promise(resolve => setTimeout(resolve, delay));
                 }
             }
         }
@@ -173,6 +169,63 @@ export async function subscribeToScores(callback) {
         };
     } catch (error) {
         console.error('Error setting up score subscription:', error);
+        throw error;
+    }
+}
+
+// Add connection test function
+async function testSupabaseConnection(supabase) {
+    console.log('Testing Supabase connection...');
+    
+    try {
+        // Test 1: Basic connection
+        const { data: healthCheck, error: healthError } = await supabase
+            .from('scores')
+            .select('count(*)')
+            .limit(1);
+            
+        if (healthError) {
+            console.error('Failed to read scores:', healthError);
+            throw new Error('Read permission check failed');
+        }
+        console.log('✓ Read permissions verified');
+
+        // Test 2: Insert permission test with dummy data
+        const testScore = {
+            username: 'TEST_USER',
+            score: 0,
+            level: 1
+        };
+
+        const { data: insertData, error: insertError } = await supabase
+            .from('scores')
+            .insert([testScore])
+            .select();
+
+        if (insertError) {
+            console.error('Failed to insert test score:', insertError);
+            throw new Error('Insert permission check failed');
+        }
+        console.log('✓ Insert permissions verified');
+
+        // Test 3: Clean up test data
+        if (insertData && insertData[0]?.id) {
+            const { error: deleteError } = await supabase
+                .from('scores')
+                .delete()
+                .eq('id', insertData[0].id);
+
+            if (deleteError) {
+                console.warn('Warning: Could not clean up test data:', deleteError);
+            } else {
+                console.log('✓ Test data cleaned up');
+            }
+        }
+
+        console.log('All Supabase connection tests passed!');
+        return true;
+    } catch (error) {
+        console.error('Supabase connection test failed:', error);
         throw error;
     }
 } 
