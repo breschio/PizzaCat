@@ -110,7 +110,10 @@ app.get('/api/firebase-config', firebaseConfigLimiter, (req, res) => {
             projectId: process.env.PROJECT_ID,
             storageBucket: process.env.STORAGE_BUCKET,
             messagingSenderId: process.env.MESSAGING_SENDER_ID,
-            appId: process.env.APP_ID
+            appId: process.env.APP_ID,
+            databaseURL: `https://${process.env.PROJECT_ID}.firebaseio.com`,
+            experimentalForceLongPolling: true, // Add this for better connection stability
+            useFetchStreams: false // Disable experimental fetch streams
         });
     } catch (error) {
         console.error('Error serving Firebase config:', error);

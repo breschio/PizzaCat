@@ -1,5 +1,5 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-import { getFirestore, collection, addDoc, getDocs, query, orderBy, limit } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+import { getFirestore, collection, addDoc, getDocs, query, orderBy, limit, connectFirestoreEmulator } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
 let db;
 let initializationPromise = null;
@@ -21,15 +21,32 @@ async function initializeFirebase(retryCount = 0) {
 
     initializationPromise = (async () => {
         try {
+            console.log('Fetching Firebase configuration...');
             const response = await fetch(`${API_BASE_URL}/api/firebase-config`);
             if (!response.ok) {
                 throw new Error(`Failed to fetch Firebase configuration: ${response.status} ${response.statusText}`);
             }
             const config = await response.json();
             
+            console.log('Initializing Firebase app...');
             const app = initializeApp(config);
             db = getFirestore(app);
-            console.log('Firebase initialized successfully');
+
+            // Use emulator in development
+            if (window.location.hostname === 'localhost') {
+                connectFirestoreEmulator(db, 'localhost', 8080);
+            }
+
+            // Test the connection
+            try {
+                const testQuery = query(collection(db, 'scores'), limit(1));
+                await getDocs(testQuery);
+                console.log('Firebase connection test successful');
+            } catch (testError) {
+                console.error('Firebase connection test failed:', testError);
+                throw testError;
+            }
+
             return db;
         } catch (error) {
             console.error('Error initializing Firebase:', error);
@@ -51,6 +68,7 @@ async function initializeFirebase(retryCount = 0) {
 export async function saveScore(username, { score, level }) {
     try {
         if (!db) {
+            console.log('Initializing Firebase before saving score...');
             await initializeFirebase();
         }
         
@@ -65,6 +83,9 @@ export async function saveScore(username, { score, level }) {
             throw new Error('Invalid level value');
         }
 
+        console.log('Saving score to Firestore...');
+        console.log('Data:', { username: username.trim().toUpperCase(), score, level });
+
         const scoresCollection = collection(db, 'scores');
         const docRef = await addDoc(scoresCollection, {
             username: username.trim().toUpperCase(),
@@ -72,13 +93,21 @@ export async function saveScore(username, { score, level }) {
             level,
             timestamp: new Date().toISOString()
         });
-        console.log('Score saved successfully');
+        
+        console.log('Score saved successfully:', docRef.id);
         return docRef;
     } catch (error) {
         console.error("Error saving score:", error);
         if (error.message.includes('Invalid')) {
             throw error; // Throw validation errors as is
         }
+        // Log more details about the error
+        console.error('Error details:', {
+            name: error.name,
+            message: error.message,
+            code: error.code,
+            stack: error.stack
+        });
         throw new Error('Failed to save score. Please try again.');
     }
 }
@@ -87,9 +116,11 @@ export async function saveScore(username, { score, level }) {
 export async function getTopScores() {
     try {
         if (!db) {
+            console.log('Initializing Firebase before getting scores...');
             await initializeFirebase();
         }
 
+        console.log('Fetching top scores...');
         const scoresCollection = collection(db, 'scores');
         const scoresQuery = query(scoresCollection, orderBy('score', 'desc'), limit(10));
         const snapshot = await getDocs(scoresQuery);
@@ -102,14 +133,27 @@ export async function getTopScores() {
             timestamp: doc.data().timestamp
         }));
         
+        console.log('Successfully fetched scores:', scores.length);
         return scores;
     } catch (error) {
         console.error("Error getting scores:", error);
+        // Log more details about the error
+        console.error('Error details:', {
+            name: error.name,
+            message: error.message,
+            code: error.code,
+            stack: error.stack
+        });
         throw new Error('Failed to load leaderboard. Please try again.');
     }
 }
 
 // Initialize Firebase when the module loads
-initializeFirebase().catch(console.error);
+console.log('Starting Firebase initialization...');
+initializeFirebase().then(() => {
+    console.log('Firebase initialized successfully');
+}).catch(error => {
+    console.error('Failed to initialize Firebase:', error);
+});
 
 export { db }; 
