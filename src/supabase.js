@@ -5,10 +5,12 @@ let initializationPromise = null;
 
 async function initializeSupabase() {
     try {
-        console.log('Fetching Supabase configuration...');
-        const apiBaseUrl = window.location.hostname === 'localhost' 
-            ? 'http://localhost:3000' 
+        // Determine API base URL based on environment
+        const apiBaseUrl = window.location.hostname === 'localhost'
+            ? 'http://localhost:3000'
             : 'https://pizzacat.surf';
+        console.log('Using API base URL:', apiBaseUrl);
+
         const response = await fetch(`${apiBaseUrl}/api/supabase-config`);
         
         if (!response.ok) {

@@ -64,7 +64,9 @@ const limiter = rateLimit({
 app.use(limiter);
 
 // CORS configuration
-const allowedOrigins = ['http://localhost:8000', 'http://localhost:3000'];
+const allowedOrigins = NODE_ENV === 'production' 
+    ? ['https://pizzacat.surf'] 
+    : ['http://localhost:8000', 'http://localhost:3000'];
 console.log('Allowed origins:', allowedOrigins);
 
 app.use(cors({
