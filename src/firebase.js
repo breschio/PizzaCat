@@ -121,7 +121,53 @@ export async function getTopScores() {
     }
 }
 
-// Initialize Firebase when the module loads
-initializeFirebase().catch(console.error);
+// Test Firebase connection and functionality
+async function testFirebaseConnection() {
+    try {
+        console.log('Testing Firebase connection...');
+        console.log('Environment:', window.location.hostname);
+        console.log('API URL:', API_BASE_URL);
+        
+        // Test config fetch
+        const response = await fetch(`${API_BASE_URL}/api/firebase-config`);
+        if (!response.ok) {
+            throw new Error(`Config fetch failed: ${response.status} ${response.statusText}`);
+        }
+        const config = await response.json();
+        console.log('Firebase config fetched successfully');
+        
+        // Test database initialization
+        await initializeFirebase();
+        if (!db) {
+            throw new Error('Database not initialized after initializeFirebase()');
+        }
+        console.log('Firebase initialized successfully');
+        
+        // Test read operation
+        const testQuery = query(collection(db, 'scores'), limit(1));
+        const snapshot = await getDocs(testQuery);
+        console.log('Read operation successful, documents found:', !snapshot.empty);
+        
+        return {
+            success: true,
+            message: 'Firebase connection test completed successfully'
+        };
+    } catch (error) {
+        console.error('Firebase connection test failed:', error);
+        return {
+            success: false,
+            message: error.message,
+            error: error
+        };
+    }
+}
 
-export { db }; 
+// Initialize Firebase when the module loads
+initializeFirebase()
+    .then(() => testFirebaseConnection())
+    .then(result => {
+        console.log('Firebase initialization test result:', result);
+    })
+    .catch(console.error);
+
+export { db, testFirebaseConnection }; 
