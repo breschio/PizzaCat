@@ -6,11 +6,6 @@ let initializationPromise = null;
 const MAX_RETRIES = 3;
 const RETRY_DELAY = 1000; // 1 second
 
-// Determine the API base URL based on the current environment
-const API_BASE_URL = window.location.hostname === 'localhost' 
-    ? 'http://localhost:3000'
-    : 'https://pizzacat.surf'; // Replace with your actual production domain
-
 // Initialize Firebase with proper error handling and retries
 async function initializeFirebase(retryCount = 0) {
     if (db) return db;
@@ -21,26 +16,18 @@ async function initializeFirebase(retryCount = 0) {
 
     initializationPromise = (async () => {
         try {
-            const response = await fetch(`${API_BASE_URL}/api/firebase-config`);
-            if (!response.ok) {
-                throw new Error('Failed to fetch Firebase configuration');
-            }
-            const config = await response.json();
+            // Initialize Firebase directly with the public configuration
+            // Note: These values are public and safe to expose in client-side code
+            const app = initializeApp({
+                apiKey: "AIzaSyCxWfxT0-l5HBKyfmm-4BFGRpIE_XPxQsE",
+                authDomain: "pizzacat-d0c89.firebaseapp.com",
+                projectId: "pizzacat-d0c89",
+                storageBucket: "pizzacat-d0c89.firebasestorage.app",
+                messagingSenderId: "484007714262",
+                appId: "1:484007714262:web:d6667e323058ccef6b9877"
+            });
             
-            // Check if we already have an initialized Firebase app
-            try {
-                const app = initializeApp(config);
-                db = getFirestore(app);
-            } catch (initError) {
-                // If Firebase is already initialized, get the existing app
-                if (initError.code === 'app/duplicate-app') {
-                    const existingApp = firebase.app();
-                    db = getFirestore(existingApp);
-                } else {
-                    throw initError;
-                }
-            }
-            
+            db = getFirestore(app);
             console.log('Firebase initialized successfully');
             return db;
         } catch (error) {
@@ -126,15 +113,6 @@ async function testFirebaseConnection() {
     try {
         console.log('Testing Firebase connection...');
         console.log('Environment:', window.location.hostname);
-        console.log('API URL:', API_BASE_URL);
-        
-        // Test config fetch
-        const response = await fetch(`${API_BASE_URL}/api/firebase-config`);
-        if (!response.ok) {
-            throw new Error(`Config fetch failed: ${response.status} ${response.statusText}`);
-        }
-        const config = await response.json();
-        console.log('Firebase config fetched successfully');
         
         // Test database initialization
         await initializeFirebase();
