@@ -1,5 +1,5 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-import { getFirestore, collection, addDoc, getDocs, query, orderBy, limit, connectFirestoreEmulator } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+import { getFirestore, collection, addDoc, getDocs, query, orderBy, limit, connectFirestoreEmulator, deleteDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
 let db;
 let initializationPromise = null;
@@ -148,12 +148,79 @@ export async function getTopScores() {
     }
 }
 
-// Initialize Firebase when the module loads
-console.log('Starting Firebase initialization...');
-initializeFirebase().then(() => {
-    console.log('Firebase initialized successfully');
-}).catch(error => {
-    console.error('Failed to initialize Firebase:', error);
-});
+// Add this after the initialization code
+async function verifyFirebaseConnection() {
+    try {
+        console.log('Verifying Firebase connection...');
+        
+        // First, check if we can get the config
+        const response = await fetch(`${API_BASE_URL}/api/firebase-config`);
+        const config = await response.json();
+        console.log('Received config with API key:', config.apiKey.substring(0, 6) + '...');
+        
+        // Test Firestore connection
+        if (!db) {
+            await initializeFirebase();
+        }
+        
+        // Try to write a test document
+        const testCollection = collection(db, 'connection_tests');
+        const testDoc = await addDoc(testCollection, {
+            timestamp: new Date().toISOString(),
+            test: 'Connection verification'
+        });
+        console.log('✅ Successfully wrote test document:', testDoc.id);
+        
+        // Try to read it back
+        const testRead = await getDocs(query(testCollection, limit(1)));
+        console.log('✅ Successfully read from Firestore');
+        
+        // Clean up - delete the test document
+        // Note: We'll need to import deleteDoc
+        await deleteDoc(testDoc);
+        console.log('✅ Successfully deleted test document');
+        
+        return true;
+    } catch (error) {
+        console.error('❌ Firebase verification failed:', error);
+        console.error('Error details:', {
+            name: error.name,
+            message: error.message,
+            code: error.code
+        });
+        return false;
+    }
+}
 
-export { db }; 
+// Update imports at the top of the file
+import { 
+    getFirestore, 
+    collection, 
+    addDoc, 
+    getDocs, 
+    query, 
+    orderBy, 
+    limit, 
+    connectFirestoreEmulator,
+    deleteDoc 
+} from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+// Update the initialization to include verification
+console.log('Starting Firebase initialization...');
+initializeFirebase()
+    .then(() => {
+        console.log('Firebase initialized successfully');
+        return verifyFirebaseConnection();
+    })
+    .then(verified => {
+        if (verified) {
+            console.log('🎉 Firebase connection fully verified!');
+        } else {
+            console.error('⚠️ Firebase connection verification failed');
+        }
+    })
+    .catch(error => {
+        console.error('Failed to initialize Firebase:', error);
+    });
+
+export { db, verifyFirebaseConnection }; 
