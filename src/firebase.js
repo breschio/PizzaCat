@@ -6,6 +6,11 @@ let initializationPromise = null;
 const MAX_RETRIES = 3;
 const RETRY_DELAY = 1000; // 1 second
 
+// Determine the API base URL based on the current environment
+const API_BASE_URL = window.location.hostname === 'localhost' 
+    ? 'http://localhost:3000'
+    : window.location.origin; // Use the same origin for production
+
 // Initialize Firebase with proper error handling and retries
 async function initializeFirebase(retryCount = 0) {
     if (db) return db;
@@ -16,17 +21,13 @@ async function initializeFirebase(retryCount = 0) {
 
     initializationPromise = (async () => {
         try {
-            // Initialize Firebase directly with the public configuration
-            // Note: These values are public and safe to expose in client-side code
-            const app = initializeApp({
-                apiKey: "AIzaSyCxWfxT0-l5HBKyfmm-4BFGRpIE_XPxQsE",
-                authDomain: "pizzacat-d0c89.firebaseapp.com",
-                projectId: "pizzacat-d0c89",
-                storageBucket: "pizzacat-d0c89.firebasestorage.app",
-                messagingSenderId: "484007714262",
-                appId: "1:484007714262:web:d6667e323058ccef6b9877"
-            });
+            const response = await fetch(`${API_BASE_URL}/api/firebase-config`);
+            if (!response.ok) {
+                throw new Error(`Failed to fetch Firebase configuration: ${response.status} ${response.statusText}`);
+            }
+            const config = await response.json();
             
+            const app = initializeApp(config);
             db = getFirestore(app);
             console.log('Firebase initialized successfully');
             return db;
@@ -37,7 +38,7 @@ async function initializeFirebase(retryCount = 0) {
                 await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
                 return initializeFirebase(retryCount + 1);
             }
-            throw new Error('Failed to initialize Firebase after multiple attempts');
+            throw new Error(`Failed to initialize Firebase after ${MAX_RETRIES} attempts: ${error.message}`);
         } finally {
             initializationPromise = null;
         }
@@ -108,44 +109,7 @@ export async function getTopScores() {
     }
 }
 
-// Test Firebase connection and functionality
-async function testFirebaseConnection() {
-    try {
-        console.log('Testing Firebase connection...');
-        console.log('Environment:', window.location.hostname);
-        
-        // Test database initialization
-        await initializeFirebase();
-        if (!db) {
-            throw new Error('Database not initialized after initializeFirebase()');
-        }
-        console.log('Firebase initialized successfully');
-        
-        // Test read operation
-        const testQuery = query(collection(db, 'scores'), limit(1));
-        const snapshot = await getDocs(testQuery);
-        console.log('Read operation successful, documents found:', !snapshot.empty);
-        
-        return {
-            success: true,
-            message: 'Firebase connection test completed successfully'
-        };
-    } catch (error) {
-        console.error('Firebase connection test failed:', error);
-        return {
-            success: false,
-            message: error.message,
-            error: error
-        };
-    }
-}
-
 // Initialize Firebase when the module loads
-initializeFirebase()
-    .then(() => testFirebaseConnection())
-    .then(result => {
-        console.log('Firebase initialization test result:', result);
-    })
-    .catch(console.error);
+initializeFirebase().catch(console.error);
 
-export { db, testFirebaseConnection }; 
+export { db }; 
