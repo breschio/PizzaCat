@@ -156,7 +156,12 @@ async function verifyFirebaseConnection() {
         // First, check if we can get the config
         const response = await fetch(`${API_BASE_URL}/api/firebase-config`);
         const config = await response.json();
-        console.log('Received config with API key:', config.apiKey.substring(0, 6) + '...');
+        
+        // Log configuration details (safely)
+        console.log('Firebase Configuration Check:');
+        console.log('- API Key:', '•'.repeat(config.apiKey.length - 8) + config.apiKey.slice(-4));
+        console.log('- Project ID:', config.projectId);
+        console.log('- Auth Domain:', config.authDomain);
         
         // Test Firestore connection
         if (!db) {
@@ -167,7 +172,8 @@ async function verifyFirebaseConnection() {
         const testCollection = collection(db, 'connection_tests');
         const testDoc = await addDoc(testCollection, {
             timestamp: new Date().toISOString(),
-            test: 'Connection verification'
+            test: 'Connection verification',
+            environment: window.location.hostname
         });
         console.log('✅ Successfully wrote test document:', testDoc.id);
         
@@ -176,9 +182,16 @@ async function verifyFirebaseConnection() {
         console.log('✅ Successfully read from Firestore');
         
         // Clean up - delete the test document
-        // Note: We'll need to import deleteDoc
         await deleteDoc(testDoc);
         console.log('✅ Successfully deleted test document');
+        
+        // Additional verification
+        console.log('\nVerification Summary:');
+        console.log('1. Config Fetch:', '✅ Success');
+        console.log('2. Firebase Init:', '✅ Success');
+        console.log('3. Write Test:', '✅ Success');
+        console.log('4. Read Test:', '✅ Success');
+        console.log('5. Cleanup:', '✅ Success');
         
         return true;
     } catch (error) {
@@ -186,7 +199,8 @@ async function verifyFirebaseConnection() {
         console.error('Error details:', {
             name: error.name,
             message: error.message,
-            code: error.code
+            code: error.code,
+            stack: error.stack
         });
         return false;
     }
