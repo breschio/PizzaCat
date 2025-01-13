@@ -45,42 +45,97 @@ body {
 
 #header {
     position: absolute;
-    top: 20px;
+    top: 0;
     left: 0;
     right: 0;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 0 20px;
-    z-index: 2;
+    padding: 20px;
+    z-index: 1000;
+    background: rgba(255, 107, 107, 0.8);
+    border-bottom: 3px solid #FFD93D;
+    font-size: 20px;
+}
+
+#header .game-text,
+#header #score,
+#header .level-timer,
+#header .health-label,
+#header #health-text,
+#header #level-container,
+#header .timer-text,
+#header #score-number,
+#header #pts-text {
+    font-size: 20px;
+    color: white;
+    margin-right: 8px;
+    filter: drop-shadow(2px 2px 0px rgba(0, 0, 0, 1));
+    transform: translateZ(0);
+    backface-visibility: hidden;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
 }
 
 .game-text {
     font-family: 'Press Start 2P', 'Courier New', Courier, monospace;
-    font-size: 24px;
     font-weight: normal;
-    color: white;
-    text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+    text-shadow: none;
 }
 
-#score {
-    position: absolute;
-    bottom: 20px;
-    left: 20px;
-    z-index: 2;
+.health-label {
+    white-space: nowrap;
+    text-shadow: none;
+}
+
+#health-text {
+    font-family: 'Press Start 2P', cursive;
+    white-space: nowrap;
+    min-width: 30px;
+    text-align: right;
+    text-shadow: none;
+}
+
+.header-section {
     display: flex;
     align-items: center;
+    padding: 0 10px;
+}
+
+.header-left {
+    flex: 4;
+    justify-content: flex-start;
     gap: 20px;
 }
 
-#score-container, #level-container {
+.header-center {
+    display: none;
+}
+
+.header-right {
+    flex: 1;
+    justify-content: flex-end;
+}
+
+#score {
+    position: relative;
     display: flex;
     align-items: center;
-    gap: 5px;
+    padding-left: 20px;
+}
+
+#score-container {
+    display: flex;
+    align-items: center;
+    gap: 25px;
 }
 
 #level-container {
-    color: #4ECDC4; /* Turquoise color for level */
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    color: white;
+    margin-right: 10px;
 }
 
 #level-container.level-up {
@@ -186,8 +241,14 @@ body {
 }
 
 #pts-text {
-    color: white; /* Keep PTS always white */
-    margin-left: 2px; /* Reduced from 5px to 2px */
+    color: white;
+    margin-right: 0;
+}
+
+#score-container {
+    display: flex;
+    align-items: center;
+    gap: 5px;
 }
 
 #game-over-screen {
@@ -690,20 +751,15 @@ button {
 }
 
 #health-bar-container {
-    position: absolute;
-    top: 24px;
-    right: 20px;
-    z-index: 999;
+    position: relative;
     display: flex;
-    flex-direction: column;
-    align-items: flex-end;
-    gap: 5px;
-    transition: opacity 0.3s ease;
+    align-items: center;
+    gap: 10px;
 }
 
 .health-label {
     color: white;
-    font-size: 16px;
+    font-size: 20px;
     text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
     white-space: nowrap;
 }
@@ -726,8 +782,8 @@ button {
 
 #health-bar-fill {
     background: linear-gradient(90deg, 
-        rgba(46, 213, 115, 0.9) 0%,
-        rgba(46, 213, 115, 0.7) 100%
+        rgba(78, 205, 196, 0.9) 0%,
+        rgba(78, 205, 196, 0.7) 100%
     );
     height: 100%;
     width: 100%;
@@ -738,7 +794,7 @@ button {
 #health-text {
     color: white;
     font-family: 'Press Start 2P', cursive;
-    font-size: 16px;
+    font-size: 20px;
     text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
     white-space: nowrap;
     min-width: 30px;
@@ -748,21 +804,19 @@ button {
 /* Mobile styles for health bar */
 @media screen and (max-width: 768px) {
     #health-bar-container {
-        top: 55px;
-        right: 20px;
+        transform: scale(0.9);
     }
     
     .health-label {
-        font-size: 12px;
+        font-size: 14px;
     }
     
     #health-bar-background {
         width: 150px;
-        height: 12px;
     }
     
     #health-text {
-        font-size: 12px;
+        font-size: 14px;
     }
 }
 
@@ -814,17 +868,38 @@ button {
 /* Mobile styles for header */
 @media screen and (max-width: 768px) {
     #header {
-        top: 10px; /* Adjust the top position */
-        padding: 0 10px; /* Reduce padding */
+        padding: 10px;
+        flex-direction: row;
+        gap: 10px;
+        font-size: 16px;
     }
 
-    #game-title {
-        font-size: 16px; /* Smaller font size for mobile */
+    .header-section {
+        padding: 5px;
     }
 
-    #score {
-        font-size: 16px; /* Smaller font size for mobile */
-        top: 10px; /* Align with header */
+    .level-timer {
+        gap: 10px;
+    }
+
+    #level-container {
+        margin-right: 10px;
+    }
+
+    .timer-text {
+        min-width: 60px;
+    }
+
+    #health-bar-background {
+        width: 150px;
+    }
+
+    #header .game-text,
+    #score,
+    .level-timer,
+    .health-label,
+    #health-text {
+        font-size: 16px;
     }
 }
 
@@ -850,6 +925,7 @@ button {
     animation: buttonPulse 1.5s infinite;
     margin-bottom: 20px;
     text-transform: uppercase;
+    display: none;
 }
 
 #start-screen-button:hover {
@@ -1004,6 +1080,7 @@ button {
     left: 50%;
     transform: translateX(-50%);
     z-index: 999;
+    display: none;
 }
 
 #how-to-play-button:hover {
@@ -1050,11 +1127,12 @@ button {
     left: 50%;
     transform: translate(-50%, -50%);
     z-index: 1000;
-    text-align: center; /* Center content */
+    text-align: center;
+    display: none;
 }
 
 #start-cat {
-    width: 300px; /* Adjust size as needed */
+    width: 300px;
     height: auto;
 }
 
@@ -1206,35 +1284,36 @@ button {
     opacity: 1;
     background: linear-gradient(
         180deg,
-        rgba(255, 165, 0, 0.2) 0%,
-        rgba(255, 165, 0, 0.1) 90%,
+        rgba(255, 107, 107, 0.0) 0%,
+        rgba(255, 107, 107, 0.2) 90%,
         transparent 100%
     );
     animation: pulse 2s infinite;
+    border-bottom: 6px dashed rgba(255, 107, 107, 0.8);
 }
 
 /* Debug state */
 .trick-zone.debug {
-    border-bottom: 2px solid rgba(255, 0, 0, 0.5);
+    border-bottom: 2px solid rgba(255, 107, 107, 0.8);
 }
 
 /* Label styling */
 .trick-zone-label {
     position: absolute;
-    bottom: 10px;
-    left: 10px;
-    color: white;
+    bottom: 20px;
+    right: 20px;
+    color: #FFFFFF;
     font-family: 'Press Start 2P', cursive;
-    font-size: 8px;
-    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
-    opacity: 0.8;
+    font-size: 20px;
+    text-shadow: 2px 2px rgba(0, 0, 0, 1);
+    opacity: 1;
 }
 
 /* Pulse animation */
 @keyframes pulse {
-    0% { background-color: rgba(255, 165, 0, 0); }
-    50% { background-color: rgba(255, 165, 0, 0.2); }
-    100% { background-color: rgba(255, 165, 0, 0); }
+    0% { background-color: rgba(255, 107, 107, 0); }
+    50% { background-color: rgba(255, 107, 107, 0.15); }
+    100% { background-color: rgba(255, 107, 107, 0); }
 }
 
 /* Mobile adjustments */
@@ -1368,18 +1447,37 @@ button {
 }
 
 .level-timer {
-    font-size: 32px;
-    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
-    background: rgba(0, 0, 0, 0.5);
-    padding: 10px 20px;
-    border-radius: 5px;
-    border: 2px solid rgba(255, 255, 255, 0.3);
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 0;
+    border-right: 2px solid rgba(255, 255, 255, 0.3);
+    padding-right: 20px;
+}
+
+#level-container {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    color: white;
+    margin-right: 10px;
+}
+
+.timer-text {
+    color: white;
+    min-width: 80px;
+    text-align: center;
 }
 
 @media screen and (max-width: 768px) {
     .level-timer {
-        font-size: 24px;
-        padding: 8px 16px;
+        gap: 8px;
+        padding-right: 10px;
+    }
+    
+    #level-container {
+        margin-right: 8px;
     }
 }
 
@@ -1581,4 +1679,56 @@ button {
 .debug-toggle:checked::before {
     transform: translateX(14px);
     background: #000;
+}
+
+/* Show elements during gameplay */
+#game-container.gameplay-active #score,
+#game-container.gameplay-active .level-timer,
+#game-container.gameplay-active #header {
+    display: flex;
+}
+
+/* Hide elements during start screen */
+#game-container:not(.gameplay-active) #score,
+#game-container:not(.gameplay-active) .level-timer,
+#game-container:not(.gameplay-active) #header {
+    display: none;
+}
+
+/* Start screen elements visibility */
+#game-container:not(.gameplay-active) #start-screen,
+#game-container:not(.gameplay-active) #start-screen-button,
+#game-container:not(.gameplay-active) #how-to-play-button {
+    display: block;
+}
+
+/* Hide start screen elements during gameplay */
+#game-container.gameplay-active #start-screen,
+#game-container.gameplay-active #start-screen-button,
+#game-container.gameplay-active #how-to-play-button {
+    display: none;
+}
+
+/* Show gameplay elements only during active gameplay */
+#game-container.gameplay-active #score,
+#game-container.gameplay-active .level-timer,
+#game-container.gameplay-active #health-bar-container {
+    display: flex;
+}
+
+/* Hide gameplay elements during start screen */
+#game-container:not(.gameplay-active) #score,
+#game-container:not(.gameplay-active) .level-timer,
+#game-container:not(.gameplay-active) #health-bar-container {
+    display: none;
+}
+
+/* Hide start screen elements when game over or leaderboard is shown */
+#game-container:has(#game-over-screen[style*="display: block"]) #start-screen,
+#game-container:has(#game-over-screen[style*="display: block"]) #start-screen-button,
+#game-container:has(#game-over-screen[style*="display: block"]) #how-to-play-button,
+#game-container:has(#leaderboard-screen[style*="display: block"]) #start-screen,
+#game-container:has(#leaderboard-screen[style*="display: block"]) #start-screen-button,
+#game-container:has(#leaderboard-screen[style*="display: block"]) #how-to-play-button {
+    display: none !important;
 }

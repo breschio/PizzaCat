@@ -45,15 +45,15 @@ import { gameOverManager } from './src/gameOver.js';
     let levelTimeRemaining = LEVEL_DURATION;
     
     // Add level timer display
-    const levelTimerDisplay = document.createElement('div');
-    levelTimerDisplay.className = 'level-timer game-text';
-    levelTimerDisplay.style.position = 'absolute';
-    levelTimerDisplay.style.top = '20px';
-    levelTimerDisplay.style.left = '50%';
-    levelTimerDisplay.style.transform = 'translateX(-50%)';
-    levelTimerDisplay.style.color = 'white';
-    levelTimerDisplay.style.zIndex = '1000';
-    document.getElementById('game-container').appendChild(levelTimerDisplay);
+    // const levelTimerDisplay = document.createElement('div');
+    // levelTimerDisplay.className = 'level-timer game-text';
+    // levelTimerDisplay.style.position = 'absolute';
+    // levelTimerDisplay.style.top = '20px';
+    // levelTimerDisplay.style.left = '50%';
+    // levelTimerDisplay.style.transform = 'translateX(-50%)';
+    // levelTimerDisplay.style.color = 'white';
+    // levelTimerDisplay.style.zIndex = '1000';
+    // document.getElementById('game-container').appendChild(levelTimerDisplay);
 
     function updateLevelTimer() {
         const currentTime = performance.now();
@@ -63,7 +63,12 @@ import { gameOverManager } from './src/gameOver.js';
         const seconds = Math.ceil(levelTimeRemaining / 1000);
         const minutes = Math.floor(seconds / 60);
         const remainingSeconds = seconds % 60;
-        levelTimerDisplay.textContent = `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+        
+        // Update the timer text in the level container
+        const timerText = document.querySelector('.level-timer .timer-text');
+        if (timerText) {
+            timerText.textContent = `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+        }
         
         // Check for level completion
         if (levelTimeRemaining === 0) {
@@ -492,34 +497,14 @@ import { gameOverManager } from './src/gameOver.js';
     }
 
     function showStartMode() {
-        // Show start screen elements
-        const startScreen = document.getElementById('start-screen');
-        const startScreenButton = document.getElementById('start-screen-button');
-        const howToPlayButton = document.getElementById('how-to-play-button');
-        const gameTitle = document.getElementById('game-title');
-        
-        if (startScreen) startScreen.style.display = 'block';
-        if (startScreenButton) startScreenButton.style.display = 'block';
-        if (howToPlayButton) howToPlayButton.style.display = 'block';
-        if (gameTitle) gameTitle.style.display = 'block';
-        
-        // Hide game elements
-        const healthBarContainer = document.getElementById('health-bar-container');
-        const scoreElement = document.getElementById('score');
-        const stopButton = document.getElementById('stop-button');
-        
-        if (healthBarContainer) healthBarContainer.style.display = 'none';
-        if (scoreElement) scoreElement.style.display = 'none';
-        if (stopButton) stopButton.style.display = 'none';
+        // Remove gameplay-active class to show start screen and hide gameplay UI
+        document.getElementById('game-container').classList.remove('gameplay-active');
         
         // Reset game state
         isGameRunning = false;
         isGameOver = false;
         score = 0;
         updateScore();
-        
-        // Ensure timer is hidden in start mode
-        levelTimerDisplay.style.display = 'none';
     }
 
     function drawTrickZoneBoundary(canvas) {
@@ -580,21 +565,8 @@ import { gameOverManager } from './src/gameOver.js';
     function startGame() {
         console.log('Starting game...');
         
-        // Hide start screen elements
-        const startScreen = document.getElementById('start-screen');
-        const startScreenButton = document.getElementById('start-screen-button');
-        const howToPlayButton = document.getElementById('how-to-play-button');
-        if (startScreen) startScreen.style.display = 'none';
-        if (startScreenButton) startScreenButton.style.display = 'none';
-        if (howToPlayButton) howToPlayButton.style.display = 'none';
-
-        // Show game elements
-        const healthBarContainer = document.getElementById('health-bar-container');
-        const scoreElement = document.getElementById('score');
-        if (healthBarContainer) healthBarContainer.style.display = 'block';
-        if (scoreElement) scoreElement.style.display = 'block';
-        if (stopButton) stopButton.style.display = 'block';
-        if (startButton) startButton.style.display = 'none';
+        // Add gameplay-active class to show gameplay UI and hide start screen
+        document.getElementById('game-container').classList.add('gameplay-active');
 
         // Initialize game state
         initializeGameState();
@@ -603,23 +575,20 @@ import { gameOverManager } from './src/gameOver.js';
         currentLevel = 1;
         levelStartTime = performance.now();
         levelTimeRemaining = LEVEL_DURATION;
-
-        // Show timer when game starts
-        levelTimerDisplay.style.display = 'block';
         
-        // Unmute and start game audio
-        mediaPlayerInstance.isMuted = false;
-        mediaPlayerInstance.volumeSlider.value = 45; // Set to 45%
-        mediaPlayerInstance.updateVolume(0.45);
-        mediaPlayerInstance.normalMusic.muted = false;
-        mediaPlayerInstance.waveSound.muted = false;
-        mediaPlayerInstance.catnipMusic.muted = false;
+        // Keep audio muted by default
+        mediaPlayerInstance.isMuted = true;
+        mediaPlayerInstance.volumeSlider.value = 0;
+        mediaPlayerInstance.updateVolume(0);
+        mediaPlayerInstance.normalMusic.muted = true;
+        mediaPlayerInstance.waveSound.muted = true;
+        mediaPlayerInstance.catnipMusic.muted = true;
         for (let sound in mediaPlayerInstance.catSounds) {
-            mediaPlayerInstance.catSounds[sound].muted = false;
+            mediaPlayerInstance.catSounds[sound].muted = true;
         }
         mediaPlayerInstance.updateSpeakerIcon();
-        mediaPlayerInstance.startGameMusic();
-        mediaPlayerInstance.startWaveSound(); // Start the wave sound
+        mediaPlayerInstance.startGameMusic(); // Still start music (but muted)
+        mediaPlayerInstance.startWaveSound(); // Still start wave sound (but muted)
         
         // Start the game loop
         isGameRunning = true;
@@ -1300,12 +1269,14 @@ import { gameOverManager } from './src/gameOver.js';
         isGameRunning = false;
         isPaused = true;
         
+        // Remove gameplay-active class to hide gameplay UI
+        document.getElementById('game-container').classList.remove('gameplay-active');
+        
         // Clear any active animations or transitions
         const notifications = document.querySelectorAll('.level-up-notification, .powerup-popup, .score-popup');
         notifications.forEach(notification => notification.remove());
         
-        // Hide level-related UI
-        levelTimerDisplay.style.display = 'none';
+        // Hide level summary screen
         levelSummaryScreen.style.display = 'none';
         
         // Stop all game sounds
@@ -1328,7 +1299,7 @@ import { gameOverManager } from './src/gameOver.js';
         isCatnipMode = true;
         
         // Play Catnip music
-        mediaPlayer.startCatnipMusic();
+        mediaPlayerInstance.startCatnipMusic();
     }
 
     // Update the game over screen event listener

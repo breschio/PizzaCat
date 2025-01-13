@@ -14,20 +14,38 @@
 <body>
   <div id="game-container">
     <div id="header">
-      <div id="game-title" class="game-text">PIZZA CAT</div>
+      <div class="header-section header-left">
+        <div class="level-timer game-text">
+          <div id="level-container">
+            <span>LEVEL</span>
+            <span id="level-number">1</span>
+          </div>
+          <span class="timer-text"></span>
+        </div>
+        <div id="score" class="game-text">
+          <div id="score-container">
+            <span id="pts-text">POINTS</span>
+            <span id="score-number">0</span>
+          </div>
+        </div>
+      </div>
+      <div class="header-section header-center">
+      </div>
+      <div class="header-section header-right">
+        <div id="health-bar-container">
+          <div class="health-label">HEALTH</div>
+          <div class="health-bar-row">
+            <div id="health-bar-background">
+              <div id="health-bar-fill"></div>
+            </div>
+            <div id="health-text">100</div>
+          </div>
+        </div>
+      </div>
     </div>
     <canvas id="gameCanvas"></canvas>
     <div id="trick-zone" class="trick-zone">
-        <span class="trick-zone-label">TRICK ZONE</span>
-    </div>
-    <div id="health-bar-container">
-      <div class="health-label">HEALTH</div>
-      <div class="health-bar-row">
-        <div id="health-bar-background">
-          <div id="health-bar-fill"></div>
-        </div>
-        <div id="health-text">100</div>
-      </div>
+        <span class="trick-zone-label">TRICK ZONE!</span>
     </div>
     <button id="start-button" class="game-text button-with-icon">
         <span class="button-icon">▶️</span>
@@ -38,16 +56,6 @@
     <div id="volume-control">
         <div id="speaker-icon" title="Unmute">🔇</div>
         <input type="range" id="volume-slider" min="0" max="100" value="0" style="display: none;">
-    </div>
-    <div id="score" class="game-text">
-      <div id="score-container">
-        <span id="score-number">0</span>
-        <span id="pts-text">PTS</span>
-      </div>
-      <div id="level-container">
-        <span>LVL</span>
-        <span id="level-number">1</span>
-      </div>
     </div>
     <div id="instructions-container" class="game-text">
       <div id="close-instructions" class="close-icon">✖</div>
