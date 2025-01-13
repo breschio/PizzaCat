@@ -5,6 +5,9 @@ import { expressjwt as expressJwt } from 'express-jwt';
 import cors from 'cors';
 import rateLimit from 'express-rate-limit';
 import helmet from 'helmet';
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+import path from 'path';
 
 // Load environment variables from .env file
 dotenv.config();
@@ -16,11 +19,33 @@ const ALLOWED_ORIGINS = NODE_ENV === 'production'
     ? ['https://pizzacat.surf'] 
     : ['http://localhost:8000', 'http://localhost:3000'];
 
+// Get the directory name of the current module
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
 // Security middleware
-app.use(helmet());
+app.use(helmet({
+    contentSecurityPolicy: {
+        directives: {
+            defaultSrc: ["'self'"],
+            connectSrc: ["'self'", "https://*.firebaseio.com", "https://pizzacat-d0c89.firebaseapp.com"],
+            scriptSrc: ["'self'", "'unsafe-inline'", "https://*.firebaseio.com", "https://*.gstatic.com"],
+            styleSrc: ["'self'", "'unsafe-inline'"],
+            imgSrc: ["'self'", "data:", "https:"],
+            fontSrc: ["'self'", "https:", "data:"],
+        }
+    },
+    crossOriginEmbedderPolicy: false
+}));
 app.use(express.json());
 
-// Rate limiting
+// Rate limiting for Firebase config endpoint
+const firebaseConfigLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 10 // limit each IP to 10 requests per windowMs for this endpoint
+});
+
+// General rate limiting
 const limiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
     max: 100 // limit each IP to 100 requests per windowMs
@@ -49,13 +74,36 @@ app.use((err, req, res, next) => {
     });
 });
 
-// Endpoint to provide Firebase configuration
-app.get('/api/firebase-config', (req, res) => {
+// Firebase configuration endpoint with additional security
+app.get('/api/firebase-config', firebaseConfigLimiter, (req, res) => {
     try {
-        if (!process.env.API_KEY || !process.env.PROJECT_ID) {
-            throw new Error('Missing required Firebase configuration');
+        // Log access attempts in development
+        if (NODE_ENV === 'development') {
+            console.log(`Firebase config requested from: ${req.ip}`);
         }
 
+        // Validate required environment variables
+        const requiredVars = ['API_KEY', 'AUTH_DOMAIN', 'PROJECT_ID'];
+        const missingVars = requiredVars.filter(varName => !process.env[varName]);
+        
+        if (missingVars.length > 0) {
+            console.error('Missing required environment variables:', missingVars);
+            return res.status(500).json({
+                error: 'Server configuration error',
+                message: 'Firebase configuration is incomplete'
+            });
+        }
+
+        // Set security headers
+        res.set({
+            'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+            'Pragma': 'no-cache',
+            'Expires': '0',
+            'Surrogate-Control': 'no-store'
+        });
+
+        // Return only the necessary Firebase configuration
+        // Note: These values are considered "public" by Firebase design
         res.json({
             apiKey: process.env.API_KEY,
             authDomain: process.env.AUTH_DOMAIN,
