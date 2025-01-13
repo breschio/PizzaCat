@@ -23,6 +23,82 @@ const ALLOWED_ORIGINS = NODE_ENV === 'production'
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
+// Serve static files in production
+if (NODE_ENV === 'production') {
+    app.use(express.static(path.join(__dirname)));
+    
+    // Ensure all API routes are prefixed with /api
+    const apiRouter = express.Router();
+    
+    // Move Supabase config endpoint to API router
+    apiRouter.get('/supabase-config', configLimiter, (req, res) => {
+        try {
+            // Log access attempts in development
+            if (process.env.NODE_ENV === 'development') {
+                console.log(`Supabase config requested from: ${req.ip}`);
+                console.log('Origin:', req.get('origin'));
+                console.log('Headers:', req.headers);
+            }
+
+            // Validate required environment variables
+            const requiredVars = ['SUPABASE_URL', 'SUPABASE_ANON_KEY'];
+            const missingVars = requiredVars.filter(varName => !process.env[varName]);
+            
+            if (missingVars.length > 0) {
+                console.error('Missing required environment variables:', missingVars);
+                return res.status(500).json({
+                    error: 'Server configuration error',
+                    message: 'Supabase configuration is incomplete'
+                });
+            }
+
+            // Return Supabase configuration with consistent property names
+            res.json({
+                url: process.env.SUPABASE_URL,
+                anonKey: process.env.SUPABASE_ANON_KEY
+            });
+        } catch (error) {
+            console.error('Error serving Supabase config:', error);
+            res.status(500).json({ 
+                error: 'Could not retrieve Supabase configuration',
+                message: NODE_ENV === 'development' ? error.message : undefined
+            });
+        }
+    });
+
+    // Move login endpoint to API router
+    apiRouter.post('/login', (req, res) => {
+        try {
+            const { username } = req.body;
+            
+            if (!username) {
+                return res.status(400).json({ error: 'Username is required' });
+            }
+
+            const token = jwt.sign(
+                { username }, 
+                process.env.JWT_SECRET, 
+                { expiresIn: '24h' }
+            );
+
+            res.json({ token });
+        } catch (error) {
+            console.error('Login error:', error);
+            res.status(500).json({ error: 'Authentication failed' });
+        }
+    });
+
+    // Mount API router
+    app.use('/api', apiRouter);
+
+    // Serve index.html for all other routes in production
+    app.get('*', (req, res) => {
+        if (!req.path.startsWith('/api')) {
+            res.sendFile(path.join(__dirname, 'index.html'));
+        }
+    });
+}
+
 // Security middleware
 app.use(helmet({
     contentSecurityPolicy: {
@@ -100,78 +176,13 @@ app.use((err, req, res, next) => {
     });
 });
 
-// Supabase configuration endpoint with rate limiting
-app.get('/api/supabase-config', configLimiter, (req, res) => {
-    try {
-        // Log access attempts in development
-        if (process.env.NODE_ENV === 'development') {
-            console.log(`Supabase config requested from: ${req.ip}`);
-            console.log('Origin:', req.get('origin'));
-            console.log('Headers:', req.headers);
-        }
-
-        // Validate required environment variables
-        const requiredVars = ['SUPABASE_URL', 'SUPABASE_ANON_KEY'];
-        const missingVars = requiredVars.filter(varName => !process.env[varName]);
-        
-        if (missingVars.length > 0) {
-            console.error('Missing required environment variables:', missingVars);
-            return res.status(500).json({
-                error: 'Server configuration error',
-                message: 'Supabase configuration is incomplete'
-            });
-        }
-
-        // Set security headers
-        res.set({
-            'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
-            'Pragma': 'no-cache',
-            'Expires': '0',
-            'Surrogate-Control': 'no-store',
-            'X-Content-Type-Options': 'nosniff',
-            'X-Frame-Options': 'DENY',
-            'X-XSS-Protection': '1; mode=block'
-        });
-
-        // Return Supabase configuration with consistent property names
-        res.json({
-            url: process.env.SUPABASE_URL,
-            anonKey: process.env.SUPABASE_ANON_KEY
-        });
-    } catch (error) {
-        console.error('Error serving Supabase config:', error);
-        res.status(500).json({ 
-            error: 'Could not retrieve Supabase configuration',
-            message: NODE_ENV === 'development' ? error.message : undefined
-        });
-    }
-});
-
-// Authentication endpoint
-app.post('/api/login', (req, res) => {
-    try {
-        const { username } = req.body;
-        
-        if (!username) {
-            return res.status(400).json({ error: 'Username is required' });
-        }
-
-        const token = jwt.sign(
-            { username }, 
-            process.env.JWT_SECRET, 
-            { expiresIn: '24h' }
-        );
-
-        res.json({ token });
-    } catch (error) {
-        console.error('Login error:', error);
-        res.status(500).json({ error: 'Authentication failed' });
-    }
-});
-
 // Health check endpoint
 app.get('/health', (req, res) => {
-    res.json({ status: 'ok' });
+    res.json({ 
+        status: 'ok',
+        env: NODE_ENV,
+        timestamp: new Date().toISOString()
+    });
 });
 
 app.listen(PORT, () => {

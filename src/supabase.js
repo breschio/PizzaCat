@@ -8,54 +8,75 @@ async function initializeSupabase() {
         // Get the base URL for the API based on environment
         const apiBaseUrl = window.location.hostname === 'localhost'
             ? 'http://localhost:3000'
-            : `${window.location.protocol}//${window.location.hostname}`;
+            : window.location.origin;
         
         console.log('Fetching Supabase config from:', apiBaseUrl);
-        const response = await fetch(`${apiBaseUrl}/api/supabase-config`, {
-            credentials: 'same-origin',
-            headers: {
-                'Accept': 'application/json'
-            }
-        });
+        
+        // Add retry logic for production environment
+        const maxRetries = 3;
+        let lastError = null;
+        
+        for (let attempt = 1; attempt <= maxRetries; attempt++) {
+            try {
+                const response = await fetch(`${apiBaseUrl}/api/supabase-config`, {
+                    credentials: window.location.hostname === 'localhost' ? 'include' : 'same-origin',
+                    headers: {
+                        'Accept': 'application/json',
+                        'Cache-Control': 'no-cache'
+                    }
+                });
 
-        if (!response.ok) {
-            throw new Error(`Failed to fetch Supabase config: ${response.status} ${response.statusText}`);
-        }
+                if (!response.ok) {
+                    throw new Error(`Failed to fetch Supabase config: ${response.status} ${response.statusText}`);
+                }
 
-        const config = await response.json();
-        console.log('Supabase config fetched successfully');
+                const config = await response.json();
+                console.log('Supabase config fetched successfully');
 
-        if (!config.url || !config.anonKey) {
-            throw new Error('Invalid Supabase configuration received');
-        }
+                if (!config.url || !config.anonKey) {
+                    throw new Error('Invalid Supabase configuration received');
+                }
 
-        // Initialize Supabase client with correct property names
-        supabaseInstance = createClient(config.url, config.anonKey, {
-            auth: {
-                persistSession: false
-            },
-            realtime: {
-                params: {
-                    eventsPerSecond: 10
+                // Initialize Supabase client with correct property names
+                supabaseInstance = createClient(config.url, config.anonKey, {
+                    auth: {
+                        persistSession: false
+                    },
+                    realtime: {
+                        params: {
+                            eventsPerSecond: 10
+                        }
+                    }
+                });
+
+                // Test connection
+                const { data, error } = await supabaseInstance
+                    .from('connection_tests')
+                    .insert({
+                        client_id: crypto.randomUUID(),
+                        environment: window.location.hostname === 'localhost' ? 'development' : 'production',
+                        status: 'connected'
+                    });
+
+                if (error) {
+                    throw new Error(`Connection test failed: ${error.message}`);
+                }
+
+                console.log('Supabase initialized successfully');
+                return supabaseInstance;
+            } catch (error) {
+                console.error(`Attempt ${attempt} failed:`, error);
+                lastError = error;
+                
+                if (attempt < maxRetries) {
+                    // Wait before retrying (exponential backoff)
+                    await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt) * 1000));
                 }
             }
-        });
-
-        // Test connection
-        const { data, error } = await supabaseInstance
-            .from('connection_tests')
-            .insert({
-                client_id: crypto.randomUUID(),
-                environment: window.location.hostname === 'localhost' ? 'development' : 'production',
-                status: 'connected'
-            });
-
-        if (error) {
-            throw new Error(`Connection test failed: ${error.message}`);
         }
-
-        console.log('Supabase initialized successfully');
-        return supabaseInstance;
+        
+        // If we get here, all retries failed
+        throw lastError || new Error('Failed to initialize Supabase after multiple attempts');
     } catch (error) {
         console.error('Error initializing Supabase:', error);
         throw error;
