@@ -36,6 +36,7 @@ let _trickFlip = false;
 // Define available tricks with their animations
 const TRICKS = {
     'Tail Spin': {
+        points: 100,
         rotation: (progress) => progress * Math.PI * 4,
         scale: (progress) => 1,
         effect: (ctx, centerX, centerY, progress) => {
@@ -55,6 +56,7 @@ const TRICKS = {
         }
     },
     'Paw Flip': {
+        points: 200,
         rotation: (progress) => 0,
         scale: (progress) => Math.cos(progress * Math.PI * 2),
         translate: (progress) => [0, Math.sin(progress * Math.PI * 2) * 30],
@@ -68,6 +70,7 @@ const TRICKS = {
         }
     },
     'Whisker Twist': {
+        points: 300,
         rotation: (progress) => progress * Math.PI * 3,
         scale: (progress) => [1, Math.cos(progress * Math.PI * 2)],
         effect: (ctx, centerX, centerY, progress) => {
@@ -85,6 +88,7 @@ const TRICKS = {
         }
     },
     'Furry 360': {
+        points: 400,
         rotation: (progress) => progress * Math.PI * 2,
         scale: (progress) => 1 + Math.sin(progress * Math.PI * 2) * 0.2,
         effect: (ctx, centerX, centerY, progress) => {
@@ -101,6 +105,7 @@ const TRICKS = {
         }
     },
     'Meow Spin': {
+        points: 500,
         rotation: (progress) => progress * Math.PI * 6,
         translate: (progress) => [0, Math.sin(progress * Math.PI * 4) * 40],
         effect: (ctx, centerX, centerY, progress) => {
@@ -157,12 +162,13 @@ function performTrick(catY, catHeight, TRICK_THRESHOLD, isGameRunning, isGameOve
     const trickName = trickNames[Math.floor(Math.random() * trickNames.length)];
     _currentTrickName = trickName;
     
-    showTrickToast(trickName, 5);
+    const points = TRICKS[trickName].points;
+    showTrickToast(trickName, points);
     mediaPlayer.playMewoabungaSound();
     
-    console.log('Trick performed:', trickName);
+    console.log('Trick performed:', trickName, 'Points:', points);
     
-    return { score: 5, trickName };
+    return { score: points, trickName };
 }
 
 function applyTrickAnimation(ctx, centerX, centerY, catX, catY, scaledWidth, scaledHeight, catFacingRight) {

@@ -5,7 +5,7 @@ class MediaPlayer {
         this.songs = songs;
         this.currentAudio = null;
         this.currentSongIndex = 0;
-        this.isMuted = true; // Start muted
+        this.isMuted = false; // Start unmuted
         
         // Setup volume controls
         this.volumeSlider = document.getElementById('volume-slider');
@@ -13,7 +13,7 @@ class MediaPlayer {
         this.volumeControl = document.getElementById('volume-control');
         
         // Set initial state
-        this.volumeSlider.value = 0; // Start at 0% volume
+        this.volumeSlider.value = 45; // Start at 45% volume
         this.volumeSlider.style.display = 'block'; // Show slider initially
         this.updateSpeakerIcon();
         
@@ -23,7 +23,8 @@ class MediaPlayer {
         // Initialize all game sounds
         this.waveSound = new Audio('./assets/surf-sound-1.MP3');
         this.waveSound.loop = true;
-        this.waveSound.muted = true; // Start muted
+        this.waveSound.muted = false;
+        this.waveSound.volume = 0.25; // Set a lower initial volume for ambient sound
 
         this.catSounds = {
             meow1: new Audio('./assets/cat-meow-1.MP3'),
@@ -38,9 +39,9 @@ class MediaPlayer {
             pizzaCat: new Audio('./assets/pizza-cat.MP3')
         };
 
-        // Mute all cat sounds initially
+        // Initialize all cat sounds unmuted
         for (let sound in this.catSounds) {
-            this.catSounds[sound].muted = true;
+            this.catSounds[sound].muted = false;
         }
 
         // Initialize sound indices
@@ -67,11 +68,11 @@ class MediaPlayer {
         // Load music files
         this.catnipMusic = new Audio('./assets/music/wave-bumper.mp3');
         this.catnipMusic.loop = true;
-        this.catnipMusic.muted = true; // Start muted
+        this.catnipMusic.muted = false;
 
         this.normalMusic = new Audio('./assets/music/pawed-up.mp3');
         this.normalMusic.loop = true;
-        this.normalMusic.muted = true; // Start muted
+        this.normalMusic.muted = false;
 
         // Set initial volumes
         this.setInitialVolumes();
@@ -96,6 +97,12 @@ class MediaPlayer {
             music: 0.50,      // Music at 50% of master volume
             effects: 1.0      // Sound effects at 100% of master volume
         };
+
+        // Update volume to apply initial settings
+        this.updateVolume(this.volumeSlider.value / 100);
+        
+        // Start playing wave sound immediately
+        this.playWaveSound();
     }
 
     toggleMute() {
@@ -119,11 +126,15 @@ class MediaPlayer {
                 sound.muted = false;
             });
 
-            this.startNormalMusic();
+            // Ensure wave sound is playing when unmuting
+            if (!this.waveSound.paused) {
+                this.waveSound.play().catch(error => console.error("Error playing wave sound:", error));
+            }
         } else {
             if (this.currentAudio) {
                 this.currentAudio.pause();
             }
+            this.waveSound.pause();
             // Mute fish catch sounds
             this.fishCatchSounds.forEach(sound => {
                 sound.muted = true;
@@ -154,12 +165,7 @@ class MediaPlayer {
             this.speakerIcon.innerHTML = '🔇'; // Muted icon
             this.speakerIcon.title = 'Unmute';
         } else {
-            const volume = this.volumeSlider.value;
-            if (volume == 0) {
-                this.speakerIcon.innerHTML = '🔇'; // Muted icon
-            } else {
-                this.speakerIcon.innerHTML = '🔉'; // Sound on icon
-            }
+            this.speakerIcon.innerHTML = '🔉'; // Sound on icon
             this.speakerIcon.title = 'Mute';
         }
     }
@@ -273,7 +279,35 @@ class MediaPlayer {
     }
 
     startGameMusic() {
-        this.startNormalMusic();
+        // Ensure all sounds are unmuted
+        this.isMuted = false;
+        this.updateSpeakerIcon();
+        
+        // Set proper volume
+        const volume = 0.45;
+        this.volumeSlider.value = volume * 100;
+        this.updateVolume(volume);
+
+        // Unmute all sounds
+        this.normalMusic.muted = false;
+        this.waveSound.muted = false;
+        this.catnipMusic.muted = false;
+        
+        for (let sound in this.catSounds) {
+            this.catSounds[sound].muted = false;
+        }
+        
+        this.fishCatchSounds.forEach(sound => {
+            sound.muted = false;
+        });
+
+        // Start the normal music
+        if (this.currentAudio) {
+            this.currentAudio.pause();
+        }
+        this.currentAudio = this.normalMusic;
+        this.currentAudio.currentTime = 0;
+        this.playAudio(this.currentAudio);
     }
 
     playCatMeowSound() {

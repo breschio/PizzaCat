@@ -905,7 +905,8 @@ button {
 
 #start-screen-button {
     position: fixed;
-    bottom: 80px;
+    bottom: unset;
+    top: 68%;
     left: 50%;
     transform: translateX(-50%);
     background: #FF6B6B;
@@ -1073,14 +1074,14 @@ button {
     cursor: pointer;
     text-decoration: underline;
     text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
-    margin-top: 20px;
-    transition: color 0.3s;
+    margin-top: 0;
     position: fixed;
-    bottom: 50px;
+    bottom: unset;
+    top: 78%;
     left: 50%;
     transform: translateX(-50%);
     z-index: 999;
-    display: none;
+    display: none !important;
 }
 
 #how-to-play-button:hover {
@@ -1134,6 +1135,26 @@ button {
 #start-cat {
     width: 300px;
     height: auto;
+    animation: swayCat 3s ease-in-out infinite;
+}
+
+@keyframes swayCat {
+    0% { transform: translateX(-10px) rotate(-2deg); }
+    50% { transform: translateX(10px) rotate(2deg); }
+    100% { transform: translateX(-10px) rotate(-2deg); }
+}
+
+/* Mobile adjustments for the cat animation */
+@media screen and (max-width: 768px) {
+    #start-cat {
+        width: 200px;
+    }
+    
+    @keyframes swayCat {
+        0% { transform: translateX(-5px) rotate(-1deg); }
+        50% { transform: translateX(5px) rotate(1deg); }
+        100% { transform: translateX(-5px) rotate(-1deg); }
+    }
 }
 
 #start-button {
@@ -1762,5 +1783,37 @@ button {
     .score-milestone-notification {
         font-size: 16px;
         padding: 12px 24px;
+    }
+}
+
+.game-title {
+    position: absolute;
+    top: -120px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-family: 'Press Start 2P', cursive;
+    font-size: 48px;
+    color: white;
+    text-align: center;
+    white-space: nowrap;
+    text-shadow: 
+        4px 4px 0 #FF6B6B,
+        -4px -4px 0 #FF6B6B,
+        4px -4px 0 #FF6B6B,
+        -4px 4px 0 #FF6B6B,
+        2px 2px 0 rgba(0, 0, 0, 1);
+    animation: titlePulse 2s infinite ease-in-out;
+}
+
+@keyframes titlePulse {
+    0% { transform: translateX(-50%) scale(1); }
+    50% { transform: translateX(-50%) scale(1.05); }
+    100% { transform: translateX(-50%) scale(1); }
+}
+
+@media screen and (max-width: 768px) {
+    .game-title {
+        font-size: 32px;
+        top: -80px;
     }
 }
