@@ -16,7 +16,7 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const NODE_ENV = process.env.NODE_ENV || 'development';
 const ALLOWED_ORIGINS = NODE_ENV === 'production' 
-    ? ['https://pizzacat.surf'] 
+    ? ['https://pizzacat.surf', 'https://www.pizzacat.surf'] 
     : ['http://localhost:8000', 'http://localhost:3000'];
 
 // Get the directory name of the current module
@@ -30,6 +30,8 @@ app.use(helmet({
             defaultSrc: ["'self'"],
             connectSrc: [
                 "'self'",
+                "https://pizzacat.surf",
+                "https://www.pizzacat.surf",
                 process.env.SUPABASE_URL,
                 "wss://*.supabase.co",
                 "https://*.supabase.co"
@@ -64,23 +66,22 @@ const limiter = rateLimit({
 app.use(limiter);
 
 // CORS configuration
-const allowedOrigins = NODE_ENV === 'production' 
-    ? ['https://pizzacat.surf'] 
-    : ['http://localhost:8000', 'http://localhost:3000'];
-console.log('Allowed origins:', allowedOrigins);
-
 app.use(cors({
     origin: function(origin, callback) {
         // Allow requests with no origin (like mobile apps or curl requests)
         if (!origin) return callback(null, true);
         
-        if (allowedOrigins.indexOf(origin) === -1) {
+        // Check if the origin is allowed
+        if (ALLOWED_ORIGINS.indexOf(origin) === -1) {
             const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
+            console.error(`CORS error: ${origin} not allowed`);
             return callback(new Error(msg), false);
         }
         return callback(null, true);
     },
-    credentials: true
+    credentials: true,
+    methods: ['GET', 'POST', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
 // JWT authentication middleware

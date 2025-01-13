@@ -5,40 +5,41 @@ let initializationPromise = null;
 
 async function initializeSupabase() {
     try {
-        // Determine API base URL based on environment
+        // Get the base URL for the API based on environment
         const apiBaseUrl = window.location.hostname === 'localhost'
             ? 'http://localhost:3000'
             : 'https://pizzacat.surf';
-        console.log('Using API base URL:', apiBaseUrl);
-
-        const response = await fetch(`${apiBaseUrl}/api/supabase-config`);
         
+        console.log('Fetching Supabase config from:', apiBaseUrl);
+        const response = await fetch(`${apiBaseUrl}/api/supabase-config`, {
+            credentials: 'include'
+        });
+
         if (!response.ok) {
             throw new Error(`Failed to fetch Supabase config: ${response.status} ${response.statusText}`);
         }
 
         const config = await response.json();
-        console.log('Supabase configuration fetched successfully');
+        console.log('Supabase config fetched successfully');
 
-        supabaseInstance = createClient(config.url, config.anonKey);
-        
-        // Test the connection
-        const { data, error } = await supabaseInstance
-            .from('connection_tests')
-            .insert({
-                client_id: crypto.randomUUID(),
-                environment: window.location.hostname === 'localhost' ? 'development' : 'production',
-                status: 'connected'
-            });
+        // Initialize Supabase client
+        supabaseInstance = createClient(config.supabaseUrl, config.supabaseAnonKey, {
+            auth: {
+                persistSession: false
+            },
+            realtime: {
+                params: {
+                    eventsPerSecond: 10
+                }
+            }
+        });
 
-        if (error) {
-            throw new Error(`Connection test failed: ${error.message}`);
-        }
-
-        console.log('Supabase initialized and connection verified');
+        // Test connection
+        await testConnection();
+        console.log('Supabase initialized successfully');
         return supabaseInstance;
     } catch (error) {
-        console.error('Supabase initialization failed:', error);
+        console.error('Error initializing Supabase:', error);
         throw error;
     }
 }
