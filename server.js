@@ -28,11 +28,25 @@ app.use(helmet({
     contentSecurityPolicy: {
         directives: {
             defaultSrc: ["'self'"],
-            connectSrc: ["'self'", "https://*.firebaseio.com", "https://pizzacat-d0c89.firebaseapp.com"],
-            scriptSrc: ["'self'", "'unsafe-inline'", "https://*.firebaseio.com", "https://*.gstatic.com"],
+            connectSrc: [
+                "'self'",
+                "https://*.firebaseio.com",
+                "https://*.firebaseapp.com",
+                "https://pizzacat-d0c89.firebaseapp.com",
+                "https://*.googleapis.com",
+                "https://firestore.googleapis.com"
+            ],
+            scriptSrc: [
+                "'self'",
+                "'unsafe-inline'",
+                "https://*.firebaseio.com",
+                "https://*.gstatic.com",
+                "https://*.googleapis.com"
+            ],
             styleSrc: ["'self'", "'unsafe-inline'"],
             imgSrc: ["'self'", "data:", "https:"],
             fontSrc: ["'self'", "https:", "data:"],
+            frameSrc: ["'self'", "https://*.firebaseapp.com"]
         }
     },
     crossOriginEmbedderPolicy: false
