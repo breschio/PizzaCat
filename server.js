@@ -61,10 +61,20 @@ const limiter = rateLimit({
 app.use(limiter);
 
 // CORS configuration
+const allowedOrigins = ['http://localhost:8000', 'http://localhost:3000'];
+console.log('Allowed origins:', allowedOrigins);
+
 app.use(cors({
-    origin: ALLOWED_ORIGINS,
-    methods: ['GET', 'POST'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
+    origin: function(origin, callback) {
+        // Allow requests with no origin (like mobile apps or curl requests)
+        if (!origin) return callback(null, true);
+        
+        if (allowedOrigins.indexOf(origin) === -1) {
+            const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
+            return callback(new Error(msg), false);
+        }
+        return callback(null, true);
+    },
     credentials: true
 }));
 
@@ -82,46 +92,24 @@ app.use((err, req, res, next) => {
     });
 });
 
-// Supabase configuration endpoint with additional security
-app.get('/api/supabase-config', configLimiter, (req, res) => {
-    try {
-        // Log access attempts in development
-        if (NODE_ENV === 'development') {
-            console.log(`Supabase config requested from: ${req.ip}`);
-        }
-
-        // Validate required environment variables
-        const requiredVars = ['SUPABASE_URL', 'SUPABASE_ANON_KEY'];
-        const missingVars = requiredVars.filter(varName => !process.env[varName]);
-        
-        if (missingVars.length > 0) {
-            console.error('Missing required environment variables:', missingVars);
-            return res.status(500).json({
-                error: 'Server configuration error',
-                message: 'Supabase configuration is incomplete'
-            });
-        }
-
-        // Set security headers
-        res.set({
-            'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
-            'Pragma': 'no-cache',
-            'Expires': '0',
-            'Surrogate-Control': 'no-store',
-            'X-Content-Type-Options': 'nosniff',
-            'X-Frame-Options': 'DENY',
-            'X-XSS-Protection': '1; mode=block'
+// Supabase configuration endpoint
+app.get('/api/supabase-config', (req, res) => {
+    // Validate required environment variables
+    const requiredVars = ['SUPABASE_URL', 'SUPABASE_ANON_KEY'];
+    const missingVars = requiredVars.filter(varName => !process.env[varName]);
+    
+    if (missingVars.length > 0) {
+        console.error('Missing required environment variables:', missingVars);
+        return res.status(500).json({
+            error: `Missing required environment variables: ${missingVars.join(', ')}`
         });
-
-        // Return only the necessary Supabase configuration
-        res.json({
-            url: process.env.SUPABASE_URL,
-            anonKey: process.env.SUPABASE_ANON_KEY
-        });
-    } catch (error) {
-        console.error('Error serving Supabase config:', error);
-        res.status(500).json({ error: 'Could not retrieve Supabase configuration' });
     }
+
+    // Return Supabase configuration
+    res.json({
+        url: process.env.SUPABASE_URL,
+        anonKey: process.env.SUPABASE_ANON_KEY
+    });
 });
 
 // Authentication endpoint

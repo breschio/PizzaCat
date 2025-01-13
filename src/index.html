@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Nabla&family=Press+Start+2P&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <link rel="icon" type="image/x-icon" href="favicon.ico">
+    <title>PIZZA CAT</title>
+</head>
+<body>
+    <div id="game-container">
+        <div id="header">
+            <div class="header-section header-left">
+                <div class="level-timer game-text">
+                    <div id="level-container">
+                        <span>LEVEL</span>
+                        <span id="level-number">1</span>
+                    </div>
+                    <span class="timer-text"></span>
+                </div>
+                <div id="score" class="game-text">
+                    <div id="score-container">
+                        <span id="pts-text">POINTS</span>
+                        <span id="score-number">0</span>
+                    </div>
+                </div>
+            </div>
+            <div class="header-section header-center">
+                <div id="health-bar">
+                    <div id="health-bar-fill"></div>
+                    <span id="health-text">100</span>
+                </div>
+            </div>
+            <div class="header-section header-right">
+                <button id="pause-button" class="ui-button">PAUSE</button>
+            </div>
+        </div>
+
+        <canvas id="gameCanvas"></canvas>
+
+        <!-- Start Screen -->
+        <div id="start-screen">
+            <h1 class="game-title">PIZZA CAT</h1>
+            <div class="start-content">
+                <button id="start-screen-button" class="ui-button">START GAME</button>
+                <button id="how-to-play-button" class="ui-button">HOW TO PLAY</button>
+            </div>
+        </div>
+
+        <!-- How to Play Screen -->
+        <div id="how-to-play-screen" style="display: none;">
+            <h2>HOW TO PLAY</h2>
+            <div class="instructions">
+                <p>SURF THE WAVES AND COLLECT FISH!</p>
+                <p>USE ARROW KEYS OR WASD TO MOVE</p>
+                <p>PRESS SPACE TO JUMP</p>
+                <p>DO TRICKS IN THE AIR FOR BONUS POINTS!</p>
+            </div>
+            <button id="back-to-start" class="ui-button">BACK</button>
+        </div>
+
+        <!-- Pause Screen -->
+        <div id="pause-screen" style="display: none;">
+            <h2>PAUSED</h2>
+            <button id="resume-button" class="ui-button">RESUME</button>
+            <button id="restart-button" class="ui-button">RESTART</button>
+        </div>
+
+        <!-- Game Over Screen -->
+        <div id="game-over-screen" style="display: none;">
+            <h2>GAME OVER</h2>
+            <div class="level-display">LEVEL <span id="final-level">1</span></div>
+            <div class="score-display">SCORE: <span id="final-score">0</span></div>
+            <div class="initials">YOUR INITIALS</div>
+            <div id="player-name">
+                <input type="text" class="initial-input" maxlength="1" placeholder="_">
+                <input type="text" class="initial-input" maxlength="1" placeholder="_">
+                <input type="text" class="initial-input" maxlength="1" placeholder="_">
+            </div>
+            <button id="submit-score" class="ui-button">SUBMIT</button>
+        </div>
+
+        <!-- Leaderboard Screen -->
+        <div id="leaderboard-screen" style="display: none;">
+            <h2>TOP CATS</h2>
+            <div id="leaderboard-list">
+                <!-- Scores will be dynamically added here -->
+            </div>
+            <button id="leaderboard-play" class="ui-button">NEW GAME</button>
+        </div>
+
+        <!-- Debug Panel -->
+        <div id="debug-panel">
+            <div class="debug-header">Debug Info</div>
+            <div class="debug-content">
+                <div>Position: <span id="debug-position">(0, 0)</span></div>
+                <div>Velocity: <span id="debug-velocity">(0, 0)</span></div>
+                <div>Trick Zone: <span id="debug-trick-zone">false</span></div>
+                <div>Current Trick: <span id="debug-trick">none</span></div>
+            </div>
+            <div class="debug-controls">
+                <label>
+                    Debug Mode
+                    <input type="checkbox" class="debug-toggle" id="debug-toggle">
+                </label>
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="game.js"></script>
+</body>
+</html> 

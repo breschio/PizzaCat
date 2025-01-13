@@ -14,7 +14,10 @@ import {
 } from './tricks.js';
 import { spawnGameObject, updateSpawnRates, Fish, Mouse, Catnip } from './gameObjects.js';
 import { mediaPlayer } from './mediaPlayer.js';
-import { gameOverManager } from './src/gameOver.js';
+import GameOverManager from './src/gameOver.js';
+
+// Initialize the game over manager
+const gameOverManager = new GameOverManager();
 
 (function() {
     // 1. Game Setup & Configuration

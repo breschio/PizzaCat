@@ -81,9 +81,6 @@ class GameOverManager {
             this.initialInputs.forEach(input => input.disabled = true);
             this.submitButton.textContent = 'SAVING...';
             
-            // Add small delay to ensure Firebase is initialized
-            await new Promise(resolve => setTimeout(resolve, 500));
-            
             // Save score and get position
             const result = await saveScore(initials, {
                 score: this.currentScore,
@@ -123,4 +120,4 @@ class GameOverManager {
     }
 }
 
-export const gameOverManager = new GameOverManager(); 
+export default GameOverManager; 
