@@ -122,6 +122,9 @@ import { gameOverManager } from './src/gameOver.js';
                     setTimeout(() => {
                         startNotification.remove();
                         isPaused = false;
+                        // Reset level timer after countdown
+                        levelStartTime = performance.now();
+                        levelTimeRemaining = LEVEL_DURATION;
                     }, 1000);
                 }, 1000);
             }
@@ -133,10 +136,6 @@ import { gameOverManager } from './src/gameOver.js';
 
     function progressToNextLevel() {
         currentLevel++;
-        
-        // Reset level timer
-        levelStartTime = performance.now();
-        levelTimeRemaining = LEVEL_DURATION;
         
         // Reset game state while preserving score and level
         resetLevelState();
@@ -1201,30 +1200,24 @@ import { gameOverManager } from './src/gameOver.js';
     }
 
     function checkLevelUp() {
+        // Only update the lastLevelPoints to track scoring progress
         const nextLevelPoints = lastLevelPoints + POINTS_PER_LEVEL;
         if (score >= nextLevelPoints) {
-            currentLevel++;
             lastLevelPoints = nextLevelPoints;
             
-            // Update level display
-            updateLevel();
+            // Show score milestone notification
+            const notification = document.createElement('div');
+            notification.className = 'score-milestone-notification';
+            notification.textContent = `${lastLevelPoints} POINTS!`;
+            document.getElementById('game-container').appendChild(notification);
             
-            // Add level up animation
-            const levelContainer = document.getElementById('level-container');
-            if (levelContainer) {
-                levelContainer.classList.remove('level-up');
-                void levelContainer.offsetWidth; // Trigger reflow
-                levelContainer.classList.add('level-up');
-            }
+            // Remove notification after animation
+            setTimeout(() => {
+                notification.remove();
+            }, 1500);
             
-            // Show level up notification
-            showLevelUpNotification();
-            
-            // Play level up sound
+            // Play achievement sound
             mediaPlayerInstance.playLevelUpSound();
-            
-            // Increase game difficulty
-            updateGameDifficulty();
         }
     }
 
@@ -1242,15 +1235,23 @@ import { gameOverManager } from './src/gameOver.js';
 
     function updateGameDifficulty() {
         // Increase spawn rates and speed based on level
-        fishSpawnRate = Math.min(INITIAL_FISH_SPAWN_RATE * (1 + currentLevel * 0.1), MAX_FISH_SPAWN_RATE);
-        waveSpeed = Math.min(INITIAL_WAVE_SPEED * (1 + currentLevel * 0.1), MAX_WAVE_SPEED);
+        fishSpawnRate = Math.min(INITIAL_FISH_SPAWN_RATE * (1 + currentLevel * 0.15), MAX_FISH_SPAWN_RATE);
+        waveSpeed = Math.min(INITIAL_WAVE_SPEED * (1 + currentLevel * 0.15), MAX_WAVE_SPEED);
         
-        // Add more mice as levels progress
-        const mouseSpawnRate = Math.min(0.1 + (currentLevel - 1) * 0.05, 0.3); // Cap at 30% spawn rate
+        // Add more mice as levels progress (increased scaling)
+        const mouseSpawnRate = Math.min(0.15 + (currentLevel - 1) * 0.08, 0.4); // Cap at 40% spawn rate
         
         // Increase game speed (but keep it manageable)
-        const speedMultiplier = 1 + (currentLevel - 1) * 0.05; // 5% faster each level
-        catMaxSpeed = Math.min(BASE_CAT_SPEED * speedMultiplier, BASE_CAT_SPEED * 1.5); // Cap at 50% faster than base
+        const speedMultiplier = 1 + (currentLevel - 1) * 0.08; // 8% faster each level
+        catMaxSpeed = Math.min(BASE_CAT_SPEED * speedMultiplier, BASE_CAT_SPEED * 1.8); // Cap at 80% faster than base
+        
+        // Increase object movement speeds
+        const objectSpeedMultiplier = 1 + (currentLevel - 1) * 0.1; // 10% faster objects each level
+        gameObjects.forEach(obj => {
+            if (obj instanceof Fish || obj instanceof Mouse) {
+                obj.speed *= objectSpeedMultiplier;
+            }
+        });
     }
 
     // Add event listener for starting new game

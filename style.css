@@ -1732,3 +1732,35 @@ button {
 #game-container:has(#leaderboard-screen[style*="display: block"]) #how-to-play-button {
     display: none !important;
 }
+
+.score-milestone-notification {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background-color: rgba(255, 107, 107, 0.9);
+    color: white;
+    padding: 15px 30px;
+    border-radius: 10px;
+    font-family: 'Press Start 2P', cursive;
+    font-size: 20px;
+    text-align: center;
+    z-index: 1000;
+    animation: scoreNotification 1.5s ease-out forwards;
+    white-space: nowrap;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+}
+
+@keyframes scoreNotification {
+    0% { transform: translate(-50%, -50%) scale(0); opacity: 0; }
+    20% { transform: translate(-50%, -50%) scale(1.2); opacity: 1; }
+    80% { transform: translate(-50%, -50%) scale(1.2); opacity: 1; }
+    100% { transform: translate(-50%, -50%) scale(1); opacity: 0; }
+}
+
+@media screen and (max-width: 768px) {
+    .score-milestone-notification {
+        font-size: 16px;
+        padding: 12px 24px;
+    }
+}
