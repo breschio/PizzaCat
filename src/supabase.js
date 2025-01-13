@@ -8,11 +8,14 @@ async function initializeSupabase() {
         // Get the base URL for the API based on environment
         const apiBaseUrl = window.location.hostname === 'localhost'
             ? 'http://localhost:3000'
-            : 'https://pizzacat.surf';
+            : `${window.location.protocol}//${window.location.hostname}`;
         
         console.log('Fetching Supabase config from:', apiBaseUrl);
         const response = await fetch(`${apiBaseUrl}/api/supabase-config`, {
-            credentials: 'include'
+            credentials: 'same-origin',
+            headers: {
+                'Accept': 'application/json'
+            }
         });
 
         if (!response.ok) {
@@ -22,8 +25,12 @@ async function initializeSupabase() {
         const config = await response.json();
         console.log('Supabase config fetched successfully');
 
-        // Initialize Supabase client
-        supabaseInstance = createClient(config.supabaseUrl, config.supabaseAnonKey, {
+        if (!config.url || !config.anonKey) {
+            throw new Error('Invalid Supabase configuration received');
+        }
+
+        // Initialize Supabase client with correct property names
+        supabaseInstance = createClient(config.url, config.anonKey, {
             auth: {
                 persistSession: false
             },
@@ -35,7 +42,18 @@ async function initializeSupabase() {
         });
 
         // Test connection
-        await testConnection();
+        const { data, error } = await supabaseInstance
+            .from('connection_tests')
+            .insert({
+                client_id: crypto.randomUUID(),
+                environment: window.location.hostname === 'localhost' ? 'development' : 'production',
+                status: 'connected'
+            });
+
+        if (error) {
+            throw new Error(`Connection test failed: ${error.message}`);
+        }
+
         console.log('Supabase initialized successfully');
         return supabaseInstance;
     } catch (error) {

@@ -17,7 +17,7 @@ const PORT = process.env.PORT || 3000;
 const NODE_ENV = process.env.NODE_ENV || 'development';
 const ALLOWED_ORIGINS = NODE_ENV === 'production' 
     ? ['https://pizzacat.surf', 'https://www.pizzacat.surf'] 
-    : ['http://localhost:8000', 'http://localhost:3000'];
+    : ['http://localhost:8000', 'http://localhost:3000', 'http://localhost:5000'];
 
 // Get the directory name of the current module
 const __filename = fileURLToPath(import.meta.url);
@@ -34,7 +34,8 @@ app.use(helmet({
                 "https://www.pizzacat.surf",
                 process.env.SUPABASE_URL,
                 "wss://*.supabase.co",
-                "https://*.supabase.co"
+                "https://*.supabase.co",
+                ...(NODE_ENV === 'development' ? ['http://localhost:*'] : [])
             ],
             scriptSrc: [
                 "'self'",
@@ -81,7 +82,8 @@ app.use(cors({
     },
     credentials: true,
     methods: ['GET', 'POST', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization']
+    allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
+    exposedHeaders: ['Content-Length', 'Content-Type']
 }));
 
 // JWT authentication middleware
@@ -104,6 +106,8 @@ app.get('/api/supabase-config', configLimiter, (req, res) => {
         // Log access attempts in development
         if (process.env.NODE_ENV === 'development') {
             console.log(`Supabase config requested from: ${req.ip}`);
+            console.log('Origin:', req.get('origin'));
+            console.log('Headers:', req.headers);
         }
 
         // Validate required environment variables
@@ -129,14 +133,17 @@ app.get('/api/supabase-config', configLimiter, (req, res) => {
             'X-XSS-Protection': '1; mode=block'
         });
 
-        // Return only the necessary Supabase configuration
+        // Return Supabase configuration with consistent property names
         res.json({
             url: process.env.SUPABASE_URL,
             anonKey: process.env.SUPABASE_ANON_KEY
         });
     } catch (error) {
         console.error('Error serving Supabase config:', error);
-        res.status(500).json({ error: 'Could not retrieve Supabase configuration' });
+        res.status(500).json({ 
+            error: 'Could not retrieve Supabase configuration',
+            message: NODE_ENV === 'development' ? error.message : undefined
+        });
     }
 });
 
