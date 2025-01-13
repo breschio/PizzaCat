@@ -6,7 +6,10 @@ let initializationPromise = null;
 async function initializeSupabase() {
     try {
         console.log('Fetching Supabase configuration...');
-        const response = await fetch('http://localhost:3000/api/supabase-config');
+        const apiBaseUrl = window.location.hostname === 'localhost' 
+            ? 'http://localhost:3000' 
+            : 'https://pizzacat.surf';
+        const response = await fetch(`${apiBaseUrl}/api/supabase-config`);
         
         if (!response.ok) {
             throw new Error(`Failed to fetch Supabase config: ${response.status} ${response.statusText}`);
