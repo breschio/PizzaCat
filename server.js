@@ -15,97 +15,37 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3000;
 const NODE_ENV = process.env.NODE_ENV || 'development';
-const ALLOWED_ORIGINS = NODE_ENV === 'production' 
-    ? ['https://pizzacat.surf', 'https://www.pizzacat.surf'] 
-    : ['http://localhost:8000', 'http://localhost:3000', 'http://localhost:5000'];
 
-// Get the directory name of the current module
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+// Only allow localhost origins since this is development only
+const ALLOWED_ORIGINS = ['http://localhost:8000', 'http://localhost:3000', 'http://localhost:5000'];
 
-// Basic middleware (should come first)
+// Basic middleware
 app.use(express.json());
 
-// CORS configuration (should come before routes)
+// Simplified CORS for local development
 app.use(cors({
-    origin: function(origin, callback) {
-        // Allow requests with no origin (like mobile apps or curl requests)
-        if (!origin) return callback(null, true);
-        
-        // Check if the origin is allowed
-        if (ALLOWED_ORIGINS.indexOf(origin) === -1) {
-            const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
-            console.error(`CORS error: ${origin} not allowed`);
-            return callback(new Error(msg), false);
-        }
-        return callback(null, true);
-    },
-    credentials: true,
+    origin: ALLOWED_ORIGINS,
+    credentials: false,
     methods: ['GET', 'POST', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
-    exposedHeaders: ['Content-Length', 'Content-Type']
+    allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'Cache-Control'],
+    exposedHeaders: ['Content-Length', 'Content-Type'],
+    preflightContinue: false,
+    optionsSuccessStatus: 204
 }));
 
-// Rate limiting (should come before routes)
-const configLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 10 // limit each IP to 10 requests per windowMs for this endpoint
-});
-
+// Basic rate limiting
 const limiter = rateLimit({
-    windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 100 // limit each IP to 100 requests per windowMs
+    windowMs: 15 * 60 * 1000,
+    max: 100
 });
 app.use(limiter);
-
-// Security middleware (should come before routes but after CORS)
-app.use(helmet({
-    contentSecurityPolicy: {
-        directives: {
-            defaultSrc: ["'self'"],
-            connectSrc: [
-                "'self'",
-                "https://pizzacat.surf",
-                "https://www.pizzacat.surf",
-                process.env.SUPABASE_URL,
-                "wss://*.supabase.co",
-                "https://*.supabase.co",
-                ...(NODE_ENV === 'development' ? ['http://localhost:*'] : [])
-            ],
-            scriptSrc: [
-                "'self'",
-                "'unsafe-inline'",
-                "https://esm.sh",
-                "https://*.supabase.co"
-            ],
-            styleSrc: ["'self'", "'unsafe-inline'"],
-            imgSrc: ["'self'", "data:", "https:"],
-            fontSrc: ["'self'", "https:", "data:"],
-            frameSrc: ["'self'", "https://*.supabase.co"]
-        }
-    },
-    crossOriginEmbedderPolicy: false
-}));
-
-// JWT authentication middleware
-const authenticate = expressJwt({
-    secret: process.env.JWT_SECRET,
-    algorithms: ['HS256']
-});
 
 // Create API Router
 const apiRouter = express.Router();
 
-// Supabase config endpoint
-apiRouter.get('/supabase-config', configLimiter, (req, res) => {
+// Supabase config endpoint (development only)
+apiRouter.get('/supabase-config', (req, res) => {
     try {
-        // Log access attempts in development
-        if (process.env.NODE_ENV === 'development') {
-            console.log(`Supabase config requested from: ${req.ip}`);
-            console.log('Origin:', req.get('origin'));
-            console.log('Headers:', req.headers);
-        }
-
         // Validate required environment variables
         const requiredVars = ['SUPABASE_URL', 'SUPABASE_ANON_KEY'];
         const missingVars = requiredVars.filter(varName => !process.env[varName]);
@@ -118,7 +58,6 @@ apiRouter.get('/supabase-config', configLimiter, (req, res) => {
             });
         }
 
-        // Return Supabase configuration with consistent property names
         res.json({
             url: process.env.SUPABASE_URL,
             anonKey: process.env.SUPABASE_ANON_KEY
@@ -127,30 +66,8 @@ apiRouter.get('/supabase-config', configLimiter, (req, res) => {
         console.error('Error serving Supabase config:', error);
         res.status(500).json({ 
             error: 'Could not retrieve Supabase configuration',
-            message: NODE_ENV === 'development' ? error.message : undefined
+            message: error.message
         });
-    }
-});
-
-// Login endpoint
-apiRouter.post('/login', (req, res) => {
-    try {
-        const { username } = req.body;
-        
-        if (!username) {
-            return res.status(400).json({ error: 'Username is required' });
-        }
-
-        const token = jwt.sign(
-            { username }, 
-            process.env.JWT_SECRET, 
-            { expiresIn: '24h' }
-        );
-
-        res.json({ token });
-    } catch (error) {
-        console.error('Login error:', error);
-        res.status(500).json({ error: 'Authentication failed' });
     }
 });
 
@@ -166,27 +83,13 @@ apiRouter.get('/health', (req, res) => {
 // Mount API router
 app.use('/api', apiRouter);
 
-// Serve static files in production (should come after API routes)
-if (NODE_ENV === 'production') {
-    app.use(express.static(path.join(__dirname)));
-    
-    // Serve index.html for all other routes in production
-    app.get('*', (req, res) => {
-        if (!req.path.startsWith('/api')) {
-            res.sendFile(path.join(__dirname, 'index.html'));
-        }
-    });
-}
-
-// Error handling middleware (should be last)
+// Error handling middleware
 app.use((err, req, res, next) => {
     console.error(err.stack);
-    res.status(500).json({
-        error: NODE_ENV === 'production' ? 'Internal server error' : err.message
-    });
+    res.status(500).json({ error: err.message });
 });
 
 app.listen(PORT, () => {
-    console.log(`Server running in ${NODE_ENV} mode on port ${PORT}`);
+    console.log(`Development server running on port ${PORT}`);
     console.log('Allowed origins:', ALLOWED_ORIGINS);
 });

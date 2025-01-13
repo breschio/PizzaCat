@@ -1,5 +1,5 @@
 // Set this to true to enable debug features, false to disable
-export const DEBUG_MODE = false;
+export const DEBUG_MODE = true;
 
 // Function to update debug panel values
 export function updateDebugPanel(catX, catY, catVelocityX, catVelocityY, inTrickZone, currentCollision, currentTrick, isGameOver) {

@@ -5,74 +5,66 @@ let initializationPromise = null;
 
 async function initializeSupabase() {
     try {
-        // Get the base URL for the API based on environment
-        const apiBaseUrl = window.location.hostname === 'localhost'
-            ? 'http://localhost:3000'
-            : 'https://pizzacat.surf';  // Use the production domain directly
-        
-        console.log('Fetching Supabase config from:', apiBaseUrl);
-        
-        // Add retry logic for production environment
-        const maxRetries = 3;
-        let lastError = null;
-        
-        for (let attempt = 1; attempt <= maxRetries; attempt++) {
-            try {
-                const response = await fetch(`${apiBaseUrl}/api/supabase-config`, {
-                    credentials: 'same-origin',  // Always use same-origin for consistency
-                    headers: {
-                        'Accept': 'application/json',
-                        'Cache-Control': 'no-cache'
-                    }
-                });
+        let config;
+        const isDevelopment = window.location.hostname === 'localhost';
 
-                if (!response.ok) {
-                    const errorText = await response.text();
-                    throw new Error(`Failed to fetch Supabase config (${response.status} ${response.statusText}): ${errorText}`);
+        if (isDevelopment) {
+            // In development, fetch config from local API
+            const apiBaseUrl = 'http://localhost:3000';
+            console.log('Development mode: Fetching Supabase config from:', apiBaseUrl);
+            
+            const response = await fetch(`${apiBaseUrl}/api/supabase-config`, {
+                credentials: 'omit',
+                headers: {
+                    'Accept': 'application/json',
+                    'Cache-Control': 'no-cache'
                 }
+            });
 
-                const config = await response.json();
-                console.log('Supabase config fetched successfully');
+            if (!response.ok) {
+                throw new Error(`Failed to fetch Supabase config: ${response.status} ${response.statusText}`);
+            }
 
-                if (!config.url || !config.anonKey) {
-                    console.error('Invalid config received:', config);
-                    throw new Error('Invalid Supabase configuration received: missing url or anonKey');
-                }
-
-                // Initialize Supabase client with correct property names
-                supabaseInstance = createClient(config.url, config.anonKey, {
-                    auth: {
-                        persistSession: false,
-                        autoRefreshToken: true,
-                        detectSessionInUrl: true
-                    },
-                    realtime: {
-                        params: {
-                            eventsPerSecond: 10
-                        }
-                    }
-                });
-
-                // Test connection
-                console.log('Testing Supabase connection before initialization...');
-                await testSupabaseConnection(supabaseInstance);
-                
-                console.log('Supabase initialized and tested successfully');
-                return supabaseInstance;
-            } catch (error) {
-                console.error(`Attempt ${attempt} failed:`, error);
-                lastError = error;
-                
-                if (attempt < maxRetries) {
-                    const delay = Math.pow(2, attempt) * 1000;
-                    console.log(`Retrying in ${delay/1000} seconds...`);
-                    await new Promise(resolve => setTimeout(resolve, delay));
-                }
+            config = await response.json();
+        } else {
+            // In production, use the public Supabase configuration
+            // These are public anon keys, specifically meant for client-side use
+            console.log('Production mode: Using Supabase config');
+            config = {
+                url: 'https://iqhzxqhwqhgzuondvvmz.supabase.co',
+                anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlxaHp4cWh3cWhnenVvbmR2dm16Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MDc0MzQzMTcsImV4cCI6MjAyMzAxMDMxN30.IqLF9y8tsaQyKrwKvXgtU-vLYgN8aD_C1yxY9bZnOVM'
+            };
+            
+            // Only log in non-production environments
+            if (window.location.hostname !== 'pizzacat.surf') {
+                console.log('Using Supabase URL:', config.url);
             }
         }
+
+        if (!config.url || !config.anonKey) {
+            throw new Error('Invalid Supabase configuration: missing url or anonKey');
+        }
+
+        // Initialize Supabase client
+        supabaseInstance = createClient(config.url, config.anonKey, {
+            auth: {
+                persistSession: false,
+                autoRefreshToken: true,
+                detectSessionInUrl: true
+            },
+            realtime: {
+                params: {
+                    eventsPerSecond: 10
+                }
+            }
+        });
+
+        // Test connection
+        console.log('Testing Supabase connection...');
+        await testSupabaseConnection(supabaseInstance);
         
-        // If we get here, all retries failed
-        throw lastError || new Error('Failed to initialize Supabase after multiple attempts');
+        console.log('Supabase initialized successfully');
+        return supabaseInstance;
     } catch (error) {
         console.error('Error initializing Supabase:', error);
         throw error;
@@ -178,14 +170,13 @@ async function testSupabaseConnection(supabase) {
     console.log('Testing Supabase connection...');
     
     try {
-        // Test 1: Basic connection
-        const { data: healthCheck, error: healthError } = await supabase
+        // Test 1: Basic connection - just count all rows
+        const { count, error: countError } = await supabase
             .from('scores')
-            .select('count(*)')
-            .limit(1);
+            .select('*', { count: 'exact', head: true });
             
-        if (healthError) {
-            console.error('Failed to read scores:', healthError);
+        if (countError) {
+            console.error('Failed to read scores:', countError);
             throw new Error('Read permission check failed');
         }
         console.log('✓ Read permissions verified');
