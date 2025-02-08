@@ -2,43 +2,51 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#FF6B6B">
+  <meta name="description" content="Pizza Cat - A surfing adventure game">
+  
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Nabla&family=Press+Start+2P&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
   <link rel="icon" type="image/x-icon" href="favicon.ico">
+  
+  <!-- Add iOS icon support -->
+  <link rel="apple-touch-icon" href="./assets/pizza-cat.png">
+  
   <title>PIZZA CAT</title>
 </head>
 <body>
   <div id="game-container">
     <div id="header">
-      <div class="header-section header-left">
-        <div class="level-timer game-text">
-          <div id="level-container">
-            <span>LEVEL</span>
-            <span id="level-number">1</span>
+      <div class="header-top">
+        <div class="header-section header-left">
+          <div class="level-timer game-text">
+            <div id="level-container">
+              <span data-full-text="LEVEL" data-mobile-text="LVL">LEVEL</span>
+              <span id="level-number">1</span>
+            </div>
+            <span class="timer-text"></span>
           </div>
-          <span class="timer-text"></span>
-        </div>
-        <div id="score" class="game-text">
-          <div id="score-container">
-            <span id="pts-text">POINTS</span>
-            <span id="score-number">0</span>
+          <div id="score" class="game-text">
+            <div id="score-container">
+              <span data-full-text="POINTS" data-mobile-text="PTS">POINTS</span>
+              <span id="score-number">0</span>
+            </div>
           </div>
         </div>
       </div>
-      <div class="header-section header-center">
-      </div>
-      <div class="header-section header-right">
+      <div class="header-bottom">
         <div id="health-bar-container">
           <div class="health-label">HEALTH</div>
-          <div class="health-bar-row">
-            <div id="health-bar-background">
-              <div id="health-bar-fill"></div>
-            </div>
-            <div id="health-text">100</div>
+          <div id="health-bar-background">
+            <div id="health-bar-fill"></div>
           </div>
+          <div id="health-text">100</div>
         </div>
       </div>
     </div>
