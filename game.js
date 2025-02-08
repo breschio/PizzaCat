@@ -242,11 +242,11 @@ const gameOverManager = new GameOverManager();
     const INVINCIBILITY_DURATION = 1000; // 1 second of invincibility after taking damage
     
     // Movement Constants
-    const BASE_CAT_SPEED = 8; // Base speed for the cat
+    const BASE_CAT_SPEED = 6; // Reduced from 8
     let catMaxSpeed = BASE_CAT_SPEED;
-    const catAcceleration = 0.5;
-    const catDeceleration = 0.95;
-    const VERTICAL_SPEED = 8;
+    const catAcceleration = 0.3; // Reduced from 0.5
+    const catDeceleration = 0.97; // Increased from 0.95 for smoother deceleration
+    const VERTICAL_SPEED = 6; // Reduced from 8
     
     // Wave & Spawn Rates
     let waveSpeed = 100;
@@ -731,7 +731,7 @@ const gameOverManager = new GameOverManager();
 
     // 6. Event Listeners
     // ---------------------------
-    // Now we can add event listeners since the functions they use are defined
+    // Keyboard controls
     window.addEventListener('keydown', (e) => {
         keys[e.key] = true;
         if (e.key === ' ') {
@@ -743,6 +743,75 @@ const gameOverManager = new GameOverManager();
     window.addEventListener('keyup', (e) => {
         keys[e.key] = false;
     });
+
+    // Touch controls for mobile
+    let touchStartX = null;
+    let touchStartY = null;
+    const TOUCH_THRESHOLD = 10; // Reduced from 20 for more responsive touch
+    const MAX_TOUCH_INFLUENCE = 50; // Maximum touch distance to consider
+
+    // Add trick button event listener
+    const trickButton = document.getElementById('trick-button');
+    if (trickButton) {
+        trickButton.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            if (isGameRunning && !isGameOver && !isPaused) {
+                handleTrick();
+            }
+        }, { passive: false });
+    }
+
+    canvas.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        const touch = e.touches[0];
+        touchStartX = touch.clientX;
+        touchStartY = touch.clientY;
+        
+        // Reset movement flags
+        keys['ArrowLeft'] = false;
+        keys['ArrowRight'] = false;
+        keys['ArrowUp'] = false;
+        keys['ArrowDown'] = false;
+    }, { passive: false });
+
+    canvas.addEventListener('touchmove', (e) => {
+        e.preventDefault();
+        if (touchStartX === null || touchStartY === null) return;
+        
+        const touch = e.touches[0];
+        const deltaX = touch.clientX - touchStartX;
+        const deltaY = touch.clientY - touchStartY;
+        
+        // Calculate movement influence based on touch distance
+        const xInfluence = Math.min(Math.abs(deltaX), MAX_TOUCH_INFLUENCE) / MAX_TOUCH_INFLUENCE;
+        const yInfluence = Math.min(Math.abs(deltaY), MAX_TOUCH_INFLUENCE) / MAX_TOUCH_INFLUENCE;
+        
+        // Update movement based on touch position difference and influence
+        if (Math.abs(deltaX) > TOUCH_THRESHOLD) {
+            catVelocityX += (deltaX > 0 ? 1 : -1) * catAcceleration * xInfluence;
+            catFacingRight = deltaX > 0;
+        }
+        if (Math.abs(deltaY) > TOUCH_THRESHOLD) {
+            catVelocityY = VERTICAL_SPEED * (deltaY > 0 ? 1 : -1) * yInfluence;
+        }
+        
+        // Clamp velocities
+        catVelocityX = Math.max(-catMaxSpeed, Math.min(catMaxSpeed, catVelocityX));
+        catVelocityY = Math.max(-VERTICAL_SPEED, Math.min(VERTICAL_SPEED, catVelocityY));
+    }, { passive: false });
+
+    canvas.addEventListener('touchend', (e) => {
+        e.preventDefault();
+        // Reset touch tracking
+        touchStartX = null;
+        touchStartY = null;
+        
+        // Reset all movement keys
+        keys['ArrowLeft'] = false;
+        keys['ArrowRight'] = false;
+        keys['ArrowUp'] = false;
+        keys['ArrowDown'] = false;
+    }, { passive: false });
 
     // 7. Game Loop Functions
     // ---------------------------
