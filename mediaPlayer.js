@@ -585,6 +585,28 @@ class MediaPlayer {
         }
     }
 
+    showVolumeSlider() {
+        this.volumeSlider.style.display = 'block';
+    }
+
+    hideVolumeSlider() {
+        this.volumeSlider.style.display = 'none';
+    }
+
+    startSliderTimeout() {
+        this.clearSliderTimeout();
+        this.volumeSliderTimeout = setTimeout(() => {
+            this.hideVolumeSlider();
+        }, this.SLIDER_HIDE_DELAY);
+    }
+
+    clearSliderTimeout() {
+        if (this.volumeSliderTimeout) {
+            clearTimeout(this.volumeSliderTimeout);
+            this.volumeSliderTimeout = null;
+        }
+    }
+
     waitForUserInteraction() {
         const handleFirstInteraction = () => {
             // Only try to play sounds if not muted
