@@ -164,7 +164,7 @@ function performTrick(catY, catHeight, TRICK_THRESHOLD, isGameRunning, isGameOve
     
     const points = TRICKS[trickName].points;
     showTrickToast(trickName, points);
-    mediaPlayer.playMewoabungaSound();
+    mediaPlayer.playMeowabungaSound();
     
     console.log('Trick performed:', trickName, 'Points:', points);
     
