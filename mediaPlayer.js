@@ -35,7 +35,7 @@ class MediaPlayer {
             yum2: new Audio('./assets/meowyum-2.MP3'),
             catnip1: new Audio('./assets/catnip.MP3'),
             catnip2: new Audio('./assets/catnip-2.MP3'),
-            mewoabunga: new Audio('./assets/meowabunga.MP3'),
+            meowabunga: new Audio('./assets/meowabunga.MP3'),
             pizzaCat: new Audio('./assets/pizza-cat.MP3')
         };
 
@@ -380,9 +380,9 @@ class MediaPlayer {
         this.currentCatnipSoundIndex = (this.currentCatnipSoundIndex + 1) % this.catnipSounds.length;
     }
 
-    playMewoabungaSound() {
-        this.catSounds.mewoabunga.currentTime = 0;
-        this.catSounds.mewoabunga.play().catch(e => console.error("Error playing mewoabunga sound:", e));
+    playMeowabungaSound() {
+        this.catSounds.meowabunga.currentTime = 0;
+        this.catSounds.meowabunga.play().catch(e => console.error("Error playing meowabunga sound:", e));
     }
 
     playPizzaCatSound() {
@@ -391,9 +391,9 @@ class MediaPlayer {
     }
 
     playLevelUpSound() {
-        // Play mewoabunga sound for level completion
-        this.catSounds.mewoabunga.currentTime = 0;
-        this.catSounds.mewoabunga.play().catch(e => console.error("Error playing level up sound:", e));
+        // Play meowabunga sound for level completion
+        this.catSounds.meowabunga.currentTime = 0;
+        this.catSounds.meowabunga.play().catch(e => console.error("Error playing level up sound:", e));
     }
 
     showVolumeSlider() {
