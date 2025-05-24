@@ -362,6 +362,10 @@ body {
     gap: 5px;
 }
 
+#start-button {
+    display: none;
+}
+
 #game-over-screen {
     position: absolute;
     top: 50%;
@@ -744,6 +748,68 @@ button {
     gap: min(16px, 3vw);
     transition: bottom 0.3s ease;
     touch-action: manipulation;
+}
+
+.sound-controls {
+    position: absolute;
+    bottom: min(70px, 15vh);
+    right: min(20px, 5vw);
+    display: flex;
+    gap: 12px;
+    z-index: 1000;
+}
+
+.arcade-button {
+    width: min(50px, 12vw);
+    height: min(50px, 12vw);
+    background: rgba(255, 107, 107, 0.9);
+    border: 3px solid rgba(255, 217, 61, 0.8);
+    border-radius: 50%;
+    color: white;
+    font-size: min(24px, 6vw);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: transform 0.1s ease-in-out, background-color 0.2s ease;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+    text-shadow: 2px 2px 0 rgba(0, 0, 0, 0.5);
+    -webkit-tap-highlight-color: transparent;
+}
+
+.arcade-button:active {
+    transform: scale(0.9);
+}
+
+.arcade-button.muted {
+    background: rgba(211, 88, 88, 0.9);
+    opacity: 0.7;
+}
+
+.arcade-button:hover {
+    transform: scale(1.1);
+    background: rgba(255, 140, 66, 0.9);
+}
+
+.arcade-button.muted::after {
+    content: '';
+    position: absolute;
+    width: 2px;
+    height: 70%;
+    background: rgba(255, 255, 255, 0.8);
+    transform: rotate(45deg);
+}
+
+@media screen and (max-width: 768px) {
+    .sound-controls {
+        bottom: min(120px, 20vh);
+    }
+    
+    .arcade-button {
+        width: min(40px, 10vw);
+        height: min(40px, 10vw);
+        font-size: min(20px, 5vw);
+    }
 }
 
 @keyframes bumpIcon {
