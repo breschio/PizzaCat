@@ -187,6 +187,13 @@ export class Catnip extends GameObject {
     }
 }
 
+export class Trash extends GameObject {
+    constructor(x, y, image) {
+        super(x, y, 70, 70, image, 150 + Math.random() * 50);
+        this.damage = 10;
+    }
+}
+
 export function spawnGameObject(canvas, images, type) {
     const minY = canvas.height * (1/3);
     const maxY = canvas.height * 0.9;
@@ -206,21 +213,29 @@ export function spawnGameObject(canvas, images, type) {
         console.warn('Catnip image not loaded');
         return null;
     }
+    if (type === 'trash' && (!images.trash || images.trash.some(img => !img?.complete))) {
+        console.warn('Trash images not loaded');
+        return null;
+    }
     
     try {
         if (type === 'fish') {
             const fishTypes = ['tuna', 'buffalo', 'salmon'];
             const selectedType = fishTypes[Math.floor(Math.random() * fishTypes.length)];
-            
+
             const fishImage = {
                 'tuna': images.tuna,
                 'buffalo': images.buffaloFish,
                 'salmon': images.salmon
             }[selectedType];
-            
+
             return new Fish(x, y, fishImage, selectedType);
         } else if (type === 'catnip') {
             return new Catnip(x, y, images.catnip);
+        } else if (type === 'trash') {
+            const trashImages = images.trash;
+            const selectedImage = trashImages[Math.floor(Math.random() * trashImages.length)];
+            return new Trash(x, y, selectedImage);
         } else {
             return new Mouse(x, y, images.mouse);
         }

@@ -12,7 +12,7 @@ import {
     currentTrickName,
     trickStartTime
 } from './tricks.js';
-import { spawnGameObject, updateSpawnRates, Fish, Mouse, Catnip } from './gameObjects.js';
+import { spawnGameObject, updateSpawnRates, Fish, Mouse, Catnip, Trash } from './gameObjects.js';
 import { mediaPlayer } from './mediaPlayer.js';
 import GameOverManager from './src/gameOver.js';
 
@@ -235,6 +235,7 @@ const gameOverManager = new GameOverManager();
     const BASE_SPEED = 200;
     const SPEED_VARIATION = 50;
     const MOUSE_DAMAGE = 25;
+    const TRASH_DAMAGE = 10;
     const flashDuration = 500;
     const CATNIP_SCALE_FACTOR = 0.85;
     const CAT_WIDTH = 300;
@@ -261,6 +262,7 @@ const gameOverManager = new GameOverManager();
     const CATNIP_SPAWN_RATE = 0.1; // 10% chance every spawn check
     const CATNIP_DURATION = 10000; // 10 seconds
     let catnipEndTime = 0;
+    const BASE_TRASH_SPAWN_RATE = 0.05;
     
     // Add this constant with the other effect-related constants
     const CATNIP_FLASH_COLOR = 'rgba(0, 255, 0, 0.4)';
@@ -354,6 +356,9 @@ const gameOverManager = new GameOverManager();
     let buffaloFishImage = new Image();
     let salmonImage = new Image();
     let catnipImage = new Image();
+    let trashBagImage = new Image();
+    let trashBottleImage = new Image();
+    let trashCanImage = new Image();
     const totalImages = 9;
 
     // Add this after the asset declarations
@@ -368,7 +373,10 @@ const gameOverManager = new GameOverManager();
             tuna: './assets/tuna.png',
             buffaloFish: './assets/buffalo-fish.png',
             salmon: './assets/salmon.png',
-            catnip: './assets/catnip.png'
+            catnip: './assets/catnip.png',
+            trashBag: './assets/trash-bag.png',
+            trashBottle: './assets/trash-bottle.png',
+            trashCan: './assets/trash-can.png'
         },
         sounds: {
             // Define sound assets here if needed
@@ -417,6 +425,9 @@ const gameOverManager = new GameOverManager();
                     case 'buffaloFish': buffaloFishImage = img; break;
                     case 'salmon': salmonImage = img; break;
                     case 'catnip': catnipImage = img; break;
+                    case 'trashBag': trashBagImage = img; break;
+                    case 'trashBottle': trashBottleImage = img; break;
+                    case 'trashCan': trashCanImage = img; break;
                 }
             });
         });
@@ -904,6 +915,17 @@ const gameOverManager = new GameOverManager();
                 gameObjects.push(mouse);
             }
 
+            // Spawn trash objects starting at level 3
+            if (currentLevel >= 3) {
+                const trashSpawnRate = Math.min(BASE_TRASH_SPAWN_RATE * (currentLevel - 2), 0.3);
+                if (Math.random() < trashSpawnRate) {
+                    const trash = spawnGameObject(canvas, { trash: [trashBagImage, trashBottleImage, trashCanImage] }, 'trash');
+                    if (trash) {
+                        gameObjects.push(trash);
+                    }
+                }
+            }
+
             // Only check for catnip spawning during normal gameplay intervals
             if (!isCatnipMode && currentTime - lastSpawnTime > 1000) {
                 // Check if there's already a catnip on screen
@@ -1082,6 +1104,28 @@ const gameOverManager = new GameOverManager();
                             return false; // Remove the object
                         }
                     }
+                } else if (obj instanceof Trash) {
+                    if (!isInvincible) {
+                        catHealth = Math.max(0, catHealth - TRASH_DAMAGE);
+                        updateHealthBar();
+                        mediaPlayerInstance.playHurtSound();
+
+                        isInvincible = true;
+                        invincibilityTimer = INVINCIBILITY_DURATION;
+
+                        if (catHealth > 0) {
+                            isFlashing = true;
+                            flashStartTime = performance.now();
+                            flashColor = 'rgba(255, 0, 0, 0.5)';
+                            flashAlpha = 0.5;
+                        }
+
+                        if (catHealth <= 0) {
+                            handleGameOver();
+                            return false;
+                        }
+                    }
+                    return false;
                 } else if (obj instanceof Catnip) {
                     // Activate catnip mode
                     isCatnipMode = true;
@@ -1158,9 +1202,9 @@ const gameOverManager = new GameOverManager();
             }
         });
         
-        // Draw fish and catnip second (middle layer)
+        // Draw fish, catnip, and trash second (middle layer)
         gameObjects.forEach(obj => {
-            if (obj instanceof Fish || obj instanceof Catnip) {
+            if (obj instanceof Fish || obj instanceof Catnip || obj instanceof Trash) {
                 obj.draw(ctx);
             }
         });
