@@ -256,6 +256,11 @@ const gameOverManager = new GameOverManager();
     const INITIAL_FISH_SPAWN_RATE = 0.5;
     const MAX_FISH_SPAWN_RATE = 0.7;
     let fishSpawnRate = INITIAL_FISH_SPAWN_RATE;
+
+    // Mouse spawn rate constants
+    const INITIAL_MOUSE_SPAWN_RATE = 0.15;
+    const MAX_MOUSE_SPAWN_RATE = 0.4;
+    let currentMouseSpawnRate = INITIAL_MOUSE_SPAWN_RATE;
     
     // Add these constants near the other game constants
     const CATNIP_SPAWN_RATE = 0.1; // 10% chance every spawn check
@@ -897,9 +902,11 @@ const gameOverManager = new GameOverManager();
                 }
             }
 
-            // Spawn mice with increased rate during catnip mode
-            const mouseSpawnRate = isCatnipMode ? fishSpawnRate : fishSpawnRate * 0.5;
-            if (Math.random() < mouseSpawnRate) {
+            // Spawn mice with rate adjusted by difficulty and catnip mode
+            const mouseProbability = isCatnipMode
+                ? Math.min(currentMouseSpawnRate * 1.5, 1)
+                : currentMouseSpawnRate;
+            if (Math.random() < mouseProbability) {
                 const mouse = spawnGameObject(canvas, { mouse: mouseImage }, 'mouse');
                 gameObjects.push(mouse);
             }
@@ -1311,7 +1318,10 @@ const gameOverManager = new GameOverManager();
         waveSpeed = Math.min(INITIAL_WAVE_SPEED * (1 + currentLevel * 0.15), MAX_WAVE_SPEED);
         
         // Add more mice as levels progress (increased scaling)
-        const mouseSpawnRate = Math.min(0.15 + (currentLevel - 1) * 0.08, 0.4); // Cap at 40% spawn rate
+        currentMouseSpawnRate = Math.min(
+            INITIAL_MOUSE_SPAWN_RATE + (currentLevel - 1) * 0.08,
+            MAX_MOUSE_SPAWN_RATE
+        ); // Cap at MAX_MOUSE_SPAWN_RATE
         
         // Increase game speed (but keep it manageable)
         const speedMultiplier = 1 + (currentLevel - 1) * 0.08; // 8% faster each level
