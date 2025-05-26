@@ -43,9 +43,10 @@ const gameOverManager = new GameOverManager();
     const maxCatHealth = 100;
     
     // Level System
-    const LEVEL_DURATION = 60000; // 60 seconds per level
+    const BASE_LEVEL_DURATION = 60000; // 60 seconds per level
+    let levelDuration = BASE_LEVEL_DURATION;
     let levelStartTime = 0;
-    let levelTimeRemaining = LEVEL_DURATION;
+    let levelTimeRemaining = levelDuration;
     
     // Add level timer display
     // const levelTimerDisplay = document.createElement('div');
@@ -60,7 +61,7 @@ const gameOverManager = new GameOverManager();
 
     function updateLevelTimer() {
         const currentTime = performance.now();
-        levelTimeRemaining = Math.max(0, LEVEL_DURATION - (currentTime - levelStartTime));
+        levelTimeRemaining = Math.max(0, levelDuration - (currentTime - levelStartTime));
         
         // Format time as MM:SS
         const seconds = Math.ceil(levelTimeRemaining / 1000);
@@ -127,7 +128,7 @@ const gameOverManager = new GameOverManager();
                         isPaused = false;
                         // Reset level timer after countdown
                         levelStartTime = performance.now();
-                        levelTimeRemaining = LEVEL_DURATION;
+                        levelTimeRemaining = levelDuration;
                     }, 1000);
                 }, 1000);
             }
@@ -259,8 +260,10 @@ const gameOverManager = new GameOverManager();
     
     // Add these constants near the other game constants
     const CATNIP_SPAWN_RATE = 0.1; // 10% chance every spawn check
+    const MIN_CATNIP_SPAWN_RATE = 0.02;
     const CATNIP_DURATION = 10000; // 10 seconds
     let catnipEndTime = 0;
+    let currentCatnipSpawnRate = CATNIP_SPAWN_RATE;
     
     // Add this constant with the other effect-related constants
     const CATNIP_FLASH_COLOR = 'rgba(0, 255, 0, 0.4)';
@@ -575,8 +578,9 @@ const gameOverManager = new GameOverManager();
         
         // Initialize level
         currentLevel = 1;
+        levelDuration = BASE_LEVEL_DURATION;
         levelStartTime = performance.now();
-        levelTimeRemaining = LEVEL_DURATION;
+        levelTimeRemaining = levelDuration;
         
         // Keep audio muted by default
         mediaPlayerInstance.isMuted = true;
@@ -909,7 +913,7 @@ const gameOverManager = new GameOverManager();
                 // Check if there's already a catnip on screen
                 const existingCatnip = gameObjects.some(obj => obj instanceof Catnip);
                 
-                if (!existingCatnip && catnipsSpawnedThisLevel < MAX_CATNIPS_PER_LEVEL && Math.random() < CATNIP_SPAWN_RATE) {
+                if (!existingCatnip && catnipsSpawnedThisLevel < MAX_CATNIPS_PER_LEVEL && Math.random() < currentCatnipSpawnRate) {
                     const catnip = spawnGameObject(canvas, { catnip: catnipImage }, 'catnip');
                     if (catnip) {
                         gameObjects.push(catnip);
@@ -1306,6 +1310,8 @@ const gameOverManager = new GameOverManager();
     }
 
     function updateGameDifficulty() {
+        levelDuration = Math.max(BASE_LEVEL_DURATION - (currentLevel - 1) * 5000, 30000);
+        currentCatnipSpawnRate = Math.max(CATNIP_SPAWN_RATE - currentLevel * 0.01, MIN_CATNIP_SPAWN_RATE);
         // Increase spawn rates and speed based on level
         fishSpawnRate = Math.min(INITIAL_FISH_SPAWN_RATE * (1 + currentLevel * 0.15), MAX_FISH_SPAWN_RATE);
         waveSpeed = Math.min(INITIAL_WAVE_SPEED * (1 + currentLevel * 0.15), MAX_WAVE_SPEED);
