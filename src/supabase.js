@@ -65,21 +65,25 @@ export async function saveScore(username, score, level) {
             throw new Error('Invalid score data');
         }
 
-        const { error } = await client
+        const { data, error } = await client
             .from('scores')
-            .insert([{
-                username: username.trim().toUpperCase(),
-                score,
-                level
-            }]);
+            .insert([
+                {
+                    username: username.trim().toUpperCase(),
+                    score,
+                    level
+                }
+            ])
+            .select()
+            .single();
 
         if (error) throw error;
 
-        console.log('Score saved successfully:', { username, score, level });
-        return true;
+        console.log('Score saved successfully:', data);
+        return data;
     } catch (error) {
         console.error('Error saving score:', error);
-        return false;
+        return null;
     }
 }
 
