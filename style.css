@@ -1,12 +1,26 @@
+:root {
+    --safe-area-top: env(safe-area-inset-top, 0px);
+    --safe-area-right: env(safe-area-inset-right, 0px);
+    --safe-area-bottom: env(safe-area-inset-bottom, 0px);
+    --safe-area-left: env(safe-area-inset-left, 0px);
+}
+
 body {
     margin: 0;
     overflow: hidden;
+    min-height: 100vh;
+    min-height: 100dvh;
+    background-color: #0B1C2C;
 }
 
 #game-container {
     position: relative;
     width: 100vw;
     height: 100vh;
+    height: 100dvh;
+    min-height: 100vh;
+    min-height: 100dvh;
+    box-sizing: border-box;
     background-image: url('./assets/wave.gif');
     background-size: cover;
     background-repeat: no-repeat;
@@ -36,18 +50,18 @@ body {
 
 #gameCanvas {
     position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
+    top: var(--safe-area-top);
+    left: var(--safe-area-left);
+    width: calc(100% - var(--safe-area-left) - var(--safe-area-right));
+    height: calc(100% - var(--safe-area-top) - var(--safe-area-bottom));
     z-index: 2;
 }
 
 #header {
     position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
+    top: var(--safe-area-top);
+    left: var(--safe-area-left);
+    right: var(--safe-area-right);
     display: flex;
     flex-direction: row;
     padding: 12px 12px;
@@ -303,8 +317,8 @@ body {
 
 #start-button, #stop-button {
     position: absolute;
-    bottom: min(20px, 5vh);
-    right: min(20px, 5vw);
+    bottom: calc(min(20px, 5vh) + var(--safe-area-bottom));
+    right: calc(min(20px, 5vw) + var(--safe-area-right));
     z-index: 3;
     font-size: clamp(20px, 4vw, 28px);
     font-weight: bold;
@@ -658,8 +672,8 @@ button {
 
 .toast-notification {
     position: fixed;
-    bottom: min(60px, 12vh);
-    left: min(20px, 5vw);
+    bottom: calc(min(60px, 12vh) + var(--safe-area-bottom));
+    left: calc(min(20px, 5vw) + var(--safe-area-left));
     background-color: rgba(0, 0, 0, 0.8);
     color: white;
     padding: min(15px, 3vh) min(20px, 4vw);
@@ -739,8 +753,8 @@ button {
 
 #volume-control {
     position: absolute;
-    bottom: min(70px, 15vh);
-    right: min(20px, 5vw);
+    bottom: calc(min(70px, 15vh) + var(--safe-area-bottom));
+    right: calc(min(20px, 5vw) + var(--safe-area-right));
     padding: 0;
     z-index: 1000;
     display: flex;
@@ -752,8 +766,8 @@ button {
 
 .sound-controls {
     position: absolute;
-    bottom: min(70px, 15vh);
-    right: min(20px, 5vw);
+    bottom: calc(min(70px, 15vh) + var(--safe-area-bottom));
+    right: calc(min(20px, 5vw) + var(--safe-area-right));
     display: flex;
     gap: 12px;
     z-index: 1000;
@@ -802,7 +816,7 @@ button {
 
 @media screen and (max-width: 768px) {
     .sound-controls {
-        bottom: min(120px, 20vh);
+        bottom: calc(min(120px, 20vh) + var(--safe-area-bottom));
     }
     
     .arcade-button {
@@ -1289,8 +1303,8 @@ button {
 
 #stop-button {
     position: absolute;
-    bottom: 20px;
-    right: 20px;
+    bottom: calc(20px + var(--safe-area-bottom));
+    right: calc(20px + var(--safe-area-right));
     z-index: 3;
     font-size: 28px;
     font-weight: bold;
@@ -1310,8 +1324,8 @@ button {
 /* Debug Panel */
 .debug-panel {
     position: fixed;
-    top: 60px;
-    left: 20px;
+    top: calc(60px + var(--safe-area-top));
+    left: calc(20px + var(--safe-area-left));
     background: rgba(0, 0, 0, 0.9);
     color: #00ff00;
     padding: 15px;
@@ -1428,8 +1442,8 @@ button {
 /* Label styling */
 .trick-zone-label {
     position: absolute;
-    bottom: 20px;
-    right: 20px;
+    bottom: calc(20px + var(--safe-area-bottom));
+    right: calc(20px + var(--safe-area-right));
     color: #FFFFFF;
     font-family: 'Press Start 2P', cursive;
     font-size: 20px;
@@ -1448,8 +1462,8 @@ button {
 @media screen and (max-width: 768px) {
     .trick-zone-label {
         font-size: 6px;
-        bottom: 8px;
-        left: 8px;
+        bottom: calc(8px + var(--safe-area-bottom));
+        left: calc(8px + var(--safe-area-left));
     }
 }
 
@@ -1549,7 +1563,7 @@ button {
 
 .spacebar-instruction {
     position: fixed;
-    bottom: 50px;  /* Position below the trick button */
+    bottom: calc(50px + var(--safe-area-bottom));  /* Position below the trick button */
     left: 50%;
     transform: translateX(-50%);
     color: white;
@@ -1569,7 +1583,7 @@ button {
 /* Update mobile styles */
 @media screen and (max-width: 768px) {
     .spacebar-instruction {
-        bottom: 70px;  /* Adjust position for mobile */
+        bottom: calc(70px + var(--safe-area-bottom));  /* Adjust position for mobile */
         font-size: 12px;
     }
 }
@@ -1984,8 +1998,8 @@ button {
 
 #trick-button {
     position: fixed;
-    bottom: min(20px, 5vh);
-    left: min(20px, 5vw);
+    bottom: calc(min(20px, 5vh) + var(--safe-area-bottom));
+    left: calc(min(20px, 5vw) + var(--safe-area-left));
     width: min(80px, 20vw);
     height: min(80px, 20vw);
     background: rgba(255, 107, 107, 0.8);
