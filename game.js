@@ -290,18 +290,37 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         function drawCat() {
             if (!gameAssets.cat) return;
-            
+
             ctx.save();
             const scaledWidth = CAT_WIDTH * CAT_SCALE;
             const scaledHeight = CAT_HEIGHT * CAT_SCALE;
+            const centerX = catX + scaledWidth / 2;
+            const centerY = catY + scaledHeight / 2;
 
-            if (!catFacingRight) {
-                ctx.scale(-1, 1);
-                ctx.drawImage(gameAssets.cat, -catX - scaledWidth, catY, scaledWidth, scaledHeight);
+            // Apply trick animation if performing a trick
+            const isTrickAnimating = applyTrickAnimation(ctx, centerX, centerY, catX, catY, scaledWidth, scaledHeight, catFacingRight);
+
+            if (isTrickAnimating) {
+                // When animating, we're already translated to center, so draw centered at origin
+                if (!catFacingRight) {
+                    ctx.scale(-1, 1);
+                }
+                ctx.drawImage(gameAssets.cat, -scaledWidth / 2, -scaledHeight / 2, scaledWidth, scaledHeight);
             } else {
-                ctx.drawImage(gameAssets.cat, catX, catY, scaledWidth, scaledHeight);
+                // Normal drawing at catX, catY
+                if (!catFacingRight) {
+                    ctx.scale(-1, 1);
+                    ctx.drawImage(gameAssets.cat, -catX - scaledWidth, catY, scaledWidth, scaledHeight);
+                } else {
+                    ctx.drawImage(gameAssets.cat, catX, catY, scaledWidth, scaledHeight);
+                }
             }
             ctx.restore();
+
+            // Draw trick effects on top
+            if (isTrickAnimating) {
+                drawTrickEffect(ctx, centerX, centerY);
+            }
         }
 
         function updateGameObjects(deltaTime) {
@@ -346,7 +365,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                 bottom: catY + CAT_HEIGHT * CAT_SCALE * 0.8
             };
 
-            gameObjects.forEach((obj, index) => {
+            // Iterate in reverse to safely remove items during iteration
+            for (let i = gameObjects.length - 1; i >= 0; i--) {
+                const obj = gameObjects[i];
                 if (obj.checkCollision(
                     catHitbox.left,
                     catHitbox.top,
@@ -360,7 +381,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                             domElements.scoreElement.textContent = gameState.score;
                         }
                         mediaPlayerInstance.playNextFishCatchSound();
-                        
+
                         // Update health
                         gameState.catHealth = Math.min(100, gameState.catHealth + obj.healthBoost);
                         if (domElements.healthBarFill && domElements.healthText) {
@@ -378,13 +399,13 @@ document.addEventListener('DOMContentLoaded', async () => {
                         mediaPlayerInstance.startCatnipMusic();
                         // Add any catnip power-up effects here
                     }
-                    
+
                     // Remove collected object if it's not a spinning mouse
                     if (!(obj instanceof Mouse && obj.isSpinning)) {
-                        gameObjects.splice(index, 1);
+                        gameObjects.splice(i, 1);
                     }
                 }
-            });
+            }
         }
 
         // Setup game start functionality
@@ -470,12 +491,44 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (!gameState.isPaused) {
                 // Clear canvas
                 ctx.clearRect(0, 0, domElements.canvas.width, domElements.canvas.height);
-                
+
                 // Update game state
                 updateCatPosition();
                 updateGameObjects(deltaTime);
                 checkCollisions();
-                
+
+                // Trick zone logic
+                const scaledHeight = CAT_HEIGHT * CAT_SCALE;
+                const inTrickZone = isInTrickZone(catY, scaledHeight, domElements.canvas);
+
+                if (inTrickZone) {
+                    activateTrickZone();
+                }
+                updateTrickZone(catY, scaledHeight, deltaTime, domElements.canvas);
+
+                // Check for spacebar to perform trick
+                if (keys[' '] || keys['Space']) {
+                    const trickThreshold = domElements.canvas.height * (1/3);
+                    const result = performTrick(
+                        catY,
+                        scaledHeight,
+                        trickThreshold,
+                        gameState.isGameRunning,
+                        gameState.isGameOver,
+                        gameState.score,
+                        (points) => { gameState.score += points; }
+                    );
+                    if (result.score > 0) {
+                        gameState.score += result.score;
+                        if (domElements.scoreElement) {
+                            domElements.scoreElement.textContent = gameState.score;
+                        }
+                    }
+                    // Clear spacebar to prevent repeated tricks
+                    keys[' '] = false;
+                    keys['Space'] = false;
+                }
+
                 // Draw game state
                 drawCat();
                 gameObjects.forEach(obj => obj.draw(ctx));

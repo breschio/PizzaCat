@@ -83,6 +83,11 @@ apiRouter.get('/health', (req, res) => {
 // Mount API router
 app.use('/api', apiRouter);
 
+// Serve static files from project root
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+app.use(express.static(__dirname));
+
 // Error handling middleware
 app.use((err, req, res, next) => {
     console.error(err.stack);

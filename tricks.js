@@ -57,8 +57,8 @@ const TRICKS = {
     },
     'Paw Flip': {
         points: 200,
-        rotation: (progress) => 0,
-        scale: (progress) => Math.cos(progress * Math.PI * 2),
+        rotation: (progress) => progress * Math.PI * 2,
+        scale: (progress) => 0.8 + 0.2 * Math.cos(progress * Math.PI * 4),
         translate: (progress) => [0, Math.sin(progress * Math.PI * 2) * 30],
         effect: (ctx, centerX, centerY, progress) => {
             // Motion blur streaks
@@ -72,7 +72,7 @@ const TRICKS = {
     'Whisker Twist': {
         points: 300,
         rotation: (progress) => progress * Math.PI * 3,
-        scale: (progress) => [1, Math.cos(progress * Math.PI * 2)],
+        scale: (progress) => [1, 0.6 + 0.4 * Math.cos(progress * Math.PI * 4)],
         effect: (ctx, centerX, centerY, progress) => {
             // Spiral sparkles
             for (let i = 0; i < 12; i++) {
@@ -164,7 +164,7 @@ function performTrick(catY, catHeight, TRICK_THRESHOLD, isGameRunning, isGameOve
     
     const points = TRICKS[trickName].points;
     showTrickToast(trickName, points);
-    mediaPlayer.playMeowabungaSound();
+    mediaPlayer.getInstance().playMeowabunga();
     
     console.log('Trick performed:', trickName, 'Points:', points);
     
@@ -184,12 +184,13 @@ function applyTrickAnimation(ctx, centerX, centerY, catX, catY, scaledWidth, sca
         return false;
     }
 
+    // Translate to center point for rotation/scale
     ctx.translate(centerX, centerY);
-    
+
     if (trick.rotation) {
         ctx.rotate(trick.rotation(progress));
     }
-    
+
     if (trick.scale) {
         const scale = trick.scale(progress);
         if (Array.isArray(scale)) {
@@ -198,13 +199,13 @@ function applyTrickAnimation(ctx, centerX, centerY, catX, catY, scaledWidth, sca
             ctx.scale(scale, scale);
         }
     }
-    
+
     if (trick.translate) {
         const [x, y] = trick.translate(progress);
         ctx.translate(x, y);
     }
-    
-    ctx.translate(-centerX, -centerY);
+
+    // Don't translate back - drawCat will draw centered at origin
     return true;
 }
 
