@@ -1,5 +1,5 @@
 import { DEBUG_MODE, updateDebugPanel, drawTrickZoneBoundary, createDebugControls } from './debug.js';
-import { 
+import {
     performTrick,
     applyTrickAnimation,
     drawTrickEffect,
@@ -15,6 +15,19 @@ import {
 import { spawnGameObject, updateSpawnRates, Fish, Mouse, Catnip } from './gameObjects.js';
 import { mediaPlayer } from './mediaPlayer.js';
 import GameOverManager from './src/gameOver.js';
+
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker
+            .register('sw.js', { scope: './' })
+            .then(registration => {
+                console.log('[PizzaCat] Service worker registered', registration.scope);
+            })
+            .catch(error => {
+                console.error('[PizzaCat] Service worker registration failed', error);
+            });
+    });
+}
 
 // Initialize managers and instances
 const gameOverManager = new GameOverManager();
@@ -157,22 +170,28 @@ document.addEventListener('DOMContentLoaded', async () => {
         const ctx = domElements.canvas.getContext('2d');
         if (!ctx) throw new Error('Failed to get canvas context');
 
-        // Initialize canvas size
-        function resizeCanvas() {
-            if (!domElements.canvas) return;
-            domElements.canvas.width = window.innerWidth;
-            domElements.canvas.height = window.innerHeight;
-            
-            // Adjust cat position when canvas is resized
-            if (typeof catX !== 'undefined' && typeof catY !== 'undefined') {
-                if (catX + CAT_WIDTH * CAT_SCALE > domElements.canvas.width) {
-                    catX = domElements.canvas.width - CAT_WIDTH * CAT_SCALE;
-                }
-                if (catY + CAT_HEIGHT * CAT_SCALE > domElements.canvas.height) {
-                    catY = domElements.canvas.height - CAT_HEIGHT * CAT_SCALE;
-                }
-            }
-        }
+          // Initialize canvas size
+          function resizeCanvas() {
+              if (!domElements.canvas) return;
+              const canvasElement = domElements.canvas;
+              const { clientWidth, clientHeight } = canvasElement;
+
+              const targetWidth = clientWidth || window.innerWidth;
+              const targetHeight = clientHeight || window.innerHeight;
+
+              canvasElement.width = targetWidth;
+              canvasElement.height = targetHeight;
+              
+              // Adjust cat position when canvas is resized
+              if (typeof catX !== 'undefined' && typeof catY !== 'undefined') {
+                  if (catX + CAT_WIDTH * CAT_SCALE > canvasElement.width) {
+                      catX = canvasElement.width - CAT_WIDTH * CAT_SCALE;
+                  }
+                  if (catY + CAT_HEIGHT * CAT_SCALE > canvasElement.height) {
+                      catY = canvasElement.height - CAT_HEIGHT * CAT_SCALE;
+                  }
+              }
+          }
 
         // Add resize listener
         window.addEventListener('resize', resizeCanvas);
