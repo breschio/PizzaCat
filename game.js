@@ -46,7 +46,14 @@ const gameState = {
     catHealth: 100,
     currentLevel: 1,
     lastLevelPoints: 0,
-    hasUserInteracted: false
+    hasUserInteracted: false,
+    // Catnip mode state
+    catnipModeActive: false,
+    catnipModeEndTime: 0,
+    catnipModeDuration: 10000, // 10 seconds
+    catnipScoreMultiplier: 2,
+    catnipSpeedBoost: 1.5,
+    catnipCatScale: 0.85
 };
 
 // Game object dimensions and states
@@ -157,6 +164,26 @@ document.addEventListener('DOMContentLoaded', async () => {
         const ctx = domElements.canvas.getContext('2d');
         if (!ctx) throw new Error('Failed to get canvas context');
 
+        function getCurrentCatScale() {
+            return gameState.catnipModeActive ? gameState.catnipCatScale : CAT_SCALE;
+        }
+
+        function getCatDimensions() {
+            const scale = getCurrentCatScale();
+            return {
+                width: CAT_WIDTH * scale,
+                height: CAT_HEIGHT * scale
+            };
+        }
+
+        function clampCatPosition() {
+            if (!domElements.canvas) return;
+
+            const { width, height } = getCatDimensions();
+            catX = Math.max(0, Math.min(catX, domElements.canvas.width - width));
+            catY = Math.max(0, Math.min(catY, domElements.canvas.height - height));
+        }
+
         // Initialize canvas size
         function resizeCanvas() {
             if (!domElements.canvas) return;
@@ -165,12 +192,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             
             // Adjust cat position when canvas is resized
             if (typeof catX !== 'undefined' && typeof catY !== 'undefined') {
-                if (catX + CAT_WIDTH * CAT_SCALE > domElements.canvas.width) {
-                    catX = domElements.canvas.width - CAT_WIDTH * CAT_SCALE;
-                }
-                if (catY + CAT_HEIGHT * CAT_SCALE > domElements.canvas.height) {
-                    catY = domElements.canvas.height - CAT_HEIGHT * CAT_SCALE;
-                }
+                clampCatPosition();
             }
         }
 
@@ -279,23 +301,25 @@ document.addEventListener('DOMContentLoaded', async () => {
                 }
             }
 
-            // Update cat position
-            catX += catVelocityX;
-            catY += catVelocityY;
+            // Update cat position (apply speed boost if catnip mode is active)
+            const speedMultiplier = gameState.catnipModeActive ? gameState.catnipSpeedBoost : 1;
+            catX += catVelocityX * speedMultiplier;
+            catY += catVelocityY * speedMultiplier;
 
             // Keep cat within canvas bounds
-            catX = Math.max(0, Math.min(catX, domElements.canvas.width - CAT_WIDTH * CAT_SCALE));
-            catY = Math.max(0, Math.min(catY, domElements.canvas.height - CAT_HEIGHT * CAT_SCALE));
+            clampCatPosition();
         }
 
         function drawCat() {
             if (!gameAssets.cat) return;
 
             ctx.save();
-            const scaledWidth = CAT_WIDTH * CAT_SCALE;
-            const scaledHeight = CAT_HEIGHT * CAT_SCALE;
+            const { width: scaledWidth, height: scaledHeight } = getCatDimensions();
             const centerX = catX + scaledWidth / 2;
             const centerY = catY + scaledHeight / 2;
+
+            // Use sunglasses cat during catnip mode
+            const catImage = gameState.catnipModeActive && gameAssets.catSunny ? gameAssets.catSunny : gameAssets.cat;
 
             // Apply trick animation if performing a trick
             const isTrickAnimating = applyTrickAnimation(ctx, centerX, centerY, catX, catY, scaledWidth, scaledHeight, catFacingRight);
@@ -305,14 +329,14 @@ document.addEventListener('DOMContentLoaded', async () => {
                 if (!catFacingRight) {
                     ctx.scale(-1, 1);
                 }
-                ctx.drawImage(gameAssets.cat, -scaledWidth / 2, -scaledHeight / 2, scaledWidth, scaledHeight);
+                ctx.drawImage(catImage, -scaledWidth / 2, -scaledHeight / 2, scaledWidth, scaledHeight);
             } else {
                 // Normal drawing at catX, catY
                 if (!catFacingRight) {
                     ctx.scale(-1, 1);
-                    ctx.drawImage(gameAssets.cat, -catX - scaledWidth, catY, scaledWidth, scaledHeight);
+                    ctx.drawImage(catImage, -catX - scaledWidth, catY, scaledWidth, scaledHeight);
                 } else {
-                    ctx.drawImage(gameAssets.cat, catX, catY, scaledWidth, scaledHeight);
+                    ctx.drawImage(catImage, catX, catY, scaledWidth, scaledHeight);
                 }
             }
             ctx.restore();
@@ -321,6 +345,164 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (isTrickAnimating) {
                 drawTrickEffect(ctx, centerX, centerY);
             }
+        }
+
+        // Catnip mode UI functions
+        function showCatnipModeUI() {
+            let catnipUI = document.getElementById('catnip-mode-ui');
+            if (!catnipUI) {
+                catnipUI = document.createElement('div');
+                catnipUI.id = 'catnip-mode-ui';
+                catnipUI.innerHTML = `
+                    <div class="catnip-mode-label">🌿 CATNIP MODE 🌿</div>
+                    <div class="catnip-mode-timer">10.0s</div>
+                    <div class="catnip-mode-bonus">2x SCORE!</div>
+                `;
+                catnipUI.style.cssText = `
+                    position: fixed;
+                    top: 80px;
+                    left: 50%;
+                    transform: translateX(-50%);
+                    text-align: center;
+                    z-index: 1000;
+                    pointer-events: none;
+                `;
+                const label = catnipUI.querySelector('.catnip-mode-label');
+                label.style.cssText = `
+                    font-size: 24px;
+                    font-weight: bold;
+                    color: #00ff00;
+                    text-shadow: 0 0 10px #00ff00, 0 0 20px #00ff00;
+                    animation: catnipPulse 0.5s ease-in-out infinite alternate;
+                `;
+                const timer = catnipUI.querySelector('.catnip-mode-timer');
+                timer.style.cssText = `
+                    font-size: 32px;
+                    font-weight: bold;
+                    color: #ffffff;
+                    text-shadow: 0 0 10px #00ff00;
+                    margin-top: 5px;
+                `;
+                const bonus = catnipUI.querySelector('.catnip-mode-bonus');
+                bonus.style.cssText = `
+                    font-size: 18px;
+                    color: #ffff00;
+                    text-shadow: 0 0 10px #ffff00;
+                    margin-top: 5px;
+                `;
+                document.body.appendChild(catnipUI);
+
+                // Add animation keyframes if not already present
+                if (!document.getElementById('catnip-animations')) {
+                    const style = document.createElement('style');
+                    style.id = 'catnip-animations';
+                    style.textContent = `
+                        @keyframes catnipPulse {
+                            from { transform: scale(1); opacity: 1; }
+                            to { transform: scale(1.1); opacity: 0.8; }
+                        }
+                    `;
+                    document.head.appendChild(style);
+                }
+            }
+            catnipUI.style.display = 'block';
+        }
+
+        function updateCatnipModeUI(timeRemaining) {
+            const catnipUI = document.getElementById('catnip-mode-ui');
+            if (catnipUI) {
+                const timer = catnipUI.querySelector('.catnip-mode-timer');
+                if (timer) {
+                    timer.textContent = (timeRemaining / 1000).toFixed(1) + 's';
+                }
+            }
+        }
+
+        function hideCatnipModeUI() {
+            const catnipUI = document.getElementById('catnip-mode-ui');
+            if (catnipUI) {
+                catnipUI.style.display = 'none';
+            }
+        }
+
+        function showScorePopup(text, type) {
+            const popup = document.createElement('div');
+            const { width } = getCatDimensions();
+            popup.className = `score-popup fish-${type}`;
+            popup.textContent = text;
+            popup.style.left = `${catX + width / 2}px`;
+            popup.style.top = `${catY}px`;
+
+            domElements.gameContainer.appendChild(popup);
+
+            setTimeout(() => {
+                popup.remove();
+            }, 1500);
+        }
+
+        function activateCatnipMode(catnip) {
+            const duration = catnip?.duration || gameState.catnipModeDuration;
+            gameState.catnipModeActive = true;
+            gameState.catnipModeEndTime = performance.now() + duration;
+            clampCatPosition();
+
+            mediaPlayerInstance.startCatnipMusic();
+
+            gameState.score += 50;
+            if (domElements.scoreElement) {
+                domElements.scoreElement.textContent = gameState.score;
+            }
+
+            gameState.catHealth = 100;
+            if (domElements.healthBarFill && domElements.healthText) {
+                domElements.healthBarFill.style.width = '100%';
+                domElements.healthText.textContent = '100%';
+            }
+
+            showScorePopup('CATNIP!', 'catnip');
+            showCatnipModeUI();
+        }
+
+        function endCatnipMode() {
+            const wasActive = gameState.catnipModeActive;
+            gameState.catnipModeActive = false;
+            gameState.catnipModeEndTime = 0;
+            clampCatPosition();
+            hideCatnipModeUI();
+
+            if (wasActive) {
+                mediaPlayerInstance.stopCatnipMusic();
+            }
+        }
+
+        function drawCatnipEffect(ctx, canvasWidth, canvasHeight, timestamp) {
+            ctx.save();
+
+            const pulse = Math.sin(timestamp / 200) * 0.5 + 0.5;
+            const gradient = ctx.createLinearGradient(0, 0, canvasWidth, canvasHeight);
+            gradient.addColorStop(0, `rgba(255, 107, 107, ${0.12 + pulse * 0.08})`);
+            gradient.addColorStop(0.33, `rgba(78, 205, 196, ${0.12 + pulse * 0.08})`);
+            gradient.addColorStop(0.66, `rgba(255, 217, 61, ${0.12 + pulse * 0.08})`);
+            gradient.addColorStop(1, `rgba(0, 255, 0, ${0.08 + pulse * 0.08})`);
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+
+            // Sparkle particles
+            const sparkleCount = 8;
+            const { width, height } = getCatDimensions();
+            for (let i = 0; i < sparkleCount; i++) {
+                const angle = (timestamp / 1000 + i * (Math.PI * 2 / sparkleCount)) % (Math.PI * 2);
+                const radius = 50 + Math.sin(timestamp / 500 + i) * 20;
+                const x = catX + width / 2 + Math.cos(angle) * radius;
+                const y = catY + height / 2 + Math.sin(angle) * radius;
+                const size = 3 + Math.sin(timestamp / 300 + i * 2) * 2;
+
+                ctx.beginPath();
+                ctx.arc(x, y, size, 0, Math.PI * 2);
+                ctx.fillStyle = `hsla(${120 + i * 10}, 100%, 60%, ${0.6 + pulse * 0.4})`;
+                ctx.fill();
+            }
+            ctx.restore();
         }
 
         function updateGameObjects(deltaTime) {
@@ -332,23 +514,30 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             // Spawn new objects
             const currentTime = performance.now();
-            if (currentTime - lastSpawnTime > SPAWN_INTERVAL) {
-                // Random spawn position at the right edge
-                const y = Math.random() * (domElements.canvas.height * 0.8);
-                
+            // Faster spawning during catnip mode (10x faster!)
+            const spawnInterval = gameState.catnipModeActive ? SPAWN_INTERVAL / 10 : SPAWN_INTERVAL;
+
+            if (currentTime - lastSpawnTime > spawnInterval) {
                 // Choose object type based on weights
-                const rand = Math.random();
-                let sum = 0;
-                let chosenType = SPAWN_TYPES[0];
-                
-                for (let i = 0; i < SPAWN_WEIGHTS.length; i++) {
-                    sum += SPAWN_WEIGHTS[i];
-                    if (rand < sum) {
-                        chosenType = SPAWN_TYPES[i];
-                        break;
+                // During catnip mode, spawn mostly fish (90% fish, 10% mouse, no catnip)
+                let chosenType;
+                if (gameState.catnipModeActive) {
+                    const rand = Math.random();
+                    chosenType = rand < 0.9 ? 'fish' : 'mouse';
+                } else {
+                    const rand = Math.random();
+                    let sum = 0;
+                    chosenType = SPAWN_TYPES[0];
+
+                    for (let i = 0; i < SPAWN_WEIGHTS.length; i++) {
+                        sum += SPAWN_WEIGHTS[i];
+                        if (rand < sum) {
+                            chosenType = SPAWN_TYPES[i];
+                            break;
+                        }
                     }
                 }
-                
+
                 const newObject = spawnGameObject(domElements.canvas, gameAssets, chosenType);
                 if (newObject) {
                     gameObjects.push(newObject);
@@ -358,11 +547,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         function checkCollisions() {
+            const { width: catWidth, height: catHeight } = getCatDimensions();
             const catHitbox = {
-                left: catX + CAT_WIDTH * CAT_SCALE * 0.2,
-                right: catX + CAT_WIDTH * CAT_SCALE * 0.8,
-                top: catY + CAT_HEIGHT * CAT_SCALE * 0.2,
-                bottom: catY + CAT_HEIGHT * CAT_SCALE * 0.8
+                left: catX + catWidth * 0.2,
+                right: catX + catWidth * 0.8,
+                top: catY + catHeight * 0.2,
+                bottom: catY + catHeight * 0.8
             };
 
             // Iterate in reverse to safely remove items during iteration
@@ -375,29 +565,33 @@ document.addEventListener('DOMContentLoaded', async () => {
                     catHitbox.bottom - catHitbox.top
                 )) {
                     // Handle collision based on object type
+                    // Apply score multiplier if catnip mode is active
+                    const scoreMultiplier = gameState.catnipModeActive ? gameState.catnipScoreMultiplier : 1;
+
                     if (obj instanceof Fish) {
-                        gameState.score += obj.points;
+                        const points = obj.points * scoreMultiplier;
+                        gameState.score += points;
                         if (domElements.scoreElement) {
                             domElements.scoreElement.textContent = gameState.score;
                         }
                         mediaPlayerInstance.playNextFishCatchSound();
 
-                        // Update health
-                        gameState.catHealth = Math.min(100, gameState.catHealth + obj.healthBoost);
+                        // Update health (extra boost during catnip mode)
+                        const healthBoost = gameState.catnipModeActive ? obj.healthBoost * 1.5 : obj.healthBoost;
+                        gameState.catHealth = Math.min(100, gameState.catHealth + healthBoost);
                         if (domElements.healthBarFill && domElements.healthText) {
                             domElements.healthBarFill.style.width = `${gameState.catHealth}%`;
                             domElements.healthText.textContent = `${Math.round(gameState.catHealth)}%`;
                         }
                     } else if (obj instanceof Mouse) {
-                        gameState.score += 150;
+                        const points = 150 * scoreMultiplier;
+                        gameState.score += points;
                         if (domElements.scoreElement) {
                             domElements.scoreElement.textContent = gameState.score;
                         }
                         obj.startSpinning(); // Start the mouse spinning animation
                     } else if (obj instanceof Catnip) {
-                        mediaPlayerInstance.playCatnipSound();
-                        mediaPlayerInstance.startCatnipMusic();
-                        // Add any catnip power-up effects here
+                        activateCatnipMode(obj);
                     }
 
                     // Remove collected object if it's not a spinning mouse
@@ -414,10 +608,12 @@ document.addEventListener('DOMContentLoaded', async () => {
             gameState.isGameRunning = true;
             gameState.gameLoopRunning = true;
             gameState.lastTime = performance.now();
+            endCatnipMode();
             
             // Initialize cat position
-            catX = domElements.canvas.width / 2 - (CAT_WIDTH * CAT_SCALE) / 2;
-            catY = domElements.canvas.height * 0.6 - (CAT_HEIGHT * CAT_SCALE) / 2;
+            const { width: catWidth, height: catHeight } = getCatDimensions();
+            catX = domElements.canvas.width / 2 - catWidth / 2;
+            catY = domElements.canvas.height * 0.6 - catHeight / 2;
             
             // Show game UI
             if (domElements.gameContainer) {
@@ -439,6 +635,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             // Reset game state
             gameState.score = 0;
             gameState.catHealth = 100;
+
             if (domElements.scoreElement) {
                 domElements.scoreElement.textContent = '0';
             }
@@ -498,7 +695,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 checkCollisions();
 
                 // Trick zone logic
-                const scaledHeight = CAT_HEIGHT * CAT_SCALE;
+                const { height: scaledHeight } = getCatDimensions();
                 const inTrickZone = isInTrickZone(catY, scaledHeight, domElements.canvas);
 
                 if (inTrickZone) {
@@ -529,9 +726,25 @@ document.addEventListener('DOMContentLoaded', async () => {
                     keys['Space'] = false;
                 }
 
+                // Catnip mode timing
+                if (gameState.catnipModeActive) {
+                    const timeRemaining = gameState.catnipModeEndTime - timestamp;
+                    if (timeRemaining <= 0) {
+                        // Catnip mode ended
+                        endCatnipMode();
+                    } else {
+                        // Update catnip mode UI with remaining time
+                        updateCatnipModeUI(timeRemaining);
+                    }
+                }
+
                 // Draw game state
                 drawCat();
                 gameObjects.forEach(obj => obj.draw(ctx));
+
+                if (gameState.catnipModeActive) {
+                    drawCatnipEffect(ctx, domElements.canvas.width, domElements.canvas.height, timestamp);
+                }
             }
 
             if (gameState.isGameRunning) {
